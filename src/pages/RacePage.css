@@ -1,3 +1,115 @@
+/* ── Live ───────────────────────────────────────────────────── */
+.race-hero-status--live {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  background: rgba(230,0,0,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(230,0,0,0.3);
+}
+
+.live-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-badge 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.live-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  background: rgba(230,0,0,0.08);
+  border: 1px solid rgba(230,0,0,0.25);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.live-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.live-update-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-family: var(--font-body);
+}
+
+.live-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all var(--transition);
+}
+.live-refresh-btn:hover:not(:disabled) { background: rgba(230,0,0,0.15); }
+.live-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.race-pos--live {
+  animation: pulse-badge 2s ease-in-out infinite;
+  border-color: var(--accent) !important;
+}
+
+.race-player-card--leading {
+  border-color: rgba(255,215,0,0.4);
+}
+
+.race-rank-badge {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.race-rank-1 { background: rgba(255,215,0,0.15); color: #FFD700; border-color: rgba(255,215,0,0.3); }
+.race-rank-2 { background: rgba(192,192,192,0.15); color: #C0C0C0; border-color: rgba(192,192,192,0.3); }
+.race-rank-3 { background: rgba(205,127,50,0.15); color: #CD7F32; border-color: rgba(205,127,50,0.3); }
+
 /* ── Back link ──────────────────────────────────────────────── */
 .race-back {
   display: inline-flex;
