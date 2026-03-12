@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
-import { Car, Users, Check, X, ChevronRight } from 'lucide-react'
+import { useDraftNotifications } from '../hooks/useDraftNotifications'
+import { Car, Users, Check, X, ChevronRight, Bell, BellOff } from 'lucide-react'
 import './DraftPage.css'
 
 // ── Drag & Drop Pick Item ────────────────────────────────────
@@ -184,6 +185,20 @@ export default function DraftPage() {
   const canPickDriver = myPickCount.drivers < 4
   const canPickTeam = myPickCount.constructors < 2
 
+  // Notification Permission State
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  )
+
+  async function requestNotifPermission() {
+    if (!('Notification' in window)) return
+    const result = await Notification.requestPermission()
+    setNotifPermission(result)
+  }
+
+  // Ton + Browser-Notification wenn man dran ist
+  useDraftNotifications({ isMyTurn, isDraftComplete, myName: profile?.display_name })
+
   function handleDragStart(data) {
     dragItem.current = data
   }
@@ -268,12 +283,23 @@ export default function DraftPage() {
 
           {/* Status Banner */}
           <div className={`draft-status ${isDraftComplete ? 'draft-status--done' : isMyTurn ? 'draft-status--myturn' : 'draft-status--waiting'}`}>
-            {isDraftComplete
-              ? '✅ Draft abgeschlossen – alle Picks sind gemacht!'
-              : isMyTurn
-                ? `⚡ Du bist dran! Wähle einen Fahrer oder ein Team (${myPickCount.drivers}/4 Fahrer, ${myPickCount.constructors}/2 Teams)`
-                : `⏳ ${currentTurn?.profiles?.display_name ?? '…'} ist am Zug`
-            }
+            <span>
+              {isDraftComplete
+                ? '✅ Draft abgeschlossen – alle Picks sind gemacht!'
+                : isMyTurn
+                  ? `⚡ Du bist dran! Wähle einen Fahrer oder ein Team (${myPickCount.drivers}/4 Fahrer, ${myPickCount.constructors}/2 Teams)`
+                  : `⏳ ${currentTurn?.profiles?.display_name ?? '…'} ist am Zug`
+              }
+            </span>
+            {'Notification' in window && notifPermission !== 'granted' && notifPermission !== 'denied' && (
+              <button className="draft-notif-btn" onClick={requestNotifPermission}>
+                <Bell size={12} /> Benachrichtigungen
+              </button>
+            )}
+            {'Notification' in window && notifPermission === 'default' || notifPermission === 'granted' ? null : null}
+            {notifPermission === 'granted' && (
+              <span className="draft-notif-on"><Bell size={12} /> Benachrichtigungen an</span>
+            )}
           </div>
 
           <div className="draft-main">

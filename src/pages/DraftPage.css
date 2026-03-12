@@ -242,3 +242,41 @@
 @media (max-width: 400px) {
   .draft-zones { grid-template-columns: 1fr; }
 }
+
+/* ── Notifications ──────────────────────────────────────────── */
+.draft-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.draft-notif-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius);
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+.draft-notif-btn:hover { background: rgba(255,255,255,0.25); }
+
+.draft-notif-on {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  white-space: nowrap;
+}
