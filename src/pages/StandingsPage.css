@@ -1,0 +1,261 @@
+.standings-page h1 { margin-bottom: 0; }
+
+/* ── Podium ─────────────────────────────────────────────────── */
+.standings-podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+  height: 180px;
+}
+
+.podium-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 140px;
+}
+
+.podium-crown {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.podium-avatar {
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.podium-avatar-1 {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-color: #FFD700;
+  font-size: 1.3rem;
+}
+
+.podium-name {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+}
+
+.podium-pts {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+
+.podium-block {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.podium-block-1 {
+  height: 80px;
+  background: linear-gradient(180deg, rgba(255,215,0,0.2), rgba(255,215,0,0.08));
+  border: 1px solid rgba(255,215,0,0.3);
+  border-bottom: none;
+  color: #FFD700;
+}
+.podium-block-2 {
+  height: 55px;
+  background: linear-gradient(180deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05));
+  border: 1px solid rgba(192,192,192,0.2);
+  border-bottom: none;
+  color: #C0C0C0;
+}
+.podium-block-3 {
+  height: 40px;
+  background: linear-gradient(180deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05));
+  border: 1px solid rgba(205,127,50,0.2);
+  border-bottom: none;
+  color: #CD7F32;
+}
+
+/* ── Table ──────────────────────────────────────────────────── */
+.standings-table-wrap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.standings-table thead tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.standings-table th {
+  padding: 0.7rem 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.standings-table th:first-child { width: 3rem; }
+.standings-table th:last-child { width: 2.5rem; }
+
+.standings-row {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.standings-row:hover { background: var(--bg-elevated); }
+.standings-row--me { background: var(--accent-dim) !important; }
+.standings-row--expanded { background: var(--bg-elevated); }
+.standings-row:last-child { border-bottom: none; }
+
+.standings-table td {
+  padding: 0.7rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.standings-player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.standings-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.standings-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.standings-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.standings-pts-cell {
+  font-family: var(--font-display);
+  font-size: 1.1rem !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+}
+
+.standings-expand-btn {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* ── Detail row ─────────────────────────────────────────────── */
+.standings-detail-row td {
+  padding: 0.75rem !important;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.standings-race-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.standings-race-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  min-width: 3.5rem;
+  position: relative;
+}
+
+.standings-race-win {
+  border-color: rgba(255,215,0,0.4);
+  background: rgba(255,215,0,0.06);
+}
+
+.standings-race-flag { font-size: 1rem; }
+.standings-race-city {
+  font-size: 0.6rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.standings-race-pts {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.standings-race-trophy {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  font-size: 0.75rem;
+}
+
+/* ── Tiebreaker ─────────────────────────────────────────────── */
+.standings-tiebreaker {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .standings-podium { height: 150px; }
+  .podium-block-1 { height: 60px; }
+  .podium-block-2 { height: 42px; }
+  .podium-block-3 { height: 30px; }
+  .standings-table th:nth-child(5),
+  .standings-table td:nth-child(5),
+  .standings-table th:nth-child(6),
+  .standings-table td:nth-child(6) { display: none; }
+}

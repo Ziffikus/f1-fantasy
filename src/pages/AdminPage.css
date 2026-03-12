@@ -1,0 +1,304 @@
+.admin-page h1 { margin-bottom: 0; }
+
+.admin-page-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-top-bar {
+  margin-bottom: 1rem;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
+.admin-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.admin-tab {
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  margin-bottom: -1px;
+}
+.admin-tab:hover { color: var(--text-primary); }
+.admin-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Panel ──────────────────────────────────────────────────── */
+.admin-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-panel-header h3 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-sub-header {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+/* ── Order List ─────────────────────────────────────────────── */
+.admin-auto-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+
+.admin-drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1rem;
+  padding: 0 0.2rem;
+  user-select: none;
+}
+.admin-drag-handle:active { cursor: grabbing; }
+
+.admin-order-item--dragging {
+  opacity: 0.4;
+}
+
+.admin-order-item--dragover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.admin-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.admin-order-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.admin-order-pos {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 1.5rem;
+}
+
+.admin-order-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+.admin-order-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.admin-order-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-order-btns {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.admin-arrow-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.admin-arrow-btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.admin-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Profile Tabs ───────────────────────────────────────────── */
+.admin-profile-tabs {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-profile-tab {
+  padding: 0.4rem 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.admin-profile-tab:hover { color: var(--text-primary); }
+.admin-profile-tab--active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Picks Content ──────────────────────────────────────────── */
+.admin-picks-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.admin-current-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.admin-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.admin-pick-type {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  min-width: 1.5rem;
+}
+
+.admin-pick-value {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.admin-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: 4px;
+  transition: color var(--transition);
+}
+.admin-delete-btn:hover { color: var(--accent); }
+
+/* ── Results ────────────────────────────────────────────────── */
+.admin-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.admin-results-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.admin-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-result-driver {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.admin-pos-input {
+  width: 4rem;
+  text-align: center;
+  padding: 0.35rem 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .admin-picks-content { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,166 @@
+.calendar-page h1 { margin-bottom: 0; }
+
+.cal-section { margin-bottom: 2rem; }
+
+.cal-section-title {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  padding-left: 0.25rem;
+}
+
+.cal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+.cal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+.cal-card:hover { border-color: rgba(255,255,255,0.15); }
+.cal-card--past { opacity: 0.6; }
+.cal-card--next {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.cal-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.cal-round {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  min-width: 2rem;
+}
+
+.cal-flag { font-size: 1.4rem; line-height: 1; }
+
+.cal-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cal-race-name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-location {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cal-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.cal-race-date {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.cal-chevron {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+/* ── Sessions (expanded) ────────────────────────────────────── */
+.cal-sessions {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: 0.75rem 1rem;
+  animation: fadeUp 0.15s ease both;
+}
+
+.cal-sessions-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.cal-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cal-session-label {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  min-width: 120px;
+}
+
+.cal-session-time {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.cal-sessions-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.cal-circuit {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .cal-race-name { font-size: 0.82rem; }
+  .cal-session-row { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+  .cal-session-time { text-align: left; }
+}

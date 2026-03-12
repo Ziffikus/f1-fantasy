@@ -1,0 +1,324 @@
+/* ── Back link ──────────────────────────────────────────────── */
+.race-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-bottom: 1.25rem;
+  transition: color var(--transition);
+}
+.race-back:hover { color: var(--accent); }
+
+/* ── Hero ───────────────────────────────────────────────────── */
+.race-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.race-hero-flag {
+  font-size: 3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.race-hero-info { flex: 1; }
+
+.race-hero-round {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.race-hero-title {
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  margin-bottom: 0.4rem;
+}
+
+.race-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.race-hero-status {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.race-hero-status--done {
+  background: rgba(34,197,94,0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,0.3);
+}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
+.race-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.race-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  margin-bottom: -1px;
+}
+.race-tab:hover { color: var(--text-primary); }
+.race-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Picks Grid ─────────────────────────────────────────────── */
+.race-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+/* ── Player Card ────────────────────────────────────────────── */
+.race-player-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.race-player-card--me {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.race-player-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.race-player-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.race-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.race-player-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.race-player-total {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* ── Pick Rows ──────────────────────────────────────────────── */
+.race-picks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.race-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.race-pick-row--team {
+  border-style: dashed;
+}
+
+.race-pick-label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  min-width: 1.4rem;
+}
+
+.race-pick-color {
+  width: 3px;
+  height: 1.4rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.race-pick-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.race-pick-name {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race-pick-team {
+  font-size: 0.68rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.race-pick-results {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+/* ── Position Badge ─────────────────────────────────────────── */
+.race-pos {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.race-pos--1 { background: rgba(255,215,0,0.15); color: #FFD700; border-color: rgba(255,215,0,0.3); }
+.race-pos--2 { background: rgba(192,192,192,0.15); color: #C0C0C0; border-color: rgba(192,192,192,0.3); }
+.race-pos--3 { background: rgba(205,127,50,0.15); color: #CD7F32; border-color: rgba(205,127,50,0.3); }
+
+.race-pos-unknown {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.race-sprint-pts {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #FF8800;
+  background: rgba(255,136,0,0.1);
+  border: 1px solid rgba(255,136,0,0.2);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+}
+
+/* ── Sessions ───────────────────────────────────────────────── */
+.race-sessions-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 500px;
+}
+
+.race-session-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.race-session-row:last-child { border-bottom: none; }
+.race-session-row--past { opacity: 0.5; }
+
+.race-session-label {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  min-width: 130px;
+}
+
+.race-session-time {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.race-session-done {
+  color: #22c55e;
+  font-size: 0.8rem;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .race-hero { flex-wrap: wrap; }
+  .race-picks-grid { grid-template-columns: 1fr; }
+}

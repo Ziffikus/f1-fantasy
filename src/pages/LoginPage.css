@@ -1,0 +1,216 @@
+/* ── Login Root ─────────────────────────────────────────────── */
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+/* ── Animated Background ────────────────────────────────────── */
+.login-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--bg-primary);
+}
+
+.login-bg-stripe {
+  position: absolute;
+  top: 0;
+  left: -10%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    var(--accent) 0%,
+    rgba(232, 0, 45, 0.6) 30%,
+    transparent 70%
+  );
+  clip-path: polygon(0 0, 100% 0, 75% 100%, 0 100%);
+  opacity: 0.07;
+}
+
+.login-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.login-bg-glow {
+  position: absolute;
+  bottom: -20%;
+  right: -10%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(232,0,45,0.12) 0%, transparent 70%);
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem 2rem;
+  animation: fadeUp 0.4s ease both;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(232,0,45,0.1);
+}
+
+/* ── Header / Logo ──────────────────────────────────────────── */
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.login-logo-f1 {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.login-logo-sep {
+  width: 3px;
+  height: 2.8rem;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.login-logo-tbe {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.login-season {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ── Form ───────────────────────────────────────────────────── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.login-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.login-input {
+  font-size: 1rem;
+}
+
+.login-error {
+  background: rgba(232,0,45,0.1);
+  border: 1px solid rgba(232,0,45,0.3);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.login-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 0.8rem;
+  font-size: 1rem;
+}
+
+/* ── Hint ───────────────────────────────────────────────────── */
+.login-hint {
+  margin-top: 1.2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.login-hint code {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+/* ── Decorative lap counter ─────────────────────────────────── */
+.login-deco {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.login-deco-num {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Light mode anpassungen */
+[data-theme="light"] .login-bg-grid {
+  background-image:
+    linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+}
+
+[data-theme="light"] .login-bg-glow {
+  background: radial-gradient(ellipse, rgba(232,0,45,0.06) 0%, transparent 70%);
+}

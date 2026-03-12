@@ -1,0 +1,212 @@
+.dashboard-hero {
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-hello {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+}
+
+.dashboard-progress-bar {
+  margin-top: 0.75rem;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  max-width: 300px;
+}
+
+.dashboard-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+
+/* ── Grid ───────────────────────────────────────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboard-col-main { display: flex; flex-direction: column; gap: 1rem; }
+.dashboard-col-side  { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ── Section header ─────────────────────────────────────────── */
+.dashboard-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dashboard-more-link {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.dashboard-more-link:hover { color: var(--accent-hover); }
+
+/* ── Race list ──────────────────────────────────────────────── */
+.dashboard-race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dashboard-race-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background var(--transition);
+}
+.dashboard-race-item:hover { background: var(--bg-elevated); }
+
+.dashboard-race-flag { font-size: 1.3rem; line-height: 1; }
+
+.dashboard-race-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dashboard-race-name {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dashboard-race-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dashboard-race-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dashboard-race-round {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* ── Standings ──────────────────────────────────────────────── */
+.dashboard-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.dashboard-standing-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.4rem;
+  border-radius: var(--radius);
+  transition: background var(--transition);
+}
+.dashboard-standing-row:hover { background: var(--bg-elevated); }
+.dashboard-standing-row--me {
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+}
+
+.dashboard-standing-avatar {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dashboard-standing-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.dashboard-standing-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-you { color: var(--accent); font-size: 0.75rem; }
+
+.dashboard-standing-pts {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* ── Quick Links ────────────────────────────────────────────── */
+.dashboard-quick-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.dashboard-quick-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all var(--transition);
+}
+.dashboard-quick-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-col-side {
+    order: -1;
+  }
+}
