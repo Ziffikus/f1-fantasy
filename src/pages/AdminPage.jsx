@@ -274,28 +274,34 @@ function ResultsPanel({ raceWeekendId }) {
 
   async function handleSave() {
     setSaving(true)
-    // Lösche alte Ergebnisse
-    await supabase.from('race_results').delete().eq('race_weekend_id', raceWeekendId)
+    try {
+      // Lösche alte Ergebnisse
+      const { error: delError } = await supabase.from('race_results').delete().eq('race_weekend_id', raceWeekendId)
+      if (delError) throw delError
 
-    const inserts = []
-    for (const [driverId, pos] of Object.entries(results)) {
-      if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'race', position: Number(pos), is_manual_override: true })
-    }
-    if (weekend?.is_sprint_weekend) {
-      for (const [driverId, pos] of Object.entries(sprintResults)) {
-        if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'sprint', position: Number(pos), is_manual_override: true })
+      const inserts = []
+      for (const [driverId, pos] of Object.entries(results)) {
+        if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'race', position: Number(pos), is_manual_override: true })
       }
-    }
-    if (inserts.length > 0) {
-      const { error } = await supabase.from('race_results').insert(inserts)
-      if (error) { alert('Fehler: ' + error.message); setSaving(false); return }
-    }
+      if (weekend?.is_sprint_weekend) {
+        for (const [driverId, pos] of Object.entries(sprintResults)) {
+          if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'sprint', position: Number(pos), is_manual_override: true })
+        }
+      }
+      if (inserts.length > 0) {
+        const { error: insError } = await supabase.from('race_results').insert(inserts)
+        if (insError) throw insError
+      }
 
-    // Punkte berechnen und speichern
-    await calculateAndSavePoints(raceWeekendId, results, sprintResults, weekend)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-    setSaving(false)
+      // Punkte berechnen und speichern
+      await calculateAndSavePoints(raceWeekendId, results, sprintResults, weekend)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      alert('Fehler beim Speichern: ' + (err.message ?? JSON.stringify(err)))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -358,10 +364,21 @@ function ResultsPanel({ raceWeekendId }) {
 
 // Punkte berechnen helper
 async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults, weekend) {
-  const { data: picks } = await supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId)
-  const { data: allDrivers } = await supabase.from('drivers').select('*, constructors(id)')
+  const [
+    { data: picks },
+    { data: season },
+    { data: profiles },
+  ] = await Promise.all([
+    supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId),
+    supabase.from('seasons').select('id').eq('is_active', true).single(),
+    supabase.from('profiles').select('id'),
+  ])
 
-  const { data: profiles } = await supabase.from('profiles').select('id')
+  if (!season) throw new Error('Keine aktive Saison gefunden')
+
+  const { data: allDrivers } = await supabase
+    .from('drivers').select('id, constructor_id').eq('season_id', season.id)
+
   const pointsToUpsert = []
 
   for (const profile of (profiles ?? [])) {
@@ -370,16 +387,20 @@ async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults,
 
     for (const pick of playerPicks) {
       if (pick.pick_type === 'driver') {
-        racePoints += Number(raceResults[pick.driver_id]) || 22
+        const pos = Number(raceResults[pick.driver_id])
+        racePoints += pos > 0 ? pos : 22
         if (weekend?.is_sprint_weekend) {
-          sprintPoints += Math.ceil((Number(sprintResults[pick.driver_id]) || 22) / 2)
+          const spos = Number(sprintResults[pick.driver_id])
+          sprintPoints += Math.ceil((spos > 0 ? spos : 22) / 2)
         }
       } else if (pick.pick_type === 'constructor') {
         const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
         for (const td of teamDrivers) {
-          racePoints += Number(raceResults[td.id]) || 22
+          const pos = Number(raceResults[td.id])
+          racePoints += pos > 0 ? pos : 22
           if (weekend?.is_sprint_weekend) {
-            sprintPoints += Math.ceil((Number(sprintResults[td.id]) || 22) / 2)
+            const spos = Number(sprintResults[td.id])
+            sprintPoints += Math.ceil((spos > 0 ? spos : 22) / 2)
           }
         }
       }
@@ -394,11 +415,14 @@ async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults,
     })
   }
 
-  // Weekend Rang berechnen
+  // Weekend Rang berechnen (wenigste Punkte = Rang 1)
   pointsToUpsert.sort((a, b) => a.total_points - b.total_points)
   pointsToUpsert.forEach((p, i) => { p.weekend_rank = i + 1 })
 
-  await supabase.from('player_race_points').upsert(pointsToUpsert, { onConflict: 'race_weekend_id,profile_id' })
+  const { error } = await supabase
+    .from('player_race_points')
+    .upsert(pointsToUpsert, { onConflict: 'race_weekend_id,profile_id' })
+  if (error) throw error
 }
 
 // ── Main Admin Page ──────────────────────────────────────────
