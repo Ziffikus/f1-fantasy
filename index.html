@@ -13,6 +13,17 @@
       href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // GitHub Pages SPA redirect
+      (function() {
+        var p = window.location.search.match(/[?&]p=([^&]*)/);
+        if (p) {
+          var path = decodeURIComponent(p[1]);
+          var h = window.location.search.match(/[?&]h=([^&]*)/);
+          window.history.replaceState(null, null, '/f1-fantasy' + path + (h ? decodeURIComponent(h[1]) : ''));
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

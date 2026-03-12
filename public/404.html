@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      var redirect = window.location.origin + '/f1-fantasy/' + '?p=' + encodeURIComponent(path.replace('/f1-fantasy', '') + search) + (hash ? '&h=' + encodeURIComponent(hash) : '');
+      window.location.replace(redirect);
+    </script>
+  </head>
+</html>
