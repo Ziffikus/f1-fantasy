@@ -164,3 +164,11 @@
   .cal-session-row { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
   .cal-session-time { text-align: left; }
 }
+
+.cal-sessions-track {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+  opacity: 0.7;
+}

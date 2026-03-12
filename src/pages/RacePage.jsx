@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { useLiveRace, mapLivePositionsToDriverIds } from '../hooks/useLiveRace'
+import TrackMap from '../components/ui/TrackMap'
 import { ArrowLeft, Trophy, Zap, Flag, Clock, RefreshCw } from 'lucide-react'
 import './RacePage.css'
 
@@ -174,6 +175,7 @@ export default function RacePage() {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
+          <TrackMap round={weekend.round} size="lg" />
           {isLive && (
             <div className="race-hero-status race-hero-status--live">
               <span className="live-dot" /> LIVE · {sessionType === 'sprint' ? 'Sprint' : 'Rennen'}

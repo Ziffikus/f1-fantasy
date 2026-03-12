@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
+import TrackMap from '../components/ui/TrackMap'
 import { MapPin, Clock } from 'lucide-react'
 import './CalendarPage.css'
 
@@ -79,6 +80,9 @@ export default function CalendarPage() {
               )}
               <SessionRow label="Qualifying" dateStr={w.qualifying_start} />
               <SessionRow label="Rennen 🏁" dateStr={w.race_start} />
+            </div>
+            <div className="cal-sessions-track">
+              <TrackMap round={w.round} size="md" />
             </div>
             <div className="cal-sessions-footer">
               <span className="cal-circuit">

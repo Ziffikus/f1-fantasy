@@ -1,0 +1,24 @@
+.track-map {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Größen */
+.track-map--sm  { width: 60px;  height: 60px;  }
+.track-map--md  { width: 120px; height: 120px; }
+.track-map--lg  { width: 200px; height: 200px; }
+.track-map--xl  { width: 280px; height: 280px; }
+
+.track-map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* SVG ist weiß – im Dark Mode direkt nutzbar, im Light Mode invertieren */
+  filter: invert(0) opacity(0.85);
+}
+
+[data-theme="light"] .track-map-img {
+  filter: invert(1) opacity(0.75);
+}
