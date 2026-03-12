@@ -170,7 +170,7 @@ export default function DraftPage() {
 
   const {
     draftOrder, picks, drivers, constructors,
-    pickedDriverIds, loading,
+    pickedDriverIds, pickedConstructorIds, loading,
     getPlayerPicks, getPlayerPickCount,
     currentTurn, isMyTurn, isDraftComplete,
     makePick,
@@ -193,6 +193,7 @@ export default function DraftPage() {
     const { item, type } = dragItem.current
     if (type === 'driver' && pickedDriverIds.includes(item.id)) return
     if (type === 'driver' && !canPickDriver) return
+    if (type === 'constructor' && pickedConstructorIds.includes(item.id)) return
     if (type === 'constructor' && !canPickTeam) return
     setPendingPick(dragItem.current)
     dragItem.current = null
@@ -203,6 +204,7 @@ export default function DraftPage() {
     const { item, type } = data
     if (type === 'driver' && pickedDriverIds.includes(item.id)) return
     if (type === 'driver' && !canPickDriver) return
+    if (type === 'constructor' && pickedConstructorIds.includes(item.id)) return
     if (type === 'constructor' && !canPickTeam) return
     setPendingPick(prev => prev?.item.id === item.id && prev?.type === type ? null : data)
   }
@@ -338,7 +340,7 @@ export default function DraftPage() {
                       key={c.id}
                       item={c}
                       type="constructor"
-                      isPicked={false}
+                      isPicked={pickedConstructorIds.includes(c.id)}
                       canPick={canPickTeam}
                       selected={pendingPick}
                       onSelect={handleSelect}

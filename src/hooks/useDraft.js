@@ -91,6 +91,7 @@ export function useDraft(raceWeekendId) {
   }
 
   const pickedDriverIds = picks.filter(p => p.pick_type === 'driver').map(p => p.driver_id)
+  const pickedConstructorIds = picks.filter(p => p.pick_type === 'constructor').map(p => p.constructor_id)
 
   async function makePick(type, entityId) {
     if (!isMyTurn) return { error: 'Du bist nicht dran!' }
@@ -134,7 +135,7 @@ export function useDraft(raceWeekendId) {
 
   return {
     draftOrder, picks, drivers, constructors,
-    pickedDriverIds, loading,
+    pickedDriverIds, pickedConstructorIds, loading,
     getPlayerPicks, getPlayerPickCount,
     currentTurn, isMyTurn, isDraftComplete,
     makePick, adminMakePick, adminDeletePick,

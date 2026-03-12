@@ -117,7 +117,7 @@ function DraftOrderPanel({ raceWeekendId }) {
 function AdminPicksPanel({ raceWeekendId, profiles }) {
   const {
     draftOrder, drivers, constructors, picks,
-    pickedDriverIds, loading,
+    pickedDriverIds, pickedConstructorIds, loading,
     getPlayerPicks, getPlayerPickCount,
     adminMakePick, adminDeletePick,
   } = useDraft(raceWeekendId)
@@ -221,19 +221,23 @@ function AdminPicksPanel({ raceWeekendId, profiles }) {
                   </button>
                 )
               })}
-              {tab === 'constructor' && constructors.map(c => (
-                <button
-                  key={c.id}
-                  className="pick-item"
-                  disabled={pickCount.constructors >= 2}
-                  onClick={() => handlePick('constructor', c.id)}
-                >
-                  <div className="pick-item-team-color" style={{ background: c.color }} />
-                  <div className="pick-item-info">
-                    <span className="pick-item-name">{c.name}</span>
-                  </div>
-                </button>
-              ))}
+              {tab === 'constructor' && constructors.map(c => {
+                const isPicked = pickedConstructorIds.includes(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    className={`pick-item ${isPicked ? 'pick-item--taken' : ''}`}
+                    disabled={isPicked || pickCount.constructors >= 2}
+                    onClick={() => handlePick('constructor', c.id)}
+                  >
+                    <div className="pick-item-team-color" style={{ background: c.color }} />
+                    <div className="pick-item-info">
+                      <span className="pick-item-name">{c.name}</span>
+                    </div>
+                    {isPicked && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>vergeben</span>}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
