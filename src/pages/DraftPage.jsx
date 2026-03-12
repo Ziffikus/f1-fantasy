@@ -3,11 +3,12 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
 import { useDraftNotifications } from '../hooks/useDraftNotifications'
-import { Car, Users, Check, X, ChevronRight, Bell, BellOff } from 'lucide-react'
+import DriverModal from '../components/ui/DriverModal'
+import { Car, Users, Check, X, ChevronRight, Bell, Info } from 'lucide-react'
 import './DraftPage.css'
 
 // ── Drag & Drop Pick Item ────────────────────────────────────
-function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, onDragStart }) {
+function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, onDragStart, onInfo }) {
   const isSelected = selected?.id === item.id && selected?.type === type
 
   return (
@@ -26,6 +27,13 @@ function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, 
               {item.constructors?.short_name}
             </span>
           </div>
+          <button
+            className="pick-item-info-btn"
+            onClick={e => { e.stopPropagation(); onInfo?.(item) }}
+            title="Fahrer-Details"
+          >
+            <Info size={12} />
+          </button>
         </>
       ) : (
         <>
@@ -160,6 +168,7 @@ export default function DraftPage() {
   const [tab, setTab] = useState('driver')
   const [search, setSearch] = useState('')
   const [pendingPick, setPendingPick] = useState(null)
+  const [driverModalDriver, setDriverModalDriver] = useState(null)
   const dragItem = useRef(null)
 
   useEffect(() => {
@@ -359,6 +368,7 @@ export default function DraftPage() {
                       selected={pendingPick}
                       onSelect={handleSelect}
                       onDragStart={handleDragStart}
+                      onInfo={setDriverModalDriver}
                     />
                   ))}
                   {tab === 'constructor' && constructors.map(c => (
@@ -418,6 +428,9 @@ export default function DraftPage() {
             </div>
           </div>
         </div>
+      )}
+      {driverModalDriver && (
+        <DriverModal driver={driverModalDriver} onClose={() => setDriverModalDriver(null)} />
       )}
     </div>
   )

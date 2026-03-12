@@ -8,6 +8,7 @@ import {
   Shuffle,
   Calendar,
   User,
+  Users,
   ShieldCheck,
   LogOut,
   Sun,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { to: '/wertung',   label: 'Wertung',    icon: Trophy },
   { to: '/draft',     label: 'Draft',      icon: Shuffle },
   { to: '/kalender',  label: 'Kalender',   icon: Calendar },
+  { to: '/fahrer',    label: 'Fahrer',     icon: Users },
   { to: '/profil',    label: 'Profil',     icon: User },
 ]
 

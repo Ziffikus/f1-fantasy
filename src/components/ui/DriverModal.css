@@ -1,0 +1,193 @@
+.driver-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.driver-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 2);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modal-in 0.2s ease;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.driver-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+}
+
+.driver-modal-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.driver-modal-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.driver-modal-title {
+  flex: 1;
+}
+
+.driver-modal-number {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}
+
+.driver-modal-title h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin: 0.1rem 0 0.2rem;
+}
+
+.driver-modal-title h2 strong {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.driver-modal-team {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.driver-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.driver-modal-close:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+/* ── Body ───────────────────────────────────────────────────── */
+.driver-modal-body {
+  padding: 0.75rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.driver-modal-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+.driver-modal-section:last-child { border-bottom: none; padding-bottom: 0; }
+
+.driver-modal-section-title {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+/* ── Bio ────────────────────────────────────────────────────── */
+.driver-modal-bio-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.driver-bio-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.driver-bio-item svg { color: var(--text-muted); flex-shrink: 0; }
+.driver-bio-item--champion { color: #FFD700; }
+.driver-bio-item--champion svg { color: #FFD700; }
+
+/* ── WM / Stats Grid ────────────────────────────────────────── */
+.driver-wm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.driver-wm-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.driver-wm-value {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.driver-wm-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.driver-modal-loading {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+/* ── 4-column stats grid ────────────────────────────────────── */
+.driver-wm-grid:has(.driver-wm-item:nth-child(4)) {
+  grid-template-columns: repeat(4, 1fr);
+}

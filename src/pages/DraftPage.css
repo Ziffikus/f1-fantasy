@@ -280,3 +280,20 @@
   opacity: 0.7;
   white-space: nowrap;
 }
+
+.pick-item-info-btn {
+  margin-left: auto;
+  padding: 0.2rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+.pick-item:hover .pick-item-info-btn { opacity: 1; }
+.pick-item-info-btn:hover { color: var(--text-primary); }
