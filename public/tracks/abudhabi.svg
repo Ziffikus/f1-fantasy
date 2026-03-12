@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <path
+    d="M 130,170 L 370,170 C 405,170 428,192 430,227 L 432,280 C 433,315 410,337 375,337 L 295,337 L 290,400 C 287,432 308,450 342,444 L 385,433 C 415,425 432,443 428,473 L 424,492 C 420,512 394,525 368,519 L 155,519 C 120,519 95,496 95,463 L 90,198 C 89,180 108,170 130,170 Z"
+    fill="none"
+    stroke="white"
+    stroke-width="18"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
