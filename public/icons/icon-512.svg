@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="512" height="512" rx="32" fill="#0f0f0f"/>
+  <rect x="16" y="16" width="160" height="6" rx="3" fill="#E8002D"/>
+  <!-- F1 stylized -->
+  <text x="96" y="115" font-family="Arial Black,sans-serif" font-size="72" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-4">F1</text>
+  <!-- TBE -->
+  <text x="96" y="148" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#E8002D" text-anchor="middle" letter-spacing="6">TBE</text>
+  <rect x="16" y="170" width="160" height="6" rx="3" fill="#E8002D"/>
+</svg>

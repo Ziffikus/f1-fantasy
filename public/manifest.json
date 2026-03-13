@@ -1,0 +1,41 @@
+{
+  "name": "F1 Fantasy TBE",
+  "short_name": "F1 TBE",
+  "description": "F1 Fantasy Liga der TBE-Gruppe – Saison 2026",
+  "start_url": "/f1-fantasy/",
+  "scope": "/f1-fantasy/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f0f",
+  "theme_color": "#E8002D",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "/f1-fantasy/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/f1-fantasy/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "games"],
+  "shortcuts": [
+    {
+      "name": "Draft",
+      "short_name": "Draft",
+      "url": "/f1-fantasy/draft",
+      "icons": [{ "src": "/f1-fantasy/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Wertung",
+      "short_name": "Wertung",
+      "url": "/f1-fantasy/wertung",
+      "icons": [{ "src": "/f1-fantasy/icons/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}
