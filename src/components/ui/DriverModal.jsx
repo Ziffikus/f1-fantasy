@@ -65,7 +65,7 @@ export default function DriverModal({ driver, onClose }) {
           <div className="driver-modal-avatar" style={{ background: `${color}22`, border: `2px solid ${color}` }}>
             <span style={{ color }}>{initials}</span>
             {/* Foto-Platzhalter – später mit echtem Foto ersetzen */}
-            {driver.photo_url && <img src={driver.photo_url} alt={driver.last_name} className="driver-modal-photo" />}
+            {driver.photo_url && <img src={driver.photo_url} alt={driver.last_name} className="driver-modal-photo" onError={e => { e.target.style.display="none" }} />}
           </div>
           <div className="driver-modal-title">
             <div className="driver-modal-number" style={{ color }}>#{driver.number}</div>
