@@ -13,7 +13,7 @@ function useFavourites(profileId) {
   useEffect(() => {
     if (!profileId) return
     async function load() {
-      const { supabase: sb } = await import('../lib/supabase')
+      const sb = supabase
       // Alle Picks des Spielers laden
       const { data: picks } = await sb
         .from('picks')
