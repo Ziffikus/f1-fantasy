@@ -91,9 +91,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="login-hint">
-          Erstes Login? Passwort: <code>TBE2026</code>
-        </div>
+
       </div>
 
       {/* Decorative lap counter */}

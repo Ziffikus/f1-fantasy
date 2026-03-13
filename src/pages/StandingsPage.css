@@ -259,3 +259,64 @@
   .standings-table th:nth-child(6),
   .standings-table td:nth-child(6) { display: none; }
 }
+
+/* ── Live Banner ─────────────────────────────────────────────── */
+.standings-live-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.03em;
+}
+
+.standings-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: live-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+.standings-live-time {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── Live Spalte in Tabelle ──────────────────────────────────── */
+.standings-live-col {
+  color: #ef4444 !important;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.standings-live-pts {
+  font-family: var(--font-display);
+  font-size: 1rem !important;
+}
+
+/* ── Live Renn-Zelle ─────────────────────────────────────────── */
+.standings-race-cell--live {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+/* ── Podium Live-Punkt ───────────────────────────────────────── */
+.podium-pts-live {
+  color: #ef4444;
+  font-size: 0.6em;
+  animation: live-pulse 1.2s ease-in-out infinite;
+}

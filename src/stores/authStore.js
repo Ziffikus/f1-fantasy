@@ -1,21 +1,39 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+// Hilfsfunktion: Promise mit Timeout
+function withTimeout(promise, ms = 5000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+  ])
+}
+
 export const useAuthStore = create((set, get) => ({
   user: null,
   profile: null,
   loading: true,
 
   init: async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      await get().loadProfile(session.user)
+    try {
+      const { data: { session } } = await withTimeout(supabase.auth.getSession(), 5000)
+      if (session?.user) {
+        await withTimeout(get().loadProfile(session.user), 5000)
+      }
+    } catch (e) {
+      console.warn('Auth init timeout oder Fehler:', e.message)
+      // loading trotzdem auf false – App ist benutzbar, ggf. nicht eingeloggt
+    } finally {
+      set({ loading: false })
     }
-    set({ loading: false })
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        await get().loadProfile(session.user)
+        try {
+          await get().loadProfile(session.user)
+        } catch (e) {
+          console.warn('Profil laden fehlgeschlagen:', e.message)
+        }
       } else {
         set({ user: null, profile: null })
       }

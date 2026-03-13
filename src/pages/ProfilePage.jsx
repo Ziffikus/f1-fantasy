@@ -1,8 +1,62 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Camera, User, Mail, Lock, Check, AlertCircle, Loader } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import './ProfilePage.css'
+import { subscribeToPush, unsubscribeFromPush, getPushStatus } from '../lib/pushNotifications'
+
+function useFavourites(profileId) {
+  const [drivers, setDrivers] = useState([])
+  const [teams, setTeams]   = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!profileId) return
+    async function load() {
+      const { supabase: sb } = await import('../lib/supabase')
+      // Alle Picks des Spielers laden
+      const { data: picks } = await sb
+        .from('picks')
+        .select('pick_type, driver_id, constructor_id, drivers(first_name, last_name, abbreviation, number, constructors(color, short_name)), constructors(id, name, short_name, color)')
+        .eq('profile_id', profileId)
+
+      if (!picks) { setLoading(false); return }
+
+      // Fahrer zählen
+      const driverCount = {}
+      const driverMeta  = {}
+      for (const p of picks.filter(p => p.pick_type === 'driver')) {
+        const id = p.driver_id
+        driverCount[id] = (driverCount[id] ?? 0) + 1
+        driverMeta[id]  = p.drivers
+      }
+      const topDrivers = Object.entries(driverCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, count]) => ({ ...driverMeta[id], id, count }))
+
+      // Teams zählen
+      const teamCount = {}
+      const teamMeta  = {}
+      for (const p of picks.filter(p => p.pick_type === 'constructor')) {
+        const id = p.constructor_id
+        teamCount[id] = (teamCount[id] ?? 0) + 1
+        teamMeta[id]  = p.constructors
+      }
+      const topTeams = Object.entries(teamCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([id, count]) => ({ ...teamMeta[id], id, count }))
+
+      setDrivers(topDrivers)
+      setTeams(topTeams)
+      setLoading(false)
+    }
+    load()
+  }, [profileId])
+
+  return { drivers, teams, loading }
+}
 
 function StatusMsg({ type, text }) {
   if (!text) return null
@@ -10,6 +64,84 @@ function StatusMsg({ type, text }) {
     <div className={`profile-status ${type === 'error' ? 'profile-status--error' : 'profile-status--success'}`}>
       {type === 'error' ? <AlertCircle size={14} /> : <Check size={14} />}
       {text}
+      <Section title="Push-Benachrichtigungen">
+        {!pushStatus?.supported ? (
+          <p className="text-muted" style={{ fontSize: '0.82rem' }}>
+            Dein Browser unterstützt keine Push-Benachrichtigungen.
+          </p>
+        ) : (
+          <div>
+            <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
+              Erhalte eine Benachrichtigung wenn du beim Draft dran bist –
+              auch wenn die App geschlossen ist.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className={`push-status-dot ${pushStatus?.subscribed ? 'push-status-dot--on' : ''}`} />
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {pushStatus?.subscribed ? 'Aktiv' : 'Inaktiv'}
+              </span>
+              <button
+                className={`btn ${pushStatus?.subscribed ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={handlePushToggle}
+                disabled={pushLoading || !import.meta.env.VITE_VAPID_PUBLIC_KEY}
+              >
+                {pushLoading
+                  ? <><Loader size={14} className="spinning" /> Bitte warten…</>
+                  : pushStatus?.subscribed
+                    ? '🔕 Deaktivieren'
+                    : '🔔 Aktivieren'
+                }
+              </button>
+            </div>
+            {!import.meta.env.VITE_VAPID_PUBLIC_KEY && (
+              <p className="profile-hint" style={{ color: '#f59e0b' }}>⚠️ VAPID Key noch nicht konfiguriert – siehe Setup-Anleitung.</p>
+            )}
+            <StatusMsg {...(pushMsg ?? {})} />
+          </div>
+        )}
+      </Section>
+
+      <Section title="Meine Lieblingspicks">
+        {favLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem' }}><div className="spinner" style={{ width: 18, height: 18 }} /></div>
+        ) : (
+          <div className="profile-favs">
+            <div className="profile-favs-group">
+              <div className="profile-favs-label">Top 3 Fahrer</div>
+              {topDrivers.length === 0
+                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
+                : topDrivers.map((d, i) => (
+                  <div key={d.id} className="profile-fav-item">
+                    <span className="profile-fav-rank">#{i + 1}</span>
+                    <div className="profile-fav-dot" style={{ background: d.constructors?.color ?? '#888' }} />
+                    <div className="profile-fav-info">
+                      <span className="profile-fav-name">{d.first_name} {d.last_name}</span>
+                      <span className="profile-fav-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
+                    </div>
+                    <span className="profile-fav-count">{d.count}×</span>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="profile-favs-group">
+              <div className="profile-favs-label">Top 2 Teams</div>
+              {topTeams.length === 0
+                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
+                : topTeams.map((t, i) => (
+                  <div key={t.id} className="profile-fav-item">
+                    <span className="profile-fav-rank">#{i + 1}</span>
+                    <div className="profile-fav-dot" style={{ background: t.color ?? '#888' }} />
+                    <div className="profile-fav-info">
+                      <span className="profile-fav-name">{t.name}</span>
+                    </div>
+                    <span className="profile-fav-count">{t.count}×</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
   )
 }
@@ -82,15 +214,17 @@ export default function ProfilePage() {
   }
 
   async function handleEmailSave() {
-    if (!email.trim() || email === user?.email) return
+    const newEmail = email.trim().toLowerCase()
+    if (!newEmail || newEmail === user?.email?.toLowerCase()) return
     setEmailLoading(true)
     setEmailMsg(null)
     try {
-      const { error } = await supabase.auth.updateUser({ email: email.trim() })
-      if (error) throw error
-      setEmailMsg({ type: 'success', text: 'Bestätigungsmail an neue Adresse gesendet.' })
+      const { error } = await supabase.auth.updateUser({ email: newEmail })
+      // Supabase sendet die Mail auch wenn "invalid"-Fehler kommt (Secure email change Modus)
+      if (error && !error.message?.toLowerCase().includes("invalid")) throw error
+      setEmailMsg({ type: "success", text: "Bestätigungsmail gesendet – bitte beide Adressen bestätigen." })
     } catch (err) {
-      setEmailMsg({ type: 'error', text: err.message })
+      setEmailMsg({ type: "error", text: err.message })
     }
     setEmailLoading(false)
   }
@@ -109,6 +243,36 @@ export default function ProfilePage() {
       setPwMsg({ type: 'error', text: err.message })
     }
     setPwLoading(false)
+  }
+
+  const { drivers: topDrivers, teams: topTeams, loading: favLoading } = useFavourites(profile?.id)
+
+  // Push Notifications
+  const [pushStatus, setPushStatus] = useState(null)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushMsg, setPushMsg] = useState(null)
+
+  useEffect(() => {
+    getPushStatus().then(setPushStatus)
+  }, [])
+
+  async function handlePushToggle() {
+    setPushLoading(true)
+    setPushMsg(null)
+    try {
+      if (pushStatus?.subscribed) {
+        await unsubscribeFromPush(profile.id)
+        setPushMsg({ type: 'success', text: 'Benachrichtigungen deaktiviert.' })
+      } else {
+        const result = await subscribeToPush(profile.id)
+        if (result.error) throw new Error(result.error)
+        setPushMsg({ type: 'success', text: 'Benachrichtigungen aktiviert! ✅' })
+      }
+      getPushStatus().then(setPushStatus)
+    } catch (err) {
+      setPushMsg({ type: 'error', text: err.message })
+    }
+    setPushLoading(false)
   }
 
   const avatarSrc = profile?.avatar_url

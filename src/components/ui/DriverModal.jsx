@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, Trophy, Star, Flag, Calendar } from 'lucide-react'
+import { X, Star, Flag, Calendar } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { DRIVER_BIO, getAge } from '../../lib/driverBio'
 import { useF1Standings } from '../../hooks/useF1Standings'

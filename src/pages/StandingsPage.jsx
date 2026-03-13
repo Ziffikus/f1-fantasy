@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStandings } from '../hooks/useStandings'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useAuthStore } from '../stores/authStore'
+import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
-import { useState as useS, useEffect } from 'react'
-import { Trophy, Medal, Flag, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio } from 'lucide-react'
 import './StandingsPage.css'
 
 function useRaceResults() {
@@ -12,7 +12,7 @@ function useRaceResults() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetch() {
+    async function load() {
       const { data } = await supabase
         .from('player_race_points')
         .select('*, race_weekends(round, name, flag_emoji, city), profiles(display_name, avatar_url)')
@@ -20,7 +20,7 @@ function useRaceResults() {
       setResults(data ?? [])
       setLoading(false)
     }
-    fetch()
+    load()
   }, [])
 
   return { results, loading }
@@ -33,15 +33,25 @@ export default function StandingsPage() {
   const { profile } = useAuthStore()
   const [expanded, setExpanded] = useState(null)
 
+  const { isLive, sessionType, lastUpdate, liveWeekend, getLiveTotal, getLiveRoundPoints } =
+    useLiveStandings(weekends, standings)
+
   const completedWeekends = weekends.filter(w => new Date(w.race_start) < new Date())
 
-  // Baue Matrix: profile_id → round → points
+  // Matrix: profile_id → round → points
   const matrix = {}
   for (const r of results) {
     if (!matrix[r.profile_id]) matrix[r.profile_id] = {}
     const round = r.race_weekends?.round
     if (round) matrix[r.profile_id][round] = r
   }
+
+  // Live-Wertung: Standings mit Live-Gesamtpunkten, neu sortiert
+  const liveStandings = isLive
+    ? [...standings]
+        .map(p => ({ ...p, live_total: getLiveTotal(p.profile_id, p.total_points) }))
+        .sort((a, b) => a.live_total - b.live_total)
+    : standings.map(p => ({ ...p, live_total: p.total_points }))
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
@@ -52,45 +62,70 @@ export default function StandingsPage() {
   return (
     <div className="standings-page page-enter">
       <h1>Wertung</h1>
-      <p className="text-secondary" style={{ marginTop: '0.3rem', marginBottom: '1.5rem' }}>
+      <p className="text-secondary" style={{ marginTop: '0.3rem', marginBottom: isLive ? '0.75rem' : '1.5rem' }}>
         Saison 2026 · {completedWeekends.length} Rennen gewertet · Weniger Punkte = besser
       </p>
 
+      {/* Live-Banner */}
+      {isLive && (
+        <div className="standings-live-banner">
+          <span className="standings-live-dot" />
+          <Radio size={13} />
+          <span>
+            LIVE – {liveWeekend?.name} ({sessionType === 'sprint' ? 'Sprint' : 'Rennen'})
+          </span>
+          {lastUpdate && (
+            <span className="standings-live-time">
+              · aktualisiert {lastUpdate.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Podium (top 3) */}
-      {standings.length >= 3 && (
+      {liveStandings.length >= 3 && (
         <div className="standings-podium">
           {/* 2. Platz */}
           <div className="podium-item podium-2">
             <div className="podium-avatar">
-              {standings[1].avatar_url
-                ? <img src={standings[1].avatar_url} alt={standings[1].display_name} />
-                : <span>{standings[1].display_name?.[0]?.toUpperCase()}</span>}
+              {liveStandings[1].avatar_url
+                ? <img src={liveStandings[1].avatar_url} alt={liveStandings[1].display_name} />
+                : <span>{liveStandings[1].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{standings[1].display_name}</div>
-            <div className="podium-pts">{standings[1].total_points}</div>
+            <div className="podium-name">{liveStandings[1].display_name}</div>
+            <div className="podium-pts">
+              {liveStandings[1].live_total}
+              {isLive && <span className="podium-pts-live"> ●</span>}
+            </div>
             <div className="podium-block podium-block-2">2</div>
           </div>
           {/* 1. Platz */}
           <div className="podium-item podium-1">
             <div className="podium-crown">👑</div>
             <div className="podium-avatar podium-avatar-1">
-              {standings[0].avatar_url
-                ? <img src={standings[0].avatar_url} alt={standings[0].display_name} />
-                : <span>{standings[0].display_name?.[0]?.toUpperCase()}</span>}
+              {liveStandings[0].avatar_url
+                ? <img src={liveStandings[0].avatar_url} alt={liveStandings[0].display_name} />
+                : <span>{liveStandings[0].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{standings[0].display_name}</div>
-            <div className="podium-pts">{standings[0].total_points}</div>
+            <div className="podium-name">{liveStandings[0].display_name}</div>
+            <div className="podium-pts">
+              {liveStandings[0].live_total}
+              {isLive && <span className="podium-pts-live"> ●</span>}
+            </div>
             <div className="podium-block podium-block-1">1</div>
           </div>
           {/* 3. Platz */}
           <div className="podium-item podium-3">
             <div className="podium-avatar">
-              {standings[2].avatar_url
-                ? <img src={standings[2].avatar_url} alt={standings[2].display_name} />
-                : <span>{standings[2].display_name?.[0]?.toUpperCase()}</span>}
+              {liveStandings[2].avatar_url
+                ? <img src={liveStandings[2].avatar_url} alt={liveStandings[2].display_name} />
+                : <span>{liveStandings[2].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{standings[2].display_name}</div>
-            <div className="podium-pts">{standings[2].total_points}</div>
+            <div className="podium-name">{liveStandings[2].display_name}</div>
+            <div className="podium-pts">
+              {liveStandings[2].live_total}
+              {isLive && <span className="podium-pts-live"> ●</span>}
+            </div>
             <div className="podium-block podium-block-3">3</div>
           </div>
         </div>
@@ -104,6 +139,7 @@ export default function StandingsPage() {
               <th>#</th>
               <th>Spieler</th>
               <th title="Gesamtpunkte">Pkt</th>
+              {isLive && <th title="Aktuelle Runde" className="standings-live-col">Runde</th>}
               <th title="Siege"><Trophy size={13} /></th>
               <th title="2. Plätze"><Medal size={13} /></th>
               <th title="3. Plätze"><Flag size={13} /></th>
@@ -111,7 +147,7 @@ export default function StandingsPage() {
             </tr>
           </thead>
           <tbody>
-            {standings.map((player, i) => (
+            {liveStandings.map((player, i) => (
               <>
                 <tr
                   key={player.profile_id}
@@ -137,7 +173,23 @@ export default function StandingsPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="standings-pts-cell">{player.total_points}</td>
+                  <td className="standings-pts-cell">
+                    {player.live_total}
+                    {isLive && player.live_total !== player.total_points && (
+                      <span className="standings-pts-diff" style={{
+                        color: player.live_total < player.total_points ? 'var(--color-success, #4ade80)' : 'var(--color-danger, #f87171)',
+                        fontSize: '0.7rem', marginLeft: '0.3rem'
+                      }}>
+                        {player.live_total < player.total_points ? '▼' : '▲'}
+                        {Math.abs(player.live_total - player.total_points)}
+                      </span>
+                    )}
+                  </td>
+                  {isLive && (
+                    <td className="standings-live-col standings-live-pts">
+                      {getLiveRoundPoints(player.profile_id) ?? '…'}
+                    </td>
+                  )}
                   <td>{player.wins}</td>
                   <td>{player.second_places}</td>
                   <td>{player.third_places}</td>
@@ -151,18 +203,23 @@ export default function StandingsPage() {
                 {/* Aufgeklappte Renn-Details */}
                 {expanded === player.profile_id && (
                   <tr key={`${player.profile_id}-detail`} className="standings-detail-row">
-                    <td colSpan={7}>
+                    <td colSpan={isLive ? 8 : 7}>
                       <div className="standings-race-grid">
                         {completedWeekends.map(w => {
                           const rp = matrix[player.profile_id]?.[w.round]
+                          const isLiveRound = isLive && liveWeekend?.id === w.id
+                          const livePts = isLiveRound ? getLiveRoundPoints(player.profile_id) : null
                           return (
-                            <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''}`}>
+                            <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}>
                               <span className="standings-race-flag">{w.flag_emoji}</span>
                               <span className="standings-race-city">{w.city}</span>
                               <span className="standings-race-pts">
-                                {rp ? rp.total_points : '–'}
+                                {isLiveRound && livePts !== null
+                                  ? <><span className="standings-live-dot" style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#ef4444', marginRight: 3 }} />{livePts}</>
+                                  : rp ? rp.total_points : '–'
+                                }
                               </span>
-                              {rp?.weekend_rank === 1 && <span className="standings-race-trophy">🏆</span>}
+                              {rp?.weekend_rank === 1 && !isLiveRound && <span className="standings-race-trophy">🏆</span>}
                             </div>
                           )
                         })}
@@ -181,7 +238,6 @@ export default function StandingsPage() {
         </table>
       </div>
 
-      {/* Tiebreaker Info */}
       <p className="standings-tiebreaker">
         Tiebreaker: Gleiche Punkte → Mehr Siege → Mehr 2. Plätze → Mehr 3. Plätze
       </p>

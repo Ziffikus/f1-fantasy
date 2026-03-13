@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
-import { useLiveRace, mapLivePositionsToDriverIds } from '../hooks/useLiveRace'
+import { useLiveRace, mapLivePositionsToDriverIds, mapLiveTyresToDriverIds, TYRE_COLORS, TYRE_SHORT } from '../hooks/useLiveRace'
 import TrackMap from '../components/ui/TrackMap'
 import { ArrowLeft, Trophy, Zap, Flag, Clock, RefreshCw } from 'lucide-react'
 import './RacePage.css'
@@ -32,6 +32,18 @@ function PositionBadge({ pos, isLive }) {
   return (
     <span className={`race-pos ${pos === 1 ? 'race-pos--1' : pos === 2 ? 'race-pos--2' : pos === 3 ? 'race-pos--3' : ''} ${isLive ? 'race-pos--live' : ''}`}>
       P{pos}
+    </span>
+  )
+}
+
+function TyreBadge({ tyre }) {
+  if (!tyre) return null
+  const color = TYRE_COLORS[tyre.compound] ?? '#888'
+  const short = TYRE_SHORT[tyre.compound] ?? '?'
+  return (
+    <span className="race-tyre-badge" style={{ background: color, color: tyre.compound === 'HARD' || tyre.compound === 'MEDIUM' ? '#000' : '#fff' }}>
+      {short}
+      {tyre.lap_start && <span className="race-tyre-lap">+{tyre.lap_start}L</span>}
     </span>
   )
 }
@@ -73,7 +85,7 @@ export default function RacePage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('picks')
 
-  const { livePositions, isLive, sessionType, lastUpdate, loading: liveLoading, refetch } = useLiveRace(weekend)
+  const { livePositions, liveTyres, isLive, sessionType, lastUpdate, loading: liveLoading, refetch } = useLiveRace(weekend)
 
   useEffect(() => { loadAll() }, [id])
 
@@ -103,7 +115,7 @@ export default function RacePage() {
     if (rw) {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       if (season) {
-        const { data: drivers } = await supabase.from('drivers').select('id, number, constructor_id').eq('season_id', season.id)
+        const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name, number, abbreviation, constructor_id').eq('season_id', season.id)
         setAllDrivers(drivers ?? [])
       }
     }
@@ -130,6 +142,7 @@ export default function RacePage() {
 
   // Live-Positionen (driver_number → driver_id) überlagern die gespeicherten
   const liveByDriverId = mapLivePositionsToDriverIds(livePositions, allDrivers)
+  const tyrByDriverId = mapLiveTyresToDriverIds(liveTyres, allDrivers)
   const activeRaceMap = isLive && sessionType === 'race'
     ? { ...raceResultMap, ...liveByDriverId }
     : raceResultMap
@@ -275,12 +288,60 @@ export default function RacePage() {
                               {pick.drivers?.constructors?.short_name} · #{pick.drivers?.number}
                             </span>
                           </div>
-                          {hasResults && (
+                          <div className="race-pick-results">
+                            {isLive && <TyreBadge tyre={tyrByDriverId[pick.driver_id]} />}
+                            {hasResults && <PositionBadge pos={pos} isLive={isLivePos} />}
+                            {hasResults && weekend.is_sprint_weekend && spos && (
+                              <span className="race-sprint-pts">
+                                <Zap size={10} />{Math.ceil(spos / 2)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {teamPicks.map(pick => {
+                      const teamDrivers = allDrivers.filter(d => d.constructor_id === pick.constructor_id)
+                      const color = pick.constructors?.color ?? '#888'
+                      const teamTotal = teamDrivers.reduce((sum, td) => sum + (activeRaceMap[td.id] ?? 0), 0)
+                      const teamSprintTotal = teamDrivers.reduce((sum, td) => {
+                        const spos = activeSprintMap[td.id]
+                        return sum + (spos ? Math.ceil(spos / 2) : 0)
+                      }, 0)
+                      return (
+                        <div key={pick.id} className="race-pick-row race-pick-row--team">
+                          <div className="race-pick-label">T{pick.pick_number}</div>
+                          <div className="race-pick-color" style={{ background: color }} />
+                          <div className="race-pick-info">
+                            <span className="race-pick-name">{pick.constructors?.name}</span>
+                            {hasResults && teamDrivers.length > 0 ? (
+                              <span className="race-pick-team-drivers">
+                                {teamDrivers.map(td => {
+                                  const pos = activeRaceMap[td.id]
+                                  const spos = activeSprintMap[td.id]
+                                  return (
+                                    <span key={td.id} className="race-pick-team-driver-pos">
+                                      <span className="race-pick-abbr" style={{ color }}>
+                                        {td.abbreviation}
+                                      </span>
+                                      <PositionBadge pos={pos} isLive={isLive && liveByDriverId[td.id] !== undefined} />
+                                      {weekend.is_sprint_weekend && spos && (
+                                        <span className="race-sprint-pts"><Zap size={10} />{Math.ceil(spos / 2)}</span>
+                                      )}
+                                    </span>
+                                  )
+                                })}
+                              </span>
+                            ) : (
+                              <span className="race-pick-team" style={{ color }}>Team</span>
+                            )}
+                          </div>
+                          {hasResults && teamTotal > 0 && (
                             <div className="race-pick-results">
-                              <PositionBadge pos={pos} isLive={isLivePos} />
-                              {weekend.is_sprint_weekend && spos && (
+                              <PositionBadge pos={teamTotal} isLive={isLive} />
+                              {weekend.is_sprint_weekend && teamSprintTotal > 0 && (
                                 <span className="race-sprint-pts">
-                                  <Zap size={10} />{Math.ceil(spos / 2)}
+                                  <Zap size={10} />{teamSprintTotal}
                                 </span>
                               )}
                             </div>
@@ -288,16 +349,6 @@ export default function RacePage() {
                         </div>
                       )
                     })}
-                    {teamPicks.map(pick => (
-                      <div key={pick.id} className="race-pick-row race-pick-row--team">
-                        <div className="race-pick-label">T{pick.pick_number}</div>
-                        <div className="race-pick-color" style={{ background: pick.constructors?.color ?? '#888' }} />
-                        <div className="race-pick-info">
-                          <span className="race-pick-name">{pick.constructors?.name}</span>
-                          <span className="race-pick-team" style={{ color: pick.constructors?.color }}>Team</span>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 )}
               </div>

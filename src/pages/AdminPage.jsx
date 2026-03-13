@@ -3,7 +3,8 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft, useDraftOrder } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
-import { GripVertical, Save, Trash2, Plus, ShieldCheck } from 'lucide-react'
+import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { importResultsFromErgast } from '../lib/importResults'
 import './AdminPage.css'
 
 // ── Draft Reihenfolge ────────────────────────────────────────
@@ -308,11 +309,53 @@ function ResultsPanel({ raceWeekendId }) {
     }
   }
 
+  const [importing, setImporting] = useState(false)
+  const [importLog, setImportLog] = useState([])
+
+  async function handleImport() {
+    setImporting(true)
+    setImportLog([])
+    try {
+      const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
+      const { data: allDrivers } = await supabase.from('drivers').select('id, abbreviation').eq('season_id', season.id)
+      const result = await importResultsFromErgast(supabase, weekend, allDrivers ?? [])
+      setImportLog(result.log)
+      // Ergebnisse neu laden
+      const { data: existing } = await supabase.from('race_results').select('*').eq('race_weekend_id', raceWeekendId)
+      const rMap = {}, sMap = {}
+      for (const r of (existing ?? [])) {
+        if (r.session_type === 'race')   rMap[r.driver_id] = r.position
+        if (r.session_type === 'sprint') sMap[r.driver_id] = r.position
+      }
+      setResults(rMap)
+      setSprintResults(sMap)
+    } catch (e) {
+      setImportLog([`❌ Fehler: ${e.message}`])
+    }
+    setImporting(false)
+  }
+
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
         <h3>Ergebnisse eintragen</h3>
         {weekend?.is_sprint_weekend && <span className="badge badge-sprint">Sprint-Wochenende</span>}
+      </div>
+
+      {/* Import von Ergast */}
+      <div className="admin-import-box">
+        <div className="admin-import-info">
+          <Download size={14} />
+          <span>Ergebnisse automatisch von der F1-API importieren (Ergast). Manuelle Overrides bleiben erhalten.</span>
+        </div>
+        <button className="btn btn-secondary" onClick={handleImport} disabled={importing || !weekend}>
+          {importing ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Importiere…</> : <><Download size={14} /> Jetzt importieren</>}
+        </button>
+        {importLog.length > 0 && (
+          <div className="admin-import-log">
+            {importLog.map((line, i) => <div key={i} className="admin-import-log-line">{line}</div>)}
+          </div>
+        )}
       </div>
 
       <div className="admin-results-grid">
@@ -361,6 +404,121 @@ function ResultsPanel({ raceWeekendId }) {
 
       <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ marginTop: '1rem' }}>
         {saving ? <><span className="spinner" style={{ width: '1rem', height: '1rem' }} /> Speichern…</> : saved ? '✅ Gespeichert!' : <><Save size={14} /> Ergebnisse & Punkte speichern</>}
+      </button>
+    </div>
+  )
+}
+
+// ── Fahrerverfügbarkeit ──────────────────────────────────────
+function AvailabilityPanel({ raceWeekendId }) {
+  const [drivers, setDrivers] = useState([])
+  const [availability, setAvailability] = useState({}) // driver_id → { status, reason }
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
+      const { data: d } = await supabase
+        .from('drivers').select('*, constructors(short_name, color)')
+        .eq('season_id', season.id).eq('is_active', true).order('last_name')
+      setDrivers(d ?? [])
+
+      const { data: avail } = await supabase
+        .from('driver_availability')
+        .select('*')
+        .eq('race_weekend_id', raceWeekendId)
+      const map = {}
+      for (const a of (avail ?? [])) map[a.driver_id] = { status: a.status, reason: a.reason ?? '' }
+      setAvailability(map)
+    }
+    if (raceWeekendId) load()
+  }, [raceWeekendId])
+
+  function setStatus(driverId, status) {
+    setAvailability(prev => ({ ...prev, [driverId]: { ...prev[driverId], status, reason: prev[driverId]?.reason ?? '' } }))
+  }
+
+  function setReason(driverId, reason) {
+    setAvailability(prev => ({ ...prev, [driverId]: { ...prev[driverId], reason } }))
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const upserts = Object.entries(availability)
+        .filter(([, v]) => v.status && v.status !== 'available')
+        .map(([driverId, v]) => ({
+          race_weekend_id: raceWeekendId,
+          driver_id: Number(driverId),
+          status: v.status,
+          reason: v.reason || null,
+          is_manual: true,
+        }))
+
+      // Erst alle löschen, dann neu einfügen
+      await supabase.from('driver_availability').delete().eq('race_weekend_id', raceWeekendId)
+      if (upserts.length) {
+        const { error } = await supabase.from('driver_availability').insert(upserts)
+        if (error) throw error
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      alert('Fehler: ' + err.message)
+    }
+    setSaving(false)
+  }
+
+  const STATUS_OPTS = [
+    { value: 'available',    label: '✅ Verfügbar',   color: 'var(--text-muted)' },
+    { value: 'questionable', label: '⚠️ Fraglich',    color: '#f59e0b' },
+    { value: 'unavailable',  label: '❌ Nicht dabei', color: '#ef4444' },
+  ]
+
+  const flagged = drivers.filter(d => availability[d.id]?.status && availability[d.id].status !== 'available')
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-header">
+        <h3>Fahrerverfügbarkeit</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>
+          {flagged.length > 0 ? `${flagged.length} Fahrer markiert` : 'Alle verfügbar'}
+        </span>
+      </div>
+
+      <div className="admin-availability-list">
+        {drivers.map(d => {
+          const av = availability[d.id] ?? { status: 'available', reason: '' }
+          return (
+            <div key={d.id} className={`admin-avail-row ${av.status !== 'available' ? 'admin-avail-row--flagged' : ''}`}>
+              <div className="admin-avail-driver">
+                <div className="admin-avail-dot" style={{ background: d.constructors?.color }} />
+                <span className="admin-avail-name">{d.abbreviation}</span>
+                <span className="admin-avail-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
+              </div>
+              <select
+                className="input admin-avail-select"
+                value={av.status}
+                onChange={e => setStatus(d.id, e.target.value)}
+              >
+                {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {av.status !== 'available' && (
+                <input
+                  className="input admin-avail-reason"
+                  placeholder="Grund (z.B. Verletzt)"
+                  value={av.reason}
+                  onChange={e => setReason(d.id, e.target.value)}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ marginTop: '1rem' }}>
+        {saving ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Speichern…</> : saved ? '✅ Gespeichert!' : <><Save size={14} /> Verfügbarkeit speichern</>}
       </button>
     </div>
   )
@@ -474,6 +632,7 @@ export default function AdminPage() {
           { id: 'order', label: 'Draft-Reihenfolge' },
           { id: 'picks', label: 'Picks eintragen' },
           { id: 'results', label: 'Ergebnisse' },
+          { id: 'availability', label: 'Fahrerstatus' },
         ].map(t => (
           <button
             key={t.id}
@@ -490,6 +649,7 @@ export default function AdminPage() {
           {tab === 'order' && <DraftOrderPanel raceWeekendId={selectedId} />}
           {tab === 'picks' && <AdminPicksPanel raceWeekendId={selectedId} />}
           {tab === 'results' && <ResultsPanel raceWeekendId={selectedId} />}
+          {tab === 'availability' && <AvailabilityPanel raceWeekendId={selectedId} />}
         </div>
       )}
     </div>

@@ -434,3 +434,44 @@
   .race-hero { flex-wrap: wrap; }
   .race-picks-grid { grid-template-columns: 1fr; }
 }
+
+.race-pick-team-drivers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.race-pick-team-driver-pos {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.race-pick-abbr {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* ── Reifen-Badge ─────────────────────────────────────────────── */
+.race-tyre-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.race-tyre-lap {
+  font-size: 0.6rem;
+  font-weight: 600;
+  opacity: 0.8;
+  letter-spacing: 0;
+}

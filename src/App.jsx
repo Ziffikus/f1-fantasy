@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import { useThemeStore } from './stores/themeStore'
@@ -20,7 +20,27 @@ import Layout from './components/ui/Layout'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><div className="spinner" /></div>
+  const [showReload, setShowReload] = useState(false)
+
+  useEffect(() => {
+    if (!loading) { setShowReload(false); return }
+    const t = setTimeout(() => setShowReload(true), 6000)
+    return () => clearTimeout(t)
+  }, [loading])
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1rem' }}>
+      <div className="spinner" />
+      {showReload && (
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Dauert länger als erwartet…</p>
+          <button className="btn btn-secondary" style={{ fontSize: '0.82rem' }} onClick={() => window.location.reload()}>
+            Seite neu laden
+          </button>
+        </div>
+      )}
+    </div>
+  )
   if (!user) return <Navigate to="/login" replace />
   return children
 }

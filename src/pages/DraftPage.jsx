@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
+import { supabase } from '../lib/supabase'
 import { useDraftNotifications } from '../hooks/useDraftNotifications'
 import DriverModal from '../components/ui/DriverModal'
 import { Car, Users, Check, X, ChevronRight, Bell, Info } from 'lucide-react'
 import './DraftPage.css'
 
 // ── Drag & Drop Pick Item ────────────────────────────────────
-function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, onDragStart, onInfo }) {
+function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, onDragStart, onInfo, availability }) {
   const isSelected = selected?.id === item.id && selected?.type === type
 
   return (
@@ -25,6 +26,8 @@ function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, 
             <span className="pick-item-name">{item.first_name} {item.last_name}</span>
             <span className="pick-item-team" style={{ color: item.constructors?.color }}>
               {item.constructors?.short_name}
+              {availability?.status === 'unavailable' && <span className="pick-item-avail pick-item-avail--out"> · ❌ {availability.reason || 'Nicht dabei'}</span>}
+              {availability?.status === 'questionable' && <span className="pick-item-avail pick-item-avail--q"> · ⚠️ {availability.reason || 'Fraglich'}</span>}
             </span>
           </div>
           <button
@@ -169,6 +172,8 @@ export default function DraftPage() {
   const [search, setSearch] = useState('')
   const [pendingPick, setPendingPick] = useState(null)
   const [driverModalDriver, setDriverModalDriver] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [availability, setAvailability] = useState({}) // driver_id → { status, reason }
   const dragItem = useRef(null)
 
   useEffect(() => {
@@ -177,6 +182,19 @@ export default function DraftPage() {
       setSelectedWeekendId(next?.id ?? weekends[weekends.length - 1]?.id)
     }
   }, [weekends])
+
+  useEffect(() => {
+    if (!selectedWeekendId) return
+    supabase
+      .from('driver_availability')
+      .select('driver_id, status, reason')
+      .eq('race_weekend_id', selectedWeekendId)
+      .then(({ data }) => {
+        const map = {}
+        for (const a of (data ?? [])) map[a.driver_id] = { status: a.status, reason: a.reason }
+        setAvailability(map)
+      })
+  }, [selectedWeekendId])
 
   const {
     draftOrder, picks, drivers, constructors,
@@ -234,11 +252,16 @@ export default function DraftPage() {
   }
 
   async function handleConfirm() {
-    if (!pendingPick) return
-    const { item, type } = pendingPick
-    const { error } = await makePick(type, item.id)
-    if (error) alert('Fehler: ' + error.message)
-    else setPendingPick(null)
+    if (!pendingPick || submitting) return
+    setSubmitting(true)
+    try {
+      const { item, type } = pendingPick
+      const { error } = await makePick(type, item.id)
+      if (error) alert('Fehler: ' + (error.message ?? error))
+      else setPendingPick(null)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const filteredDrivers = drivers.filter(d =>
@@ -369,6 +392,7 @@ export default function DraftPage() {
                       onSelect={handleSelect}
                       onDragStart={handleDragStart}
                       onInfo={setDriverModalDriver}
+                      availability={availability[d.id]}
                     />
                   ))}
                   {tab === 'constructor' && constructors.map(c => (
@@ -387,11 +411,18 @@ export default function DraftPage() {
 
                 {pendingPick && (
                   <div className="pick-panel-confirm">
-                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleConfirm}>
-                      <Check size={15} />
-                      {pendingPick.type === 'driver'
-                        ? `${pendingPick.item.first_name} ${pendingPick.item.last_name} picken`
-                        : `${pendingPick.item.name} picken`
+                    <button
+                      className="btn btn-primary"
+                      style={{ width: '100%' }}
+                      onClick={handleConfirm}
+                      disabled={submitting}
+                    >
+                      {submitting
+                        ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Speichern…</>
+                        : <><Check size={15} />{pendingPick.type === 'driver'
+                            ? `${pendingPick.item.first_name} ${pendingPick.item.last_name} picken`
+                            : `${pendingPick.item.name} picken`
+                          }</>
                       }
                     </button>
                   </div>

@@ -178,3 +178,92 @@
     justify-content: center;
   }
 }
+
+/* ── Lieblingspicks ──────────────────────────────────────────── */
+.profile-favs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .profile-favs { grid-template-columns: 1fr; }
+}
+
+.profile-favs-label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.profile-fav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.4rem;
+}
+
+.profile-fav-rank {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 1.2rem;
+}
+
+.profile-fav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profile-fav-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-fav-name {
+  font-size: 0.83rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-fav-team {
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.profile-fav-count {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Push Status Dot ─────────────────────────────────────────── */
+.push-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.push-status-dot--on {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade8088;
+  animation: live-pulse 2s ease-in-out infinite;
+}
