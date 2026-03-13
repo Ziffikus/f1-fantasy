@@ -28,10 +28,12 @@ function SessionRow({ label, dateStr }) {
 }
 
 function PositionBadge({ pos, isLive }) {
-  if (!pos) return <span className="race-pos-unknown">–</span>
+  if (pos === undefined || pos === null || pos === '') return <span className="race-pos-unknown">–</span>
+  const p = Number(pos)
+  if (!p) return <span className="race-pos-unknown">–</span>
   return (
-    <span className={`race-pos ${pos === 1 ? 'race-pos--1' : pos === 2 ? 'race-pos--2' : pos === 3 ? 'race-pos--3' : ''} ${isLive ? 'race-pos--live' : ''}`}>
-      P{pos}
+    <span className={`race-pos ${p === 1 ? 'race-pos--1' : p === 2 ? 'race-pos--2' : p === 3 ? 'race-pos--3' : ''} ${isLive ? 'race-pos--live' : ''}`}>
+      P{p}
     </span>
   )
 }

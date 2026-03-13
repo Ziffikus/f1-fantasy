@@ -74,14 +74,14 @@ export default function DriversPage() {
                       return s ? (
                         <span key={d.id} className="drivers-team-driver-badge" style={{ color: c?.color }}>
                           <span className="drivers-team-driver-abbr">{d.abbreviation}</span>
-                          <span className="drivers-team-driver-rank">P{s.position}</span>
+                          <span className="drivers-team-driver-rank">{s.position ? `P${s.position}` : "–"}</span>
                         </span>
                       ) : null
                     })}
                   </div>
                   {/* Konstrukteurspunkte */}
                   <div className="drivers-team-pts">
-                    <span className="drivers-team-pts-pos">P{conStanding.position}</span>
+                    <span className="drivers-team-pts-pos">{conStanding.position ? `P${conStanding.position}` : "–"}</span>
                     <span className="drivers-team-pts-val">{conStanding.points} Pkt</span>
                   </div>
                 </div>
@@ -115,7 +115,7 @@ export default function DriversPage() {
                       <span className="driver-card-firstname">{d.first_name}</span>
                       <span className="driver-card-lastname">{d.last_name}</span>
                       {s
-                        ? <span className="driver-card-wm" style={{ color: c?.color }}>P{s.position} · {s.points} Pkt</span>
+                        ? <span className="driver-card-wm" style={{ color: c?.color }}>{s.position ? `P${s.position}` : "–"} · {s.points ?? 0} Pkt</span>
                         : <span className="driver-card-abbr">{d.abbreviation}</span>
                       }
                     </div>
