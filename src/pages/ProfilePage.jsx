@@ -356,6 +356,79 @@ export default function ProfilePage() {
         </div>
         <StatusMsg {...(pwMsg ?? {})} />
       </Section>
+
+      <Section title="Push-Benachrichtigungen">
+        {!pushStatus?.supported ? (
+          <p className="text-muted" style={{ fontSize: '0.82rem' }}>
+            Dein Browser unterstützt keine Push-Benachrichtigungen.
+          </p>
+        ) : (
+          <div>
+            <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
+              Erhalte eine Benachrichtigung wenn du beim Draft dran bist – auch wenn die App geschlossen ist.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className={`push-status-dot ${pushStatus?.subscribed ? 'push-status-dot--on' : ''}`} />
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {pushStatus?.subscribed ? 'Aktiv' : 'Inaktiv'}
+              </span>
+              <button
+                className={`btn ${pushStatus?.subscribed ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={handlePushToggle}
+                disabled={pushLoading}
+              >
+                {pushLoading
+                  ? <><Loader size={14} className="spinning" /> Bitte warten…</>
+                  : pushStatus?.subscribed ? '🔕 Deaktivieren' : '🔔 Aktivieren'
+                }
+              </button>
+            </div>
+            <StatusMsg {...(pushMsg ?? {})} />
+          </div>
+        )}
+      </Section>
+
+      <Section title="Meine Lieblingspicks">
+        {favLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem' }}><div className="spinner" style={{ width: 18, height: 18 }} /></div>
+        ) : (
+          <div className="profile-favs">
+            <div className="profile-favs-group">
+              <div className="profile-favs-label">Top 3 Fahrer</div>
+              {topDrivers.length === 0
+                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
+                : topDrivers.map((d, i) => (
+                  <div key={d.id} className="profile-fav-item">
+                    <span className="profile-fav-rank">#{i + 1}</span>
+                    <div className="profile-fav-dot" style={{ background: d.constructors?.color ?? '#888' }} />
+                    <div className="profile-fav-info">
+                      <span className="profile-fav-name">{d.first_name} {d.last_name}</span>
+                      <span className="profile-fav-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
+                    </div>
+                    <span className="profile-fav-count">{d.count}×</span>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="profile-favs-group">
+              <div className="profile-favs-label">Top 2 Teams</div>
+              {topTeams.length === 0
+                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
+                : topTeams.map((t, i) => (
+                  <div key={t.id} className="profile-fav-item">
+                    <span className="profile-fav-rank">#{i + 1}</span>
+                    <div className="profile-fav-dot" style={{ background: t.color ?? '#888' }} />
+                    <div className="profile-fav-info">
+                      <span className="profile-fav-name">{t.name}</span>
+                    </div>
+                    <span className="profile-fav-count">{t.count}×</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
   )
 }
