@@ -190,9 +190,9 @@ export default function ProfilePage() {
 
       <Section title="Profilbild">
         <div className="profile-avatar-row">
-          <div className="profile-avatar" onClick={() => fileInputRef.current?.click()}>
+          <div className="profile-avatar-wrap" onClick={() => fileInputRef.current?.click()}>
             {avatarSrc
-              ? <img src={avatarSrc} alt="Avatar" />
+              ? <img src={avatarSrc} alt="Avatar" className="profile-avatar-img" />
               : <div className="profile-avatar-placeholder">{initials}</div>}
             {avatarLoading && <div className="profile-avatar-overlay"><Loader size={20} className="spinning" /></div>}
           </div>
