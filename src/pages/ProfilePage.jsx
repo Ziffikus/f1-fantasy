@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Camera, User, Mail, Lock, Check, AlertCircle, Loader } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
@@ -7,54 +7,42 @@ import { subscribeToPush, unsubscribeFromPush, getPushStatus } from '../lib/push
 
 function useFavourites(profileId) {
   const [drivers, setDrivers] = useState([])
-  const [teams, setTeams]   = useState([])
+  const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
-
   useEffect(() => {
     if (!profileId) return
     async function load() {
-      const { supabase: sb } = await import('../lib/supabase')
-      // Alle Picks des Spielers laden
-      const { data: picks } = await sb
+      const { data: picks } = await supabase
         .from('picks')
-        .select('pick_type, driver_id, constructor_id, drivers(first_name, last_name, abbreviation, number, constructors(color, short_name)), constructors(id, name, short_name, color)')
+        .select('pick_type, driver_id, constructor_id, drivers(first_name, last_name, abbreviation, constructors(color, short_name)), constructors(id, name, short_name, color)')
         .eq('profile_id', profileId)
-
       if (!picks) { setLoading(false); return }
-
-      // Fahrer zählen
       const driverCount = {}
-      const driverMeta  = {}
+      const driverMeta = {}
       for (const p of picks.filter(p => p.pick_type === 'driver')) {
         const id = p.driver_id
         driverCount[id] = (driverCount[id] ?? 0) + 1
-        driverMeta[id]  = p.drivers
+        driverMeta[id] = p.drivers
       }
       const topDrivers = Object.entries(driverCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
+        .sort((a, b) => b[1] - a[1]).slice(0, 3)
         .map(([id, count]) => ({ ...driverMeta[id], id, count }))
-
-      // Teams zählen
       const teamCount = {}
-      const teamMeta  = {}
+      const teamMeta = {}
       for (const p of picks.filter(p => p.pick_type === 'constructor')) {
         const id = p.constructor_id
         teamCount[id] = (teamCount[id] ?? 0) + 1
-        teamMeta[id]  = p.constructors
+        teamMeta[id] = p.constructors
       }
       const topTeams = Object.entries(teamCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 2)
+        .sort((a, b) => b[1] - a[1]).slice(0, 2)
         .map(([id, count]) => ({ ...teamMeta[id], id, count }))
-
       setDrivers(topDrivers)
       setTeams(topTeams)
       setLoading(false)
     }
     load()
   }, [profileId])
-
   return { drivers, teams, loading }
 }
 
@@ -64,84 +52,6 @@ function StatusMsg({ type, text }) {
     <div className={`profile-status ${type === 'error' ? 'profile-status--error' : 'profile-status--success'}`}>
       {type === 'error' ? <AlertCircle size={14} /> : <Check size={14} />}
       {text}
-      <Section title="Push-Benachrichtigungen">
-        {!pushStatus?.supported ? (
-          <p className="text-muted" style={{ fontSize: '0.82rem' }}>
-            Dein Browser unterstützt keine Push-Benachrichtigungen.
-          </p>
-        ) : (
-          <div>
-            <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
-              Erhalte eine Benachrichtigung wenn du beim Draft dran bist –
-              auch wenn die App geschlossen ist.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <div className={`push-status-dot ${pushStatus?.subscribed ? 'push-status-dot--on' : ''}`} />
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                {pushStatus?.subscribed ? 'Aktiv' : 'Inaktiv'}
-              </span>
-              <button
-                className={`btn ${pushStatus?.subscribed ? 'btn-secondary' : 'btn-primary'}`}
-                onClick={handlePushToggle}
-                disabled={pushLoading || !import.meta.env.VITE_VAPID_PUBLIC_KEY}
-              >
-                {pushLoading
-                  ? <><Loader size={14} className="spinning" /> Bitte warten…</>
-                  : pushStatus?.subscribed
-                    ? '🔕 Deaktivieren'
-                    : '🔔 Aktivieren'
-                }
-              </button>
-            </div>
-            {!import.meta.env.VITE_VAPID_PUBLIC_KEY && (
-              <p className="profile-hint" style={{ color: '#f59e0b' }}>⚠️ VAPID Key noch nicht konfiguriert – siehe Setup-Anleitung.</p>
-            )}
-            <StatusMsg {...(pushMsg ?? {})} />
-          </div>
-        )}
-      </Section>
-
-      <Section title="Meine Lieblingspicks">
-        {favLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem' }}><div className="spinner" style={{ width: 18, height: 18 }} /></div>
-        ) : (
-          <div className="profile-favs">
-            <div className="profile-favs-group">
-              <div className="profile-favs-label">Top 3 Fahrer</div>
-              {topDrivers.length === 0
-                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
-                : topDrivers.map((d, i) => (
-                  <div key={d.id} className="profile-fav-item">
-                    <span className="profile-fav-rank">#{i + 1}</span>
-                    <div className="profile-fav-dot" style={{ background: d.constructors?.color ?? '#888' }} />
-                    <div className="profile-fav-info">
-                      <span className="profile-fav-name">{d.first_name} {d.last_name}</span>
-                      <span className="profile-fav-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
-                    </div>
-                    <span className="profile-fav-count">{d.count}×</span>
-                  </div>
-                ))
-              }
-            </div>
-            <div className="profile-favs-group">
-              <div className="profile-favs-label">Top 2 Teams</div>
-              {topTeams.length === 0
-                ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
-                : topTeams.map((t, i) => (
-                  <div key={t.id} className="profile-fav-item">
-                    <span className="profile-fav-rank">#{i + 1}</span>
-                    <div className="profile-fav-dot" style={{ background: t.color ?? '#888' }} />
-                    <div className="profile-fav-info">
-                      <span className="profile-fav-name">{t.name}</span>
-                    </div>
-                    <span className="profile-fav-count">{t.count}×</span>
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        )}
-      </Section>
     </div>
   )
 }
@@ -157,16 +67,16 @@ function Section({ title, children }) {
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useAuthStore()
+  const fileInputRef = useRef(null)
 
-  const fileInputRef = useRef()
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [avatarMsg, setAvatarMsg] = useState(null)
 
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
+  const [displayName, setDisplayName] = useState('')
   const [nameLoading, setNameLoading] = useState(false)
   const [nameMsg, setNameMsg] = useState(null)
 
-  const [email, setEmail] = useState(user?.email ?? '')
+  const [email, setEmail] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
 
@@ -175,25 +85,38 @@ export default function ProfilePage() {
   const [pwLoading, setPwLoading] = useState(false)
   const [pwMsg, setPwMsg] = useState(null)
 
+  const [pushStatus, setPushStatus] = useState(null)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushMsg, setPushMsg] = useState(null)
+
+  const { drivers: topDrivers, teams: topTeams, loading: favLoading } = useFavourites(profile?.id)
+
+  useEffect(() => {
+    if (profile) {
+      setDisplayName(profile.display_name ?? profile.username ?? '')
+      setEmail(user?.email ?? '')
+    }
+  }, [profile, user])
+
+  useEffect(() => {
+    getPushStatus().then(setPushStatus)
+  }, [])
+
   async function handleAvatarChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 2 * 1024 * 1024) {
-      setAvatarMsg({ type: 'error', text: 'Datei zu groß (max. 2 MB)' })
-      return
-    }
-    setAvatarLoading(true)
-    setAvatarMsg(null)
+    if (file.size > 2 * 1024 * 1024) { setAvatarMsg({ type: 'error', text: 'Max. 2 MB erlaubt.' }); return }
+    setAvatarLoading(true); setAvatarMsg(null)
     try {
       const ext = file.name.split('.').pop()
-      const path = `avatars/${user.id}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type })
+      const path = `${profile.id}/avatar.${ext}`
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
       if (upErr) throw upErr
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      await updateProfile({ avatar_url: `${publicUrl}?t=${Date.now()}` })
-      setAvatarMsg({ type: 'success', text: 'Profilbild gespeichert!' })
+      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl + '?t=' + Date.now() }).eq('id', profile.id)
+      if (updErr) throw updErr
+      await updateProfile()
+      setAvatarMsg({ type: 'success', text: 'Bild gespeichert!' })
     } catch (err) {
       setAvatarMsg({ type: 'error', text: err.message })
     }
@@ -201,11 +124,11 @@ export default function ProfilePage() {
   }
 
   async function handleNameSave() {
-    if (!displayName.trim()) return
-    setNameLoading(true)
-    setNameMsg(null)
+    setNameLoading(true); setNameMsg(null)
     try {
-      await updateProfile({ display_name: displayName.trim() })
+      const { error } = await supabase.from('profiles').update({ display_name: displayName.trim() }).eq('id', profile.id)
+      if (error) throw error
+      await updateProfile()
       setNameMsg({ type: 'success', text: 'Name gespeichert!' })
     } catch (err) {
       setNameMsg({ type: 'error', text: err.message })
@@ -214,26 +137,21 @@ export default function ProfilePage() {
   }
 
   async function handleEmailSave() {
-    const newEmail = email.trim().toLowerCase()
-    if (!newEmail || newEmail === user?.email?.toLowerCase()) return
-    setEmailLoading(true)
-    setEmailMsg(null)
+    setEmailLoading(true); setEmailMsg(null)
     try {
-      const { error } = await supabase.auth.updateUser({ email: newEmail })
-      // Supabase sendet die Mail auch wenn "invalid"-Fehler kommt (Secure email change Modus)
-      if (error && !error.message?.toLowerCase().includes("invalid")) throw error
-      setEmailMsg({ type: "success", text: "Bestätigungsmail gesendet – bitte beide Adressen bestätigen." })
+      const { error } = await supabase.auth.updateUser({ email: email.trim() })
+      if (error) throw error
+      setEmailMsg({ type: 'success', text: 'Bestätigungsmail gesendet!' })
     } catch (err) {
-      setEmailMsg({ type: "error", text: err.message })
+      setEmailMsg({ type: 'error', text: err.message })
     }
     setEmailLoading(false)
   }
 
   async function handlePasswordSave() {
-    if (!pw || pw.length < 6) { setPwMsg({ type: 'error', text: 'Mindestens 6 Zeichen.' }); return }
     if (pw !== pwConfirm) { setPwMsg({ type: 'error', text: 'Passwörter stimmen nicht überein.' }); return }
-    setPwLoading(true)
-    setPwMsg(null)
+    if (pw.length < 6) { setPwMsg({ type: 'error', text: 'Mindestens 6 Zeichen.' }); return }
+    setPwLoading(true); setPwMsg(null)
     try {
       const { error } = await supabase.auth.updateUser({ password: pw })
       if (error) throw error
@@ -245,20 +163,8 @@ export default function ProfilePage() {
     setPwLoading(false)
   }
 
-  const { drivers: topDrivers, teams: topTeams, loading: favLoading } = useFavourites(profile?.id)
-
-  // Push Notifications
-  const [pushStatus, setPushStatus] = useState(null)
-  const [pushLoading, setPushLoading] = useState(false)
-  const [pushMsg, setPushMsg] = useState(null)
-
-  useEffect(() => {
-    getPushStatus().then(setPushStatus)
-  }, [])
-
   async function handlePushToggle() {
-    setPushLoading(true)
-    setPushMsg(null)
+    setPushLoading(true); setPushMsg(null)
     try {
       if (pushStatus?.subscribed) {
         await unsubscribeFromPush(profile.id)
@@ -279,14 +185,14 @@ export default function ProfilePage() {
   const initials = (profile?.display_name ?? profile?.username ?? '?')[0].toUpperCase()
 
   return (
-    <div className="profile-page page-enter">
+    <div className="profile-root">
       <h1 className="profile-title">Mein Profil</h1>
 
       <Section title="Profilbild">
-        <div className="profile-avatar-section">
-          <div className="profile-avatar-wrap">
+        <div className="profile-avatar-row">
+          <div className="profile-avatar" onClick={() => fileInputRef.current?.click()}>
             {avatarSrc
-              ? <img src={avatarSrc} alt="Avatar" className="profile-avatar-img" />
+              ? <img src={avatarSrc} alt="Avatar" />
               : <div className="profile-avatar-placeholder">{initials}</div>}
             {avatarLoading && <div className="profile-avatar-overlay"><Loader size={20} className="spinning" /></div>}
           </div>
@@ -390,7 +296,9 @@ export default function ProfilePage() {
 
       <Section title="Meine Lieblingspicks">
         {favLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem' }}><div className="spinner" style={{ width: 18, height: 18 }} /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem' }}>
+            <div className="spinner" style={{ width: 18, height: 18 }} />
+          </div>
         ) : (
           <div className="profile-favs">
             <div className="profile-favs-group">
