@@ -1,0 +1,288 @@
+.live-page-root {
+  max-width: 680px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+
+.live-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.live-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.live-page-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.live-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: rgba(232,0,45,0.1);
+  border: 1px solid rgba(232,0,45,0.3);
+  border-radius: 20px;
+  padding: 0.25rem 0.6rem;
+}
+
+.live-update-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.live-refresh-btn {
+  padding: 0.35rem 0.5rem;
+}
+
+/* ── Content ─────────────────────────────────────────────────── */
+.live-page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.live-no-session {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Wetter ──────────────────────────────────────────────────── */
+.live-weather {
+  padding: 1rem 1.25rem;
+}
+
+.live-weather-title {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.live-weather-grid {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.live-weather-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.live-weather-item--rain {
+  color: #60a5fa;
+}
+
+.live-weather-val {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.live-weather-label {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Positionen ──────────────────────────────────────────────── */
+.live-standings {
+  padding: 1rem 1.25rem;
+}
+
+.live-standings-title {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.live-standings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.live-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.live-pos-row--leader {
+  background: rgba(232,0,45,0.05);
+  border-color: rgba(232,0,45,0.2);
+}
+
+.live-pos-num {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-width: 1.4rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.live-pos-row--leader .live-pos-num {
+  color: var(--accent);
+}
+
+.live-pos-color {
+  width: 3px;
+  height: 1.4rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.live-pos-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.live-pos-name {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-pos-team {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.live-tyre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.live-tyre-lap {
+  font-size: 0.58rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.live-interval {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 4rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Rennkontrolle ───────────────────────────────────────────── */
+.live-rc {
+  padding: 1rem 1.25rem;
+}
+
+.live-rc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.live-rc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.live-rc-item {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  border-left: 3px solid var(--border);
+}
+
+.live-rc-time {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.live-rc-msg {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+  .live-weather-grid { gap: 0.75rem; }
+  .live-pos-row { padding: 0.4rem 0.5rem; }
+  .live-interval { min-width: 3rem; font-size: 0.65rem; }
+}

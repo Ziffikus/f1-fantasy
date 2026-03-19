@@ -17,13 +17,15 @@ import {
   X,
   Flag,
   BookOpen,
-  History
+  History,
+  Radio
 } from 'lucide-react'
 import './Layout.css'
 
 const NAV_ITEMS = [
   { to: '/',          label: 'Dashboard',  icon: LayoutDashboard, exact: true },
   { to: '/wertung',   label: 'Wertung',    icon: Trophy },
+  { to: '/live',      label: 'Live',       icon: Radio },
   { to: '/draft',     label: 'Draft',      icon: Shuffle },
   { to: '/kalender',  label: 'Kalender',   icon: Calendar },
   { to: '/fahrer',    label: 'Fahrer',     icon: Users },

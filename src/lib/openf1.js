@@ -91,3 +91,48 @@ export function getNextSession(raceWeekend) {
 
   return sessions.find(s => new Date(s.start) > now) ?? null
 }
+
+// ─── Wetterdaten ─────────────────────────────────────────────
+export async function getWeather(sessionKey) {
+  const data = await openF1Fetch('/weather', { session_key: sessionKey })
+  // Neueste Wetterdaten
+  return data[data.length - 1] ?? null
+}
+
+// ─── Rundenzeiten / aktuelle Runde ───────────────────────────
+export async function getLaps(sessionKey) {
+  return openF1Fetch('/laps', { session_key: sessionKey })
+}
+
+export async function getLatestLapNumber(sessionKey) {
+  const laps = await openF1Fetch('/laps', { session_key: sessionKey })
+  if (!laps.length) return 0
+  return Math.max(...laps.map(l => l.lap_number ?? 0))
+}
+
+// ─── Rennkontrolle (Safety Car, Flaggen, etc.) ───────────────
+export async function getRaceControl(sessionKey) {
+  return openF1Fetch('/race_control', { session_key: sessionKey })
+}
+
+// ─── Zeitabstände / Intervalle ───────────────────────────────
+export async function getIntervals(sessionKey) {
+  const data = await openF1Fetch('/intervals', { session_key: sessionKey })
+  const latest = {}
+  for (const entry of data) {
+    if (!latest[entry.driver_number] || entry.date > latest[entry.driver_number].date) {
+      latest[entry.driver_number] = entry
+    }
+  }
+  return Object.values(latest)
+}
+
+// ─── Stints (Reifendaten) ────────────────────────────────────
+export async function getStints(sessionKey) {
+  return openF1Fetch('/stints', { session_key: sessionKey })
+}
+
+// ─── Sessions für aktuelles Meeting ──────────────────────────
+export async function getSessionsForMeeting(meetingKey) {
+  return openF1Fetch('/sessions', { meeting_key: meetingKey })
+}
