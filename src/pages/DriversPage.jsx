@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import DriverModal from '../components/ui/DriverModal'
+import { useNavigate } from 'react-router-dom'
 import { useF1Standings } from '../hooks/useF1Standings'
 import './DriversPage.css'
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(null)
+  const navigate = useNavigate()
   const { getStanding, getConstructorStanding, loading: standingsLoading } = useF1Standings()
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function DriversPage() {
                   <button
                     key={d.id}
                     className="driver-card"
-                    onClick={() => setSelected(d)}
+                    onClick={() => navigate(`/fahrer/${d.id}`)}
                     style={{ '--team-color': c?.color ?? '#888' }}
                   >
                     <div className="driver-card-number" style={{ color: c?.color }}>#{d.number}</div>
@@ -131,7 +131,6 @@ export default function DriversPage() {
         )
       })}
 
-      {selected && <DriverModal driver={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }

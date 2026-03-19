@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useDraftNotifications } from '../hooks/useDraftNotifications'
-import DriverModal from '../components/ui/DriverModal'
 import { Car, Users, Check, X, ChevronRight, Bell, Info } from 'lucide-react'
 import './DraftPage.css'
 
@@ -171,7 +171,7 @@ export default function DraftPage() {
   const [tab, setTab] = useState('driver')
   const [search, setSearch] = useState('')
   const [pendingPick, setPendingPick] = useState(null)
-  const [driverModalDriver, setDriverModalDriver] = useState(null)
+  const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [availability, setAvailability] = useState({}) // driver_id → { status, reason }
   const dragItem = useRef(null)
@@ -391,7 +391,7 @@ export default function DraftPage() {
                       selected={pendingPick}
                       onSelect={handleSelect}
                       onDragStart={handleDragStart}
-                      onInfo={setDriverModalDriver}
+                      onInfo={(d) => navigate(`/fahrer/${d.id}`)}
                       availability={availability[d.id]}
                     />
                   ))}
@@ -459,9 +459,6 @@ export default function DraftPage() {
             </div>
           </div>
         </div>
-      )}
-      {driverModalDriver && (
-        <DriverModal driver={driverModalDriver} onClose={() => setDriverModalDriver(null)} />
       )}
     </div>
   )
