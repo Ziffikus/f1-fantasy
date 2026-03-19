@@ -27,6 +27,11 @@ function useRaceResults() {
   return { results, loading }
 }
 
+function fmtPts(val) {
+  const n = Number(val)
+  return n % 1 === 0 ? n : n.toFixed(1)
+}
+
 export default function StandingsPage() {
   const { standings, loading } = useStandings()
   const { weekends } = useRaceWeekends()
@@ -96,7 +101,7 @@ export default function StandingsPage() {
             </div>
             <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[1].profile_id}`)}>{liveStandings[1].display_name}</div>
             <div className="podium-pts">
-              {liveStandings[1].live_total}
+              {fmtPts(liveStandings[1].live_total)}
               {isLive && <span className="podium-pts-live"> ●</span>}
             </div>
             <div className="podium-block podium-block-2">2</div>
@@ -111,7 +116,7 @@ export default function StandingsPage() {
             </div>
             <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[0].profile_id}`)}>{liveStandings[0].display_name}</div>
             <div className="podium-pts">
-              {liveStandings[0].live_total}
+              {fmtPts(liveStandings[0].live_total)}
               {isLive && <span className="podium-pts-live"> ●</span>}
             </div>
             <div className="podium-block podium-block-1">1</div>
@@ -125,7 +130,7 @@ export default function StandingsPage() {
             </div>
             <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[2].profile_id}`)}>{liveStandings[2].display_name}</div>
             <div className="podium-pts">
-              {liveStandings[2].live_total}
+              {fmtPts(liveStandings[2].live_total)}
               {isLive && <span className="podium-pts-live"> ●</span>}
             </div>
             <div className="podium-block podium-block-3">3</div>
@@ -176,14 +181,14 @@ export default function StandingsPage() {
                     </div>
                   </td>
                   <td className="standings-pts-cell">
-                    {player.live_total}
+                    {fmtPts(player.live_total)}
                     {isLive && player.live_total !== player.total_points && (
                       <span className="standings-pts-diff" style={{
                         color: player.live_total < player.total_points ? 'var(--color-success, #4ade80)' : 'var(--color-danger, #f87171)',
                         fontSize: '0.7rem', marginLeft: '0.3rem'
                       }}>
                         {player.live_total < player.total_points ? '▼' : '▲'}
-                        {Math.abs(player.live_total - player.total_points)}
+                        {fmtPts(Math.abs(player.live_total - player.total_points))}
                       </span>
                     )}
                   </td>
@@ -218,7 +223,7 @@ export default function StandingsPage() {
                               <span className="standings-race-pts">
                                 {isLiveRound && livePts !== null
                                   ? <><span className="standings-live-dot" style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#ef4444', marginRight: 3 }} />{livePts}</>
-                                  : rp ? rp.total_points : '–'
+                                  : rp ? fmtPts(rp.total_points) : '–'
                                 }
                               </span>
                               {rp?.weekend_rank === 1 && !isLiveRound && <span className="standings-race-trophy">🏆</span>}

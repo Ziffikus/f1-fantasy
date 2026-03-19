@@ -10,6 +10,7 @@ export function useStandings() {
       const { data } = await supabase
         .from('overall_standings')
         .select('*')
+        .order('total_points', { ascending: true })
       setStandings(data ?? [])
       setLoading(false)
     }
