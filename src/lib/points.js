@@ -32,7 +32,7 @@ export function calculatePlayerPoints(picks, raceResults, sprintResults = [], al
       racePoints += getDriverPoints(pick.driver_id, raceMap)
       if (sprintResults.length > 0) {
         const raw = getDriverPoints(pick.driver_id, sprintMap)
-        sprintPoints += Math.ceil(raw / 2)
+        sprintPoints += (raw  / 2)
       }
     } else if (pick.pick_type === 'constructor') {
       const teamDrivers = allDrivers.filter(d => d.constructor_id === pick.constructor_id)
@@ -40,7 +40,7 @@ export function calculatePlayerPoints(picks, raceResults, sprintResults = [], al
         racePoints += getDriverPoints(driver.id, raceMap)
         if (sprintResults.length > 0) {
           const raw = getDriverPoints(driver.id, sprintMap)
-          sprintPoints += Math.ceil(raw / 2)
+          sprintPoints += (raw  / 2)
         }
       }
     }

@@ -405,3 +405,59 @@
 }
 .pick-item-avail--out { color: #ef4444; }
 .pick-item-avail--q   { color: #f59e0b; }
+
+.admin-import-override {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.admin-import-override input { cursor: pointer; accent-color: var(--accent); }
+
+/* ── Ersatzfahrer ─────────────────────────────────────────────── */
+.admin-subs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-sub-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.admin-sub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 140px;
+}
+
+.admin-sub-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-sub-arrow {
+  font-size: 1.2rem;
+  color: var(--accent);
+  padding-bottom: 0.4rem;
+  flex-shrink: 0;
+}
+
+.admin-sub-remove {
+  padding: 0.35rem 0.5rem;
+  flex-shrink: 0;
+}

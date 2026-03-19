@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useStandings } from '../hooks/useStandings'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useAuthStore } from '../stores/authStore'
+import { useNavigate } from 'react-router-dom'
 import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
 import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio } from 'lucide-react'
@@ -31,6 +32,7 @@ export default function StandingsPage() {
   const { weekends } = useRaceWeekends()
   const { results, loading: resultsLoading } = useRaceResults()
   const { profile } = useAuthStore()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(null)
 
   const { isLive, sessionType, lastUpdate, liveWeekend, getLiveTotal, getLiveRoundPoints } =
@@ -92,7 +94,7 @@ export default function StandingsPage() {
                 ? <img src={liveStandings[1].avatar_url} alt={liveStandings[1].display_name} />
                 : <span>{liveStandings[1].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{liveStandings[1].display_name}</div>
+            <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[1].profile_id}`)}>{liveStandings[1].display_name}</div>
             <div className="podium-pts">
               {liveStandings[1].live_total}
               {isLive && <span className="podium-pts-live"> ●</span>}
@@ -107,7 +109,7 @@ export default function StandingsPage() {
                 ? <img src={liveStandings[0].avatar_url} alt={liveStandings[0].display_name} />
                 : <span>{liveStandings[0].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{liveStandings[0].display_name}</div>
+            <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[0].profile_id}`)}>{liveStandings[0].display_name}</div>
             <div className="podium-pts">
               {liveStandings[0].live_total}
               {isLive && <span className="podium-pts-live"> ●</span>}
@@ -121,7 +123,7 @@ export default function StandingsPage() {
                 ? <img src={liveStandings[2].avatar_url} alt={liveStandings[2].display_name} />
                 : <span>{liveStandings[2].display_name?.[0]?.toUpperCase()}</span>}
             </div>
-            <div className="podium-name">{liveStandings[2].display_name}</div>
+            <div className="podium-name podium-name--link" onClick={() => navigate(`/spieler/${liveStandings[2].profile_id}`)}>{liveStandings[2].display_name}</div>
             <div className="podium-pts">
               {liveStandings[2].live_total}
               {isLive && <span className="podium-pts-live"> ●</span>}
@@ -167,7 +169,7 @@ export default function StandingsPage() {
                           ? <img src={player.avatar_url} alt={player.display_name} />
                           : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
                       </div>
-                      <span className="standings-name">
+                      <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
                         {player.display_name}
                         {player.profile_id === profile?.id && <span className="dashboard-you"> (du)</span>}
                       </span>

@@ -70,12 +70,29 @@ export default function DriverModal({ driver, onClose }) {
           <div className="driver-modal-title">
             <div className="driver-modal-number" style={{ color }}>#{driver.number}</div>
             <h2>{driver.first_name} <strong>{driver.last_name}</strong></h2>
-            <div className="driver-modal-team" style={{ color }}>{driver.constructors?.name}</div>
+            <div className="driver-modal-team" style={{ color }}>
+              {driver.constructors?.logo_url && (
+                <img src={driver.constructors.logo_url} alt={driver.constructors.name} className="driver-modal-team-logo" onError={e => e.target.style.display='none'} />
+              )}
+              {driver.constructors?.name}
+            </div>
           </div>
           <button className="driver-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
 
         <div className="driver-modal-body">
+          {/* Auto-Seitenansicht */}
+          {driver.constructors?.car_url && (
+            <div className="driver-modal-car-wrap">
+              <img
+                src={driver.constructors.car_url}
+                alt={driver.constructors.name}
+                className="driver-modal-car"
+                onError={e => e.target.parentElement.style.display='none'}
+              />
+            </div>
+          )}
+
           {/* Biografie */}
           <div className="driver-modal-section">
             <div className="driver-modal-section-title">Biografie</div>

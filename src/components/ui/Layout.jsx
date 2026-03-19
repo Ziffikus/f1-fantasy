@@ -15,7 +15,9 @@ import {
   Moon,
   Menu,
   X,
-  Flag
+  Flag,
+  BookOpen,
+  History
 } from 'lucide-react'
 import './Layout.css'
 
@@ -26,6 +28,8 @@ const NAV_ITEMS = [
   { to: '/kalender',  label: 'Kalender',   icon: Calendar },
   { to: '/fahrer',    label: 'Fahrer',     icon: Users },
   { to: '/profil',    label: 'Profil',     icon: User },
+  { to: '/regeln',    label: 'Regeln',     icon: BookOpen },
+  { to: '/historie',  label: 'Historie',   icon: History },
 ]
 
 export default function Layout() {

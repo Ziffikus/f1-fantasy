@@ -14,6 +14,9 @@ const ProfilePage     = lazy(() => import('./pages/ProfilePage'))
 const AdminPage       = lazy(() => import('./pages/AdminPage'))
 const CalendarPage    = lazy(() => import('./pages/CalendarPage'))
 const DriversPage     = lazy(() => import('./pages/DriversPage'))
+const RulesPage         = lazy(() => import('./pages/RulesPage'))
+const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
+const HistoryPage       = lazy(() => import('./pages/HistoryPage'))
 
 // Layout
 import Layout from './components/ui/Layout'
@@ -86,6 +89,9 @@ export default function App() {
             <Route path="kalender" element={<CalendarPage />} />
             <Route path="rennen/:id" element={<RacePage />} />
             <Route path="fahrer" element={<DriversPage />} />
+            <Route path="regeln" element={<RulesPage />} />
+            <Route path="spieler/:id" element={<PublicProfilePage />} />
+            <Route path="historie" element={<HistoryPage />} />
             <Route path="profil" element={<ProfilePage />} />
             <Route path="admin" element={
               <AdminRoute>

@@ -16,7 +16,7 @@ export default function DriversPage() {
       if (!season) return
       const { data } = await supabase
         .from('drivers')
-        .select('*, constructors(id, name, short_name, color)')
+        .select('*, constructors(id, name, short_name, color, car_url, logo_url)')
         .eq('season_id', season.id)
         .eq('is_active', true)
         .order('last_name')
@@ -63,6 +63,12 @@ export default function DriversPage() {
             <div className="drivers-team-header">
               <div className="drivers-team-color" style={{ background: c?.color ?? '#888' }} />
               <span className="drivers-team-name" style={{ color: c?.color }}>{teamName}</span>
+              {c?.logo_url && (
+                <img src={c.logo_url} alt={teamName} className="drivers-team-logo" onError={e => e.target.style.display='none'} />
+              )}
+              {c?.car_url && (
+                <img src={c.car_url} alt={teamName} className="drivers-team-car" onError={e => e.target.style.display='none'} />
+              )}
 
               {/* WM-Infos rechts */}
               {conStanding && (

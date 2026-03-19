@@ -280,25 +280,37 @@ function ResultsPanel({ raceWeekendId }) {
   async function handleSave() {
     setSaving(true)
     try {
-      // Lösche alte Ergebnisse
-      const { error: delError } = await supabase.from('race_results').delete().eq('race_weekend_id', raceWeekendId)
-      if (delError) throw delError
-
-      const inserts = []
+      // Upsert statt delete+insert – sicherer und schneller
+      const upserts = []
       for (const [driverId, pos] of Object.entries(results)) {
-        if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'race', position: Number(pos), is_manual_override: true })
+        if (pos) upserts.push({
+          race_weekend_id: raceWeekendId,
+          driver_id: Number(driverId),
+          session_type: 'race',
+          position: Number(pos),
+          is_manual_override: true,
+        })
       }
       if (weekend?.is_sprint_weekend) {
         for (const [driverId, pos] of Object.entries(sprintResults)) {
-          if (pos) inserts.push({ race_weekend_id: raceWeekendId, driver_id: Number(driverId), session_type: 'sprint', position: Number(pos), is_manual_override: true })
+          if (pos) upserts.push({
+            race_weekend_id: raceWeekendId,
+            driver_id: Number(driverId),
+            session_type: 'sprint',
+            position: Number(pos),
+            is_manual_override: true,
+          })
         }
       }
-      if (inserts.length > 0) {
-        const { error: insError } = await supabase.from('race_results').insert(inserts)
-        if (insError) throw insError
+
+      if (upserts.length > 0) {
+        const { error } = await supabase
+          .from('race_results')
+          .upsert(upserts, { onConflict: 'race_weekend_id,driver_id,session_type' })
+        if (error) throw error
       }
 
-      // Punkte berechnen und speichern
+      // Punkte aus DB berechnen (nicht aus lokalem State)
       await calculateAndSavePoints(raceWeekendId, results, sprintResults, weekend)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -311,6 +323,7 @@ function ResultsPanel({ raceWeekendId }) {
 
   const [importing, setImporting] = useState(false)
   const [importLog, setImportLog] = useState([])
+  const [overrideManual, setOverrideManual] = useState(false)
 
   async function handleImport() {
     setImporting(true)
@@ -318,7 +331,7 @@ function ResultsPanel({ raceWeekendId }) {
     try {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       const { data: allDrivers } = await supabase.from('drivers').select('id, abbreviation').eq('season_id', season.id)
-      const result = await importResultsFromErgast(supabase, weekend, allDrivers ?? [])
+      const result = await importResultsFromErgast(supabase, weekend, allDrivers ?? [], overrideManual)
       setImportLog(result.log)
       // Ergebnisse neu laden
       const { data: existing } = await supabase.from('race_results').select('*').eq('race_weekend_id', raceWeekendId)
@@ -346,8 +359,16 @@ function ResultsPanel({ raceWeekendId }) {
       <div className="admin-import-box">
         <div className="admin-import-info">
           <Download size={14} />
-          <span>Ergebnisse automatisch von der F1-API importieren (Ergast). Manuelle Overrides bleiben erhalten.</span>
+          <span>Ergebnisse automatisch von der F1-API importieren (Ergast).</span>
         </div>
+        <label className="admin-import-override">
+          <input
+            type="checkbox"
+            checked={overrideManual}
+            onChange={e => setOverrideManual(e.target.checked)}
+          />
+          Manuelle Einträge überschreiben
+        </label>
         <button className="btn btn-secondary" onClick={handleImport} disabled={importing || !weekend}>
           {importing ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Importiere…</> : <><Download size={14} /> Jetzt importieren</>}
         </button>
@@ -524,22 +545,168 @@ function AvailabilityPanel({ raceWeekendId }) {
   )
 }
 
+// ── Ersatzfahrer ─────────────────────────────────────────────
+function SubstitutionPanel({ raceWeekendId }) {
+  const [drivers, setDrivers] = useState([])
+  const [subs, setSubs] = useState([]) // [{ original_driver_id, substitute_driver_id, session_type }]
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
+      const { data: d } = await supabase
+        .from('drivers').select('*, constructors(short_name, color)')
+        .eq('season_id', season.id).eq('is_active', true).order('last_name')
+      setDrivers(d ?? [])
+
+      const { data: existing } = await supabase
+        .from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId)
+      setSubs(existing ?? [])
+    }
+    if (raceWeekendId) load()
+  }, [raceWeekendId])
+
+  function addSub() {
+    setSubs(prev => [...prev, { original_driver_id: '', substitute_driver_id: '', session_type: 'both', _new: true }])
+  }
+
+  function updateSub(i, field, val) {
+    setSubs(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s))
+  }
+
+  function removeSub(i) {
+    setSubs(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await supabase.from('driver_substitutions').delete().eq('race_weekend_id', raceWeekendId)
+      const valid = subs.filter(s => s.original_driver_id && s.substitute_driver_id)
+      if (valid.length) {
+        const { error } = await supabase.from('driver_substitutions').insert(
+          valid.map(s => ({
+            race_weekend_id: raceWeekendId,
+            original_driver_id: Number(s.original_driver_id),
+            substitute_driver_id: Number(s.substitute_driver_id),
+            session_type: s.session_type,
+          }))
+        )
+        if (error) throw error
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      alert('Fehler: ' + err.message)
+    }
+    setSaving(false)
+  }
+
+  const SESSION_LABELS = { both: 'Sprint + Rennen', race: 'Nur Rennen', sprint: 'Nur Sprint' }
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-header">
+        <h3>Ersatzfahrer</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>
+          Punkte des Ersatzfahrers zählen für den Stammfahrer (Option A)
+        </span>
+      </div>
+
+      {subs.length === 0 && (
+        <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
+          Keine Ersatzfahrer für dieses Wochenende.
+        </p>
+      )}
+
+      <div className="admin-subs-list">
+        {subs.map((sub, i) => (
+          <div key={i} className="admin-sub-row">
+            <div className="admin-sub-field">
+              <label className="admin-sub-label">Stammfahrer (fehlt)</label>
+              <select className="input" value={sub.original_driver_id} onChange={e => updateSub(i, 'original_driver_id', e.target.value)}>
+                <option value="">– Fahrer wählen –</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.abbreviation} – {d.last_name}</option>)}
+              </select>
+            </div>
+            <div className="admin-sub-arrow">→</div>
+            <div className="admin-sub-field">
+              <label className="admin-sub-label">Ersatzfahrer</label>
+              <select className="input" value={sub.substitute_driver_id} onChange={e => updateSub(i, 'substitute_driver_id', e.target.value)}>
+                <option value="">– Fahrer wählen –</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.abbreviation} – {d.last_name}</option>)}
+              </select>
+            </div>
+            <div className="admin-sub-field">
+              <label className="admin-sub-label">Gilt für</label>
+              <select className="input" value={sub.session_type} onChange={e => updateSub(i, 'session_type', e.target.value)}>
+                {Object.entries(SESSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <button className="btn btn-secondary admin-sub-remove" onClick={() => removeSub(i)}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+        <button className="btn btn-secondary" onClick={addSub}>
+          <Plus size={14} /> Ersatz hinzufügen
+        </button>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Speichern…</> : saved ? '✅ Gespeichert!' : <><Save size={14} /> Speichern</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Punkte berechnen helper
-async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults, weekend) {
+async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResults, weekend) {
+  // Ergebnisse immer frisch aus der DB lesen
   const [
     { data: picks },
     { data: season },
     { data: profiles },
+    { data: dbResults },
+    { data: dbSubs },
   ] = await Promise.all([
     supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId),
     supabase.from('seasons').select('id').eq('is_active', true).single(),
     supabase.from('profiles').select('id'),
+    supabase.from('race_results').select('driver_id, session_type, position').eq('race_weekend_id', raceWeekendId),
+    supabase.from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId),
   ])
 
   if (!season) throw new Error('Keine aktive Saison gefunden')
 
   const { data: allDrivers } = await supabase
     .from('drivers').select('id, constructor_id').eq('season_id', season.id)
+
+  // Abbrechen wenn noch keine Ergebnisse vorhanden
+  if (!dbResults?.length) return
+
+  // DB-Ergebnisse in Maps umwandeln
+  const raceResults = {}, sprintResults = {}
+  for (const r of (dbResults ?? [])) {
+    if (r.session_type === 'race')   raceResults[r.driver_id]   = r.position
+    if (r.session_type === 'sprint') sprintResults[r.driver_id] = r.position
+  }
+
+  // Nur Rennergebnisse vorhanden prüfen
+  const hasRaceResults = Object.keys(raceResults).length > 0
+  if (!hasRaceResults) return
+
+  // Ersatzfahrer anwenden: Stammfahrer bekommt Ergebnis des Ersatzfahrers
+  for (const sub of (dbSubs ?? [])) {
+    const { original_driver_id: orig, substitute_driver_id: repl, session_type: stype } = sub
+    if ((stype === 'race' || stype === 'both') && raceResults[repl] !== undefined)
+      raceResults[orig] = raceResults[repl]
+    if ((stype === 'sprint' || stype === 'both') && sprintResults[repl] !== undefined)
+      sprintResults[orig] = sprintResults[repl]
+  }
 
   const pointsToUpsert = []
 
@@ -553,7 +720,7 @@ async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults,
         racePoints += pos > 0 ? pos : 22
         if (weekend?.is_sprint_weekend) {
           const spos = Number(sprintResults[pick.driver_id])
-          sprintPoints += Math.ceil((spos > 0 ? spos : 22) / 2)
+          sprintPoints += ((spos > 0 ? spos : 22) / 2)
         }
       } else if (pick.pick_type === 'constructor') {
         const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
@@ -562,7 +729,7 @@ async function calculateAndSavePoints(raceWeekendId, raceResults, sprintResults,
           racePoints += pos > 0 ? pos : 22
           if (weekend?.is_sprint_weekend) {
             const spos = Number(sprintResults[td.id])
-            sprintPoints += Math.ceil((spos > 0 ? spos : 22) / 2)
+            sprintPoints += ((spos > 0 ? spos : 22) / 2)
           }
         }
       }
@@ -633,6 +800,7 @@ export default function AdminPage() {
           { id: 'picks', label: 'Picks eintragen' },
           { id: 'results', label: 'Ergebnisse' },
           { id: 'availability', label: 'Fahrerstatus' },
+          { id: 'substitutions', label: 'Ersatzfahrer' },
         ].map(t => (
           <button
             key={t.id}
@@ -650,6 +818,7 @@ export default function AdminPage() {
           {tab === 'picks' && <AdminPicksPanel raceWeekendId={selectedId} />}
           {tab === 'results' && <ResultsPanel raceWeekendId={selectedId} />}
           {tab === 'availability' && <AvailabilityPanel raceWeekendId={selectedId} />}
+          {tab === 'substitutions' && <SubstitutionPanel raceWeekendId={selectedId} />}
         </div>
       )}
     </div>

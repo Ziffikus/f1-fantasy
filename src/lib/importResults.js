@@ -75,7 +75,7 @@ async function recalcPlayerPoints(supabase, raceWeekendId, weekend) {
         racePts   += raceMap[pick.driver_id]   ?? 22
         if (weekend.is_sprint_weekend) {
           const sp = sprintMap[pick.driver_id]
-          sprintPts += sp ? Math.ceil(sp / 2) : 11
+          sprintPts += sp ? (sp  / 2) : 11
         }
       } else {
         const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
@@ -83,7 +83,7 @@ async function recalcPlayerPoints(supabase, raceWeekendId, weekend) {
           racePts   += raceMap[td.id]   ?? 22
           if (weekend.is_sprint_weekend) {
             const sp = sprintMap[td.id]
-            sprintPts += sp ? Math.ceil(sp / 2) : 11
+            sprintPts += sp ? (sp  / 2) : 11
           }
         }
       }
@@ -118,7 +118,7 @@ async function recalcPlayerPoints(supabase, raceWeekendId, weekend) {
  * @param {Array}  drivers   Alle Fahrer der Saison [{ id, abbreviation }]
  * @returns {{ imported, skipped, errors, log }}
  */
-export async function importResultsFromErgast(supabase, weekend, drivers) {
+export async function importResultsFromErgast(supabase, weekend, drivers, overrideManual = false) {
   const log = []
   let imported = 0, skipped = 0, errors = 0
 
@@ -152,9 +152,9 @@ export async function importResultsFromErgast(supabase, weekend, drivers) {
       .eq('race_weekend_id', weekend.id)
       .eq('session_type', type)
 
-    const manualOverrides = new Set(
-      (existing ?? []).filter(e => e.is_manual_override).map(e => e.driver_id)
-    )
+    const manualOverrides = overrideManual
+      ? new Set()
+      : new Set((existing ?? []).filter(e => e.is_manual_override).map(e => e.driver_id))
 
     // Ergebnisse mappen und einfügen
     const inserts = []

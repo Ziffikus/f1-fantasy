@@ -58,7 +58,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
       racePoints += pos ?? 0
       if (isSprint) {
         const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? Math.ceil(spos / 2) : 0
+        sprintPoints += spos ? (spos  / 2) : 0
       }
     } else if (pick.pick_type === 'constructor') {
       const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
@@ -67,7 +67,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
         racePoints += pos ?? 0
         if (isSprint) {
           const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? Math.ceil(spos / 2) : 0
+          sprintPoints += spos ? (spos  / 2) : 0
         }
       }
     }
@@ -295,7 +295,7 @@ export default function RacePage() {
                             {hasResults && <PositionBadge pos={pos} isLive={isLivePos} />}
                             {hasResults && weekend.is_sprint_weekend && spos && (
                               <span className="race-sprint-pts">
-                                <Zap size={10} />{Math.ceil(spos / 2)}
+                                <Zap size={10} />{(spos / 2) % 1 === 0 ? (spos / 2) : (spos / 2).toFixed(1)}
                               </span>
                             )}
                           </div>
@@ -308,7 +308,7 @@ export default function RacePage() {
                       const teamTotal = teamDrivers.reduce((sum, td) => sum + (activeRaceMap[td.id] ?? 0), 0)
                       const teamSprintTotal = teamDrivers.reduce((sum, td) => {
                         const spos = activeSprintMap[td.id]
-                        return sum + (spos ? Math.ceil(spos / 2) : 0)
+                        return sum + (spos ? (spos  / 2) : 0)
                       }, 0)
                       return (
                         <div key={pick.id} className="race-pick-row race-pick-row--team">
@@ -328,7 +328,7 @@ export default function RacePage() {
                                       </span>
                                       <PositionBadge pos={pos} isLive={isLive && liveByDriverId[td.id] !== undefined} />
                                       {weekend.is_sprint_weekend && spos && (
-                                        <span className="race-sprint-pts"><Zap size={10} />{Math.ceil(spos / 2)}</span>
+                                        <span className="race-sprint-pts"><Zap size={10} />{(spos  / 2)}</span>
                                       )}
                                     </span>
                                   )
@@ -343,7 +343,7 @@ export default function RacePage() {
                               <PositionBadge pos={teamTotal} isLive={isLive} />
                               {weekend.is_sprint_weekend && teamSprintTotal > 0 && (
                                 <span className="race-sprint-pts">
-                                  <Zap size={10} />{teamSprintTotal}
+                                  <Zap size={10} />{teamSprintTotal % 1 === 0 ? teamSprintTotal : teamSprintTotal.toFixed(1)}
                                 </span>
                               )}
                             </div>
