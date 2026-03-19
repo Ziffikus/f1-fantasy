@@ -28,11 +28,28 @@ export function useF1Standings() {
     return standings.find(s => s.Driver?.code === abbreviation) ?? null
   }
 
+  // Alias-Map für Teamnamen die in Ergast anders heißen
+  const TEAM_ALIASES = {
+    'racing bulls': ['rb', 'rb f1', 'racing bulls', 'scuderia alphatauri'],
+    'red bull racing': ['red bull'],
+    'aston martin': ['aston martin'],
+    'alpine': ['alpine'],
+    'cadillac': ['cadillac', 'haas'],  // falls Cadillac noch nicht in Ergast
+  }
+
   function getConstructorStanding(teamName) {
-    return constructorStandings.find(s =>
-      s.Constructor?.name?.toLowerCase().includes(teamName.toLowerCase()) ||
-      teamName.toLowerCase().includes(s.Constructor?.name?.toLowerCase())
-    ) ?? null
+    const lower = teamName.toLowerCase()
+    return constructorStandings.find(s => {
+      const ergastName = s.Constructor?.name?.toLowerCase() ?? ''
+      if (ergastName.includes(lower) || lower.includes(ergastName)) return true
+      // Alias-Check
+      for (const [key, aliases] of Object.entries(TEAM_ALIASES)) {
+        if (lower.includes(key) || key.includes(lower)) {
+          if (aliases.some(a => ergastName.includes(a) || a.includes(ergastName))) return true
+        }
+      }
+      return false
+    }) ?? null
   }
 
   return { standings, constructorStandings, loading, error, getStanding, getConstructorStanding }
