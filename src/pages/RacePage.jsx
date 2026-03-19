@@ -264,11 +264,20 @@ export default function RacePage() {
                   </div>
                   <span className="race-player-name">{player.display_name}</span>
                   {hasResults && total > 0 && (
-                    <span className="race-player-total">
-                      {total}
-                      <span className="text-muted" style={{ fontSize: '0.68rem', marginLeft: '0.2rem' }}>Pkt</span>
-                      {isLive && <span className="live-dot" style={{ marginLeft: '0.3rem' }} />}
-                    </span>
+                    <div className="race-player-total-wrap">
+                      <span className="race-player-total">
+                        {total % 1 === 0 ? total : total.toFixed(1)}
+                        <span className="text-muted" style={{ fontSize: '0.68rem', marginLeft: '0.2rem' }}>Pkt</span>
+                        {isLive && <span className="live-dot" style={{ marginLeft: '0.3rem' }} />}
+                      </span>
+                      {weekend?.is_sprint_weekend && sprintPoints > 0 && (
+                        <div className="race-player-pts-breakdown">
+                          <span>🏁 {racePoints % 1 === 0 ? racePoints : racePoints.toFixed(1)}</span>
+                          <span className="race-player-pts-sep">·</span>
+                          <span>⚡ {sprintPoints % 1 === 0 ? sprintPoints : sprintPoints.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 

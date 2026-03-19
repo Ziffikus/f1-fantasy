@@ -497,3 +497,25 @@
   opacity: 0.8;
   letter-spacing: 0;
 }
+
+/* ── Punkte Aufschlüsselung ──────────────────────────────────── */
+.race-player-total-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.race-player-pts-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.race-player-pts-sep {
+  opacity: 0.4;
+}
