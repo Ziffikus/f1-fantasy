@@ -18,9 +18,9 @@ Jeder Fahrer und jedes Team kann pro Rennwochenende nur einmal gepickt werden �
     icon: '🔄',
     title: 'Draft-Reihenfolge',
     content: `Die Reihenfolge im Draft richtet sich nach den Ergebnissen des letzten Rennwochenendes:
-• Wer im letzten Rennen die wenigsten Punkte hatte, darf zuerst picken.
-• Bei Gleichstand entscheidet der Saisongesamtstand – wer weniger Gesamtpunkte hat, ist zuerst dran.
-Beim allerersten Rennen der Saison wird die Reihenfolge vom Admin festgelegt.`,
+• Wer im letzten Rennen die meisten Punkte hatte, darf zuerst picken.
+• Bei Gleichstand entscheidet der Saisongesamtstand – wer mehr Gesamtpunkte hat, ist zuerst dran.
+Beim allerersten Rennen der Saison wird die Reihenfolge vom Vorjahr herangezogen. Letztplatzierter zuerst etc.`,
   },
   {
     icon: '🏁',
@@ -30,6 +30,7 @@ Beim allerersten Rennen der Saison wird die Reihenfolge vom Admin festgelegt.`,
 • P2 = 2 Punkte
 • P3 = 3 Punkte
 • … und so weiter bis P22 = 22 Punkte
+• Fahrer die bereits vor dem Start ausscheiden bekommen immer 22 Punkte.
 
 Für Konstrukteure werden die Positionen beider Teamfahrer addiert.
 Niedrigere Punktzahl ist besser!`,
@@ -38,9 +39,9 @@ Niedrigere Punktzahl ist besser!`,
     icon: '⚡',
     title: 'Punktevergabe – Sprint',
     content: `Bei Sprint-Wochenenden gibt es zusätzliche Punkte für das Sprint-Rennen. Diese werden halbiert und aufgerundet:
-• P1 Sprint = 1 Punkt (aufgerundet)
+• P1 Sprint = 0.5 Punkte
 • P2 Sprint = 1 Punkt
-• P3 Sprint = 2 Punkte
+• P3 Sprint = 1.5 Punkte
 • … usw.
 
 Sprint-Punkte werden zu den Rennen-Punkten addiert.`,
@@ -49,6 +50,7 @@ Sprint-Punkte werden zu den Rennen-Punkten addiert.`,
     icon: '❌',
     title: 'Nicht-Starter & Ausfälle',
     content: `Fahrer, die nicht am Rennen teilnehmen oder nicht klassifiziert werden (DNS, DNF, DSQ), erhalten automatisch 22 Punkte – die schlechtmögliche Wertung.
+Wenn gepickte Fahrer durch einen Ersatzfahrer ersetzt werden, werden dessen Punkte als Ersatz herangezogen.
 
 Das gilt sowohl für das Hauptrennen als auch für Sprint-Rennen (dort entsprechend 11 Punkte, da halbiert).`,
   },
