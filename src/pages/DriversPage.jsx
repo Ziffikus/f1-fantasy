@@ -112,10 +112,8 @@ export default function DriversPage() {
                   >
                     <div className="driver-card-number" style={{ color: c?.color }}>#{d.number}</div>
                     <div className="driver-card-avatar" style={{ background: `${c?.color}22`, border: `1.5px solid ${c?.color}` }}>
-                      {d.photo_url
-                        ? <img src={d.photo_url} alt={d.last_name} onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
-                        : <span style={{ color: c?.color }}>{d.first_name[0]}{d.last_name[0]}</span>
-                      }
+                      <span className="driver-card-initials" style={{ color: c?.color }}>{d.first_name[0]}{d.last_name[0]}</span>
+                      {d.photo_url && <img src={d.photo_url} alt={d.last_name} className="driver-card-photo" onError={e => e.target.style.display='none'} />}
                     </div>
                     <div className="driver-card-info">
                       <span className="driver-card-firstname">{d.first_name}</span>
