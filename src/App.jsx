@@ -19,6 +19,7 @@ const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
 const HistoryPage       = lazy(() => import('./pages/HistoryPage'))
 const DriverPage        = lazy(() => import('./pages/DriverPage'))
 const LivePage          = lazy(() => import('./pages/LivePage'))
+const GamingPage        = lazy(() => import('./pages/GamingPage'))
 
 // Layout
 import Layout from './components/ui/Layout'
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="fahrer" element={<DriversPage />} />
             <Route path="fahrer/:id" element={<DriverPage />} />
             <Route path="live" element={<LivePage />} />
+            <Route path="gaming" element={<GamingPage />} />
             <Route path="regeln" element={<RulesPage />} />
             <Route path="spieler/:id" element={<PublicProfilePage />} />
             <Route path="historie" element={<HistoryPage />} />

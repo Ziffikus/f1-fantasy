@@ -1,0 +1,275 @@
+.arcade-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* ── Game Canvas ─────────────────────────────────────────────── */
+.arcade-game-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid var(--border);
+  width: 100%;
+  max-width: 480px;
+}
+
+.arcade-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #1a1a2e;
+}
+
+/* ── HUD ─────────────────────────────────────────────────────── */
+.arcade-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.5rem 0.75rem;
+  pointer-events: none;
+}
+
+.arcade-hud-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.arcade-hud-lap {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  letter-spacing: 0.06em;
+}
+
+.arcade-hud-time {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+.arcade-hud-best {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #4ade80;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.arcade-hud-last {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #fbbf24;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.arcade-hud-pos {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  letter-spacing: 0.04em;
+}
+
+/* ── Overlays ────────────────────────────────────────────────── */
+.arcade-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.65);
+}
+
+.arcade-countdown {
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(232,0,45,0.8);
+  animation: pulse 0.9s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.arcade-start-card,
+.arcade-finish-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 200px;
+}
+
+.arcade-start-title,
+.arcade-finish-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.arcade-start-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.arcade-controls-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+.arcade-finish-pos {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.arcade-finish-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  gap: 1rem;
+}
+
+.arcade-finish-row span:last-child {
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.arcade-finish-saved {
+  font-size: 0.78rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* ── Touch Controls ──────────────────────────────────────────── */
+.arcade-touch-controls {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  gap: 1rem;
+  padding: 0 0.5rem;
+}
+
+.arcade-touch-left,
+.arcade-touch-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.arcade-btn {
+  width: 64px;
+  height: 56px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.1s;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.arcade-btn:active,
+.arcade-btn:focus {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  transform: scale(0.95);
+  outline: none;
+}
+
+.arcade-btn--gas {
+  background: rgba(232,0,45,0.15);
+  border-color: rgba(232,0,45,0.4);
+  color: var(--accent);
+  width: 80px;
+}
+
+.arcade-btn--brake {
+  background: var(--bg-elevated);
+  width: 80px;
+}
+
+/* ── Leaderboard ─────────────────────────────────────────────── */
+.arcade-leaderboard {
+  width: 100%;
+  max-width: 480px;
+  padding: 1rem 1.25rem;
+}
+
+.arcade-lb-title {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.arcade-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius);
+  border-bottom: 1px solid var(--border);
+}
+
+.arcade-lb-row:last-child { border-bottom: none; }
+
+.arcade-lb-row--gold {
+  background: rgba(255,200,0,0.06);
+}
+
+.arcade-lb-rank {
+  min-width: 2rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.arcade-lb-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.arcade-lb-time {
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}

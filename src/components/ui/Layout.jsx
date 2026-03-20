@@ -18,7 +18,8 @@ import {
   Flag,
   BookOpen,
   History,
-  Radio
+  Radio,
+  Gamepad2
 } from 'lucide-react'
 import './Layout.css'
 
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { to: '/profil',    label: 'Profil',     icon: User },
   { to: '/regeln',    label: 'Regeln',     icon: BookOpen },
   { to: '/historie',  label: 'Historie',   icon: History },
+  { to: '/gaming',    label: 'Gaming',     icon: Gamepad2 },
 ]
 
 export default function Layout() {

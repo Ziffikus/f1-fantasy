@@ -38,6 +38,19 @@ export default function StandingsPage() {
   const { results, loading: resultsLoading } = useRaceResults()
   const { profile } = useAuthStore()
   const navigate = useNavigate()
+  const [gamingChamp, setGamingChamp] = useState(null)
+
+  useEffect(() => {
+    supabase
+      .from('game_rewards')
+      .select('profile_id')
+      .gte('valid_until', new Date().toISOString())
+      .eq('game', 'arcade_racing')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => setGamingChamp(data?.profile_id ?? null))
+  }, [])
   const [expanded, setExpanded] = useState(null)
 
   const { isLive, sessionType, lastUpdate, liveWeekend, getLiveTotal, getLiveRoundPoints } =
@@ -174,8 +187,10 @@ export default function StandingsPage() {
                           ? <img src={player.avatar_url} alt={player.display_name} />
                           : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
                       </div>
-                      <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
+                      <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                         {player.display_name}
+                        {gamingChamp === player.profile_id && <span title="Gaming Champion">🎮</span>}
                         {player.profile_id === profile?.id && <span className="dashboard-you"> (du)</span>}
                       </span>
                     </div>
