@@ -43,7 +43,9 @@ export function useDraft(raceWeekendId) {
                 const idx = freshPicks.length % numPlayers
                 const nextPlayer = order[idx]
                 if (nextPlayer?.profiles?.id) {
+                  const { data: { session } } = await supabase.auth.getSession()
                   supabase.functions.invoke('send-push', {
+                    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
                     body: {
                       profile_id: nextPlayer.profiles.id,
                       title: '🏎️ Du bist dran!',
