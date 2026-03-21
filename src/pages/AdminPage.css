@@ -461,3 +461,36 @@
   padding: 0.35rem 0.5rem;
   flex-shrink: 0;
 }
+
+/* ── Gaming Reward ───────────────────────────────────────────── */
+.admin-reward-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,200,0,0.06);
+  border: 1px solid rgba(255,200,0,0.2);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.admin-reward-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.admin-reward-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.admin-reward-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}

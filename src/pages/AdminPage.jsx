@@ -754,6 +754,115 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
   if (error) throw error
 }
 
+// ── Gaming Belohnung ─────────────────────────────────────────
+function GamingRewardPanel() {
+  const [profiles, setProfiles] = useState([])
+  const [selectedProfile, setSelectedProfile] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const [current, setCurrent] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: p } = await supabase.from('profiles').select('id, display_name').order('display_name')
+      setProfiles(p ?? [])
+      const { data: reward } = await supabase
+        .from('game_rewards')
+        .select('*, profiles(display_name)')
+        .gte('valid_until', new Date().toISOString())
+        .eq('game', 'arcade_racing')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (reward) setCurrent(reward)
+    }
+    load()
+  }, [])
+
+  async function handleSave() {
+    if (!selectedProfile || !validUntil) return
+    setSaving(true)
+    try {
+      await supabase.from('game_rewards').insert({
+        profile_id: selectedProfile,
+        game: 'arcade_racing',
+        track: 'monaco',
+        reward_type: 'fastest_lap',
+        valid_until: new Date(validUntil).toISOString(),
+      })
+      const { data: reward } = await supabase
+        .from('game_rewards')
+        .select('*, profiles(display_name)')
+        .gte('valid_until', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      setCurrent(reward)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) { alert('Fehler: ' + err.message) }
+    setSaving(false)
+  }
+
+  async function handleClear() {
+    if (!current) return
+    await supabase.from('game_rewards').delete().eq('id', current.id)
+    setCurrent(null)
+  }
+
+  function setNextRace() {
+    const next = new Date()
+    next.setDate(next.getDate() + 7)
+    next.setHours(14, 0, 0, 0)
+    setValidUntil(next.toISOString().slice(0, 16))
+  }
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-header">
+        <h3>🎮 Gaming-Krone</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>Wird in der Wertung angezeigt</span>
+      </div>
+      {current ? (
+        <div className="admin-reward-current">
+          <div>
+            <div className="admin-reward-label">Aktuelle Krone</div>
+            <div className="admin-reward-name">🎮 {current.profiles?.display_name}</div>
+            <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+              Bis: {new Date(current.valid_until).toLocaleDateString('de-AT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+          <button className="btn btn-secondary" onClick={handleClear} style={{ fontSize: '0.78rem' }}>
+            <Trash2 size={13} /> Entfernen
+          </button>
+        </div>
+      ) : (
+        <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>Aktuell hat niemand die Gaming-Krone.</p>
+      )}
+      <div className="admin-reward-form">
+        <div className="admin-sub-field">
+          <label className="admin-sub-label">Spieler</label>
+          <select className="input" value={selectedProfile} onChange={e => setSelectedProfile(e.target.value)}>
+            <option value="">– Spieler wählen –</option>
+            {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+          </select>
+        </div>
+        <div className="admin-sub-field">
+          <label className="admin-sub-label">Gültig bis</label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input type="datetime-local" className="input" value={validUntil} onChange={e => setValidUntil(e.target.value)} style={{ flex: 1 }} />
+            <button className="btn btn-secondary" onClick={setNextRace} style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>+7 Tage</button>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving || !selectedProfile || !validUntil}>
+          {saving ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Speichern…</> : saved ? '✅ Gespeichert!' : <><Save size={14} /> Krone vergeben</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Admin Page ──────────────────────────────────────────
 export default function AdminPage() {
   const { weekends } = useRaceWeekends()
@@ -801,6 +910,7 @@ export default function AdminPage() {
           { id: 'results', label: 'Ergebnisse' },
           { id: 'availability', label: 'Fahrerstatus' },
           { id: 'substitutions', label: 'Ersatzfahrer' },
+          { id: 'gaming', label: '🎮 Gaming' },
         ].map(t => (
           <button
             key={t.id}
@@ -819,6 +929,7 @@ export default function AdminPage() {
           {tab === 'results' && <ResultsPanel raceWeekendId={selectedId} />}
           {tab === 'availability' && <AvailabilityPanel raceWeekendId={selectedId} />}
           {tab === 'substitutions' && <SubstitutionPanel raceWeekendId={selectedId} />}
+          {tab === 'gaming' && <GamingRewardPanel />}
         </div>
       )}
     </div>

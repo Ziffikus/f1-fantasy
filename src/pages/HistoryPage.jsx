@@ -10,8 +10,8 @@ const PAST_SEASONS = [
     results: [
       { rank: 1, name: 'Alex',  points: null },
       { rank: 2, name: 'Ferk',  points: null },
-      { rank: 3, name: 'Andi',  points: null },
-      { rank: 4, name: 'Mandi', points: null },
+      { rank: 3, name: 'Mandi',  points: null },
+      { rank: 4, name: 'Andi', points: null },
     ]
   },
   {
