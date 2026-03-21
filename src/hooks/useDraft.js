@@ -21,9 +21,42 @@ export function useDraft(raceWeekendId) {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'picks',
         filter: `race_weekend_id=eq.${raceWeekendId}`
-      }, () => {
+      }, async () => {
         clearTimeout(reloadTimer)
-        reloadTimer = setTimeout(() => loadPicks(), 300)
+        reloadTimer = setTimeout(async () => {
+          await loadPicks()
+
+          // Push an den nächsten Spieler senden
+          try {
+            const { data: freshPicks } = await supabase
+              .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
+            const { data: order } = await supabase
+              .from('draft_orders')
+              .select('*, profiles(id, display_name)')
+              .eq('race_weekend_id', raceWeekendId)
+              .order('pick_order')
+
+            if (order?.length) {
+              const numPlayers = order.length
+              const totalExpected = numPlayers * 6
+              if (freshPicks.length < totalExpected) {
+                const idx = freshPicks.length % numPlayers
+                const nextPlayer = order[idx]
+                if (nextPlayer?.profiles?.id) {
+                  supabase.functions.invoke('send-push', {
+                    body: {
+                      profile_id: nextPlayer.profiles.id,
+                      title: '🏎️ Du bist dran!',
+                      body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+                      url: '/f1-fantasy/draft',
+                      tag: 'draft-turn',
+                    }
+                  }).catch(() => {}) // Edge Function optional
+                }
+              }
+            }
+          } catch (_) {}
+        }, 300)
       })
       .subscribe()
 
