@@ -22,10 +22,9 @@ self.addEventListener('fetch', event => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Supabase und externe APIs nie cachen
+  // Supabase, Edge Functions und externe APIs nie cachen
   if (url.hostname.includes('supabase') || url.hostname.includes('jolpi') || url.hostname.includes('openf1')) {
-    event.respondWith(fetch(request))
-    return
+    return // SW komplett ignorieren, Browser übernimmt
   }
 
   // HTML Navigation – immer Netzwerk
