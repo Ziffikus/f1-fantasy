@@ -754,6 +754,75 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
   if (error) throw error
 }
 
+// ── Draft Ping ───────────────────────────────────────────────
+function DraftPingPanel({ raceWeekendId }) {
+  const { draftOrder, picks } = useDraft(raceWeekendId)
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const currentPlayer = draftOrder.length > 0
+    ? draftOrder[picks.length % draftOrder.length]
+    : null
+
+  async function sendPing(message) {
+    if (!currentPlayer?.profile_id) return
+    setSending(true)
+    setResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        body: {
+          profile_id: currentPlayer.profile_id,
+          title: '🏎️ F1 Fantasy Draft',
+          body: message,
+          url: '/f1-fantasy/draft',
+          tag: 'draft-ping',
+        }
+      })
+      if (error) throw error
+      setResult(data?.sent > 0 ? '✅ Push gesendet!' : '⚠️ Keine aktive Subscription.')
+    } catch (e) {
+      setResult('❌ Fehler: ' + e.message)
+    }
+    setSending(false)
+  }
+
+  const playerName = currentPlayer?.profiles?.display_name ?? '–'
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-header">
+        <h3>📲 Draft Ping</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>
+          Aktuell dran: <strong>{playerName}</strong>
+        </span>
+      </div>
+      {!currentPlayer ? (
+        <p className="text-muted" style={{ fontSize: '0.82rem' }}>Kein aktiver Draft oder Draft abgeschlossen.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => sendPing(`${playerName}, du bist beim F1 Fantasy Draft dran!`)}
+            disabled={sending}
+          >
+            {sending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Sende…</> : `📲 ${playerName} anpingen`}
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => sendPing('Du bist dran, also tua weiter!!! Danke!')}
+            disabled={sending}
+          >
+            😅 "Du bist dran, also tua weiter!!! Danke!"
+          </button>
+          {result && <p style={{ fontSize: '0.82rem' }}>{result}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Gaming Belohnung ─────────────────────────────────────────
 function GamingRewardPanel() {
   const [profiles, setProfiles] = useState([])
@@ -953,6 +1022,7 @@ export default function AdminPage() {
           { id: 'results', label: 'Ergebnisse' },
           { id: 'availability', label: 'Fahrerstatus' },
           { id: 'substitutions', label: 'Ersatzfahrer' },
+          { id: 'ping', label: '📲 Ping' },
           { id: 'gaming', label: '🎮 Gaming' },
         ].map(t => (
           <button
@@ -972,6 +1042,7 @@ export default function AdminPage() {
           {tab === 'results' && <ResultsPanel raceWeekendId={selectedId} />}
           {tab === 'availability' && <AvailabilityPanel raceWeekendId={selectedId} />}
           {tab === 'substitutions' && <SubstitutionPanel raceWeekendId={selectedId} />}
+          {tab === 'ping' && <DraftPingPanel raceWeekendId={selectedId} />}
           {tab === 'gaming' && <GamingRewardPanel />}
         </div>
       )}
