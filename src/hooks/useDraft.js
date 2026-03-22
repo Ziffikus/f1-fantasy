@@ -22,9 +22,11 @@ export function useDraft(raceWeekendId) {
         event: '*', schema: 'public', table: 'picks',
         filter: `race_weekend_id=eq.${raceWeekendId}`
       }, async () => {
+        console.log('📦 Realtime: Pick erkannt')
         clearTimeout(reloadTimer)
         reloadTimer = setTimeout(async () => {
           await loadPicks()
+          console.log('📦 Lade Picks, sende Push...')
 
           // Push an den nächsten Spieler senden
           try {
