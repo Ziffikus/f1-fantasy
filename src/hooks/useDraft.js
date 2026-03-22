@@ -219,7 +219,34 @@ export function useDraft(raceWeekendId) {
       [type === 'driver' ? 'driver_id' : 'constructor_id']: entityId,
       pick_number: pickNumber,
     })
-    if (!error) await loadPicks()
+
+    if (!error) {
+      await loadPicks()
+      try {
+        const { data: afterPicks } = await supabase
+          .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
+        const numPlayers = draftOrder.length
+        const totalExpected = numPlayers * 6
+        if ((afterPicks?.length ?? 0) < totalExpected) {
+          const idx = (afterPicks?.length ?? 0) % numPlayers
+          const nextPlayer = draftOrder[idx]
+          if (nextPlayer?.profile_id && nextPlayer?.profiles?.display_name) {
+            const { data: { session } } = await supabase.auth.getSession()
+            supabase.functions.invoke('send-push', {
+              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+              body: {
+                profile_id: nextPlayer.profile_id,
+                title: '🏎️ Du bist dran!',
+                body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+                url: '/f1-fantasy/draft',
+                tag: 'draft-turn',
+              }
+            }).catch(e => console.warn('Push failed:', e))
+          }
+        }
+      } catch (e) { console.warn('Push error:', e) }
+    }
+
     return { error }
   }
 
