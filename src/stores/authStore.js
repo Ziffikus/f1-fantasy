@@ -7,29 +7,30 @@ export const useAuthStore = create((set, get) => ({
   loading: true,
 
   init: async () => {
-    // ERST Listener registrieren – fängt alle späteren Auth-Änderungen ab
+    // Listener ZUERST registrieren
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         try {
           await get().loadProfile(session.user)
         } catch (e) {
           console.warn('Profil laden fehlgeschlagen:', e.message)
+          set({ loading: false })
         }
       } else {
-        set({ user: null, profile: null })
+        set({ user: null, profile: null, loading: false })
       }
-      set({ loading: false })
     })
 
-    // Initiale Session prüfen
+    // Initiale Session prüfen – loading: false immer am Ende
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         await get().loadProfile(session.user)
+      } else {
+        set({ loading: false })
       }
     } catch (e) {
       console.warn('Auth init Fehler:', e.message)
-    } finally {
       set({ loading: false })
     }
   },
@@ -40,7 +41,7 @@ export const useAuthStore = create((set, get) => ({
       .select('*')
       .eq('id', user.id)
       .single()
-    set({ user, profile })
+    set({ user, profile, loading: false })
   },
 
   login: async (email, password) => {
