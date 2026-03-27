@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../stores/authStore'
 
 export function useRaceWeekends() {
+  const { user } = useAuthStore()
   const [weekends, setWeekends] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    async function fetch() {
+    if (!user) return // warten bis User eingeloggt
+
+    async function load() {
       const { data, error } = await supabase
         .from('race_weekends')
         .select('*')
@@ -16,8 +20,8 @@ export function useRaceWeekends() {
       else setWeekends(data ?? [])
       setLoading(false)
     }
-    fetch()
-  }, [])
+    load()
+  }, [user]) // neu laden wenn User sich ändert
 
   const now = new Date()
 
