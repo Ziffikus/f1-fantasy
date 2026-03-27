@@ -10,6 +10,43 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// Fetch mit Timeout und automatischem Token-Refresh bei 401
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal })
+    clearTimeout(timer)
+
+    // Bei 401: Session erneuern und nochmal versuchen
+    if (res.status === 401) {
+      const { data } = await supabase.auth.refreshSession()
+      if (data?.session) {
+        const retryOptions = {
+          ...options,
+          signal: undefined,
+          headers: {
+            ...options.headers,
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+        }
+        const controller2 = new AbortController()
+        const timer2 = setTimeout(() => controller2.abort(), timeoutMs)
+        const res2 = await fetch(url, { ...retryOptions, signal: controller2.signal })
+        clearTimeout(timer2)
+        return res2
+      }
+    }
+    return res
+  } catch (e) {
+    clearTimeout(timer)
+    if (e.name === 'AbortError') {
+      throw new Error('Anfrage-Timeout – bitte Seite neu laden.')
+    }
+    throw e
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -18,28 +55,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'f1-fantasy-auth',
   },
   global: {
-    fetch: async (url, options = {}) => {
-      // Bei 401 Session erneuern und nochmal versuchen
-      const res = await fetch(url, options)
-      if (res.status === 401) {
-        const { data } = await supabase.auth.refreshSession()
-        if (data?.session) {
-          const newOptions = {
-            ...options,
-            headers: {
-              ...options.headers,
-              Authorization: `Bearer ${data.session.access_token}`,
-            },
-          }
-          return fetch(url, newOptions)
-        }
-      }
-      return res
-    },
+    fetch: fetchWithTimeout,
   },
 })
 
-// Token alle 10 Minuten aktiv erneuern (verhindert Ablauf bei langen Sessions)
+// Token alle 10 Minuten aktiv erneuern
 setInterval(async () => {
   const { data: { session } } = await supabase.auth.getSession()
   if (session) {
