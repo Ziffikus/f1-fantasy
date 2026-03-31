@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStandings } from '../hooks/useStandings'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useAuthStore } from '../stores/authStore'
@@ -32,6 +32,332 @@ function fmtPts(val) {
   return n % 1 === 0 ? n : n.toFixed(1)
 }
 
+// ── Palette for chart lines ───────────────────────────────────
+const CHART_COLORS = [
+  '#FFD700', '#60a5fa', '#f472b6', '#34d399', '#fb923c',
+  '#a78bfa', '#22d3ee', '#f87171', '#86efac', '#fbbf24',
+]
+
+// ── Position History Chart ────────────────────────────────────
+function PositionChart({ completedWeekends, matrix, standings, myId }) {
+  const svgRef = useRef(null)
+  const [tooltip, setTooltip] = useState(null)
+
+  if (completedWeekends.length < 2) return null
+
+  const PAD = { top: 20, right: 16, bottom: 48, left: 36 }
+  const W = 760
+  const H = 220
+
+  const innerW = W - PAD.left - PAD.right
+  const innerH = H - PAD.top - PAD.bottom
+  const n = standings.length
+
+  // Compute cumulative points per player per round
+  const sortedRounds = completedWeekends.slice().sort((a, b) => a.round - b.round)
+
+  // positionData[profileId] = array of { round, position, pts }
+  const positionData = {}
+  for (const p of standings) {
+    positionData[p.profile_id] = []
+  }
+
+  for (let ri = 0; ri < sortedRounds.length; ri++) {
+    const upToRound = sortedRounds.slice(0, ri + 1)
+    // Cumulative points for each player
+    const cumulative = standings.map(p => {
+      let total = 0
+      for (const w of upToRound) {
+        const rp = matrix[p.profile_id]?.[w.round]
+        if (rp) total += Number(rp.total_points ?? 0)
+      }
+      return { profile_id: p.profile_id, total }
+    })
+    // Sort ascending (lower = better), assign positions
+    const sorted = [...cumulative].sort((a, b) => a.total - b.total)
+    sorted.forEach((entry, idx) => {
+      positionData[entry.profile_id].push({
+        roundIndex: ri,
+        round: sortedRounds[ri].round,
+        position: idx + 1,
+        pts: entry.total,
+      })
+    })
+  }
+
+  // X scale: rounds equally spaced
+  const xScale = ri => PAD.left + (ri / (sortedRounds.length - 1)) * innerW
+  // Y scale: position 1 at top, n at bottom
+  const yScale = pos => PAD.top + ((pos - 1) / (n - 1)) * innerH
+
+  // Build path for each player
+  const buildPath = (profileId) => {
+    const pts = positionData[profileId]
+    if (!pts?.length) return ''
+    return pts.map((d, i) => {
+      const x = xScale(d.roundIndex)
+      const y = yScale(d.position)
+      return i === 0 ? `M ${x} ${y}` : `L ${x} ${y}`
+    }).join(' ')
+  }
+
+  // Smooth catmull-rom path
+  const buildSmoothPath = (profileId) => {
+    const pts = positionData[profileId]
+    if (!pts?.length) return ''
+    if (pts.length === 1) {
+      const x = xScale(pts[0].roundIndex)
+      const y = yScale(pts[0].position)
+      return `M ${x} ${y}`
+    }
+    const coords = pts.map(d => [xScale(d.roundIndex), yScale(d.position)])
+    let d = `M ${coords[0][0]} ${coords[0][1]}`
+    for (let i = 1; i < coords.length; i++) {
+      const prev = coords[i - 1]
+      const curr = coords[i]
+      const cpX = (prev[0] + curr[0]) / 2
+      d += ` C ${cpX} ${prev[1]}, ${cpX} ${curr[1]}, ${curr[0]} ${curr[1]}`
+    }
+    return d
+  }
+
+  // Y-axis tick positions
+  const yTicks = n <= 8 ? Array.from({ length: n }, (_, i) => i + 1)
+    : [1, Math.round(n / 2), n]
+
+  const handleMouseMove = (e) => {
+    const svg = svgRef.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    const scaleX = W / rect.width
+    const mx = (e.clientX - rect.left) * scaleX
+    // Find nearest round index
+    const ri = Math.round((mx - PAD.left) / innerW * (sortedRounds.length - 1))
+    const clamped = Math.max(0, Math.min(sortedRounds.length - 1, ri))
+    const w = sortedRounds[clamped]
+
+    const entries = standings.map((p, pi) => {
+      const d = positionData[p.profile_id]?.[clamped]
+      return { ...p, position: d?.position, pts: d?.pts, color: CHART_COLORS[pi % CHART_COLORS.length] }
+    }).filter(e => e.position != null).sort((a, b) => a.position - b.position)
+
+    setTooltip({
+      x: xScale(clamped),
+      y: 0,
+      round: w,
+      entries,
+    })
+  }
+
+  const handleMouseLeave = () => setTooltip(null)
+
+  return (
+    <div className="chart-wrap card">
+      <div className="chart-header">
+        <span className="chart-title">Positionsverlauf</span>
+        <span className="chart-subtitle">Saisonverlauf · ↑ wenigste Punkte = besser</span>
+      </div>
+      <div className="chart-svg-container" style={{ position: 'relative' }}>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H}`}
+          className="chart-svg"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Grid lines */}
+          {yTicks.map(pos => (
+            <line
+              key={pos}
+              x1={PAD.left} y1={yScale(pos)}
+              x2={W - PAD.right} y2={yScale(pos)}
+              stroke="var(--border)"
+              strokeWidth="1"
+              strokeDasharray={pos === 1 ? '0' : '3,4'}
+              opacity={pos === 1 ? 0.6 : 0.35}
+            />
+          ))}
+
+          {/* Vertical round lines (subtle) */}
+          {sortedRounds.map((w, ri) => (
+            <line
+              key={w.id}
+              x1={xScale(ri)} y1={PAD.top}
+              x2={xScale(ri)} y2={H - PAD.bottom}
+              stroke="var(--border)"
+              strokeWidth="1"
+              opacity="0.2"
+            />
+          ))}
+
+          {/* Y-axis labels */}
+          {yTicks.map(pos => (
+            <text
+              key={pos}
+              x={PAD.left - 8}
+              y={yScale(pos)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="chart-axis-label"
+            >
+              {pos === 1 ? '1.' : pos + '.'}
+            </text>
+          ))}
+
+          {/* direction hint */}
+          <text x={PAD.left - 8} y={PAD.top - 6} textAnchor="end" className="chart-axis-hint">↑ weniger</text>
+
+          {/* X-axis flags */}
+          {sortedRounds.map((w, ri) => (
+            <text
+              key={w.id}
+              x={xScale(ri)}
+              y={H - PAD.bottom + 14}
+              textAnchor="middle"
+              className="chart-flag-label"
+            >
+              {w.flag_emoji}
+            </text>
+          ))}
+          {sortedRounds.map((w, ri) => (
+            <text
+              key={`city-${w.id}`}
+              x={xScale(ri)}
+              y={H - PAD.bottom + 28}
+              textAnchor="middle"
+              className="chart-city-label"
+            >
+              {w.city?.slice(0, 3).toUpperCase()}
+            </text>
+          ))}
+
+          {/* Lines (non-me first, me on top) */}
+          {standings.map((p, pi) => {
+            const isMe = p.profile_id === myId
+            if (isMe) return null
+            return (
+              <path
+                key={p.profile_id}
+                d={buildSmoothPath(p.profile_id)}
+                fill="none"
+                stroke={CHART_COLORS[pi % CHART_COLORS.length]}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity="0.45"
+              />
+            )
+          })}
+          {/* My line always on top */}
+          {standings.map((p, pi) => {
+            const isMe = p.profile_id === myId
+            if (!isMe) return null
+            return (
+              <path
+                key={p.profile_id}
+                d={buildSmoothPath(p.profile_id)}
+                fill="none"
+                stroke={CHART_COLORS[pi % CHART_COLORS.length]}
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity="1"
+                style={{ filter: `drop-shadow(0 0 4px ${CHART_COLORS[pi % CHART_COLORS.length]}88)` }}
+              />
+            )
+          })}
+
+          {/* Dots at last round */}
+          {standings.map((p, pi) => {
+            const last = positionData[p.profile_id]?.at(-1)
+            if (!last) return null
+            const isMe = p.profile_id === myId
+            const x = xScale(last.roundIndex)
+            const y = yScale(last.position)
+            return (
+              <circle
+                key={p.profile_id}
+                cx={x} cy={y}
+                r={isMe ? 4.5 : 3}
+                fill={CHART_COLORS[pi % CHART_COLORS.length]}
+                opacity={isMe ? 1 : 0.65}
+              />
+            )
+          })}
+
+          {/* Tooltip vertical line */}
+          {tooltip && (
+            <line
+              x1={tooltip.x} y1={PAD.top - 4}
+              x2={tooltip.x} y2={H - PAD.bottom}
+              stroke="var(--text-muted)"
+              strokeWidth="1"
+              strokeDasharray="3,3"
+              opacity="0.5"
+            />
+          )}
+
+          {/* Tooltip dots on hover */}
+          {tooltip && standings.map((p, pi) => {
+            const entry = tooltip.entries.find(e => e.profile_id === p.profile_id)
+            if (!entry) return null
+            return (
+              <circle
+                key={p.profile_id}
+                cx={tooltip.x}
+                cy={yScale(entry.position)}
+                r="4"
+                fill={CHART_COLORS[pi % CHART_COLORS.length]}
+                stroke="var(--bg-base, #0f0f11)"
+                strokeWidth="1.5"
+              />
+            )
+          })}
+        </svg>
+
+        {/* Floating tooltip box */}
+        {tooltip && (
+          <div
+            className="chart-tooltip"
+            style={{
+              left: tooltip.x > W * 0.6 ? 'auto' : `calc(${(tooltip.x / W) * 100}% + 10px)`,
+              right: tooltip.x > W * 0.6 ? `calc(${100 - (tooltip.x / W) * 100}% + 10px)` : 'auto',
+              top: '12px',
+            }}
+          >
+            <div className="chart-tooltip-header">
+              {tooltip.round.flag_emoji} {tooltip.round.city} · R{tooltip.round.round}
+            </div>
+            <div className="chart-tooltip-rule">kumulierte Pkt (weniger = besser)</div>
+            {tooltip.entries.map((e, i) => (
+              <div key={e.profile_id} className="chart-tooltip-row">
+                <span className="chart-tooltip-dot" style={{ background: e.color }} />
+                <span className="chart-tooltip-pos">{e.position}.</span>
+                <span className="chart-tooltip-name">{e.display_name}</span>
+                <span className="chart-tooltip-pts">{fmtPts(e.pts)} Pkt</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="chart-legend">
+        {standings.map((p, pi) => {
+          const isMe = p.profile_id === myId
+          return (
+            <div key={p.profile_id} className={`chart-legend-item ${isMe ? 'chart-legend-item--me' : ''}`}>
+              <span className="chart-legend-dot" style={{ background: CHART_COLORS[pi % CHART_COLORS.length] }} />
+              <span className="chart-legend-name">{p.display_name}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────
 export default function StandingsPage() {
   const { standings, loading } = useStandings()
   const { weekends } = useRaceWeekends()
@@ -259,6 +585,16 @@ export default function StandingsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Position History Chart */}
+      {!resultsLoading && (
+        <PositionChart
+          completedWeekends={completedWeekends}
+          matrix={matrix}
+          standings={standings}
+          myId={profile?.id}
+        />
+      )}
 
       <p className="standings-tiebreaker">
         Tiebreaker: Gleiche Punkte → Mehr Siege → Mehr 2. Plätze → Mehr 3. Plätze
