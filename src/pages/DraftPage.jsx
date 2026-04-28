@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useDraftNotifications } from '../hooks/useDraftNotifications'
 import { Car, Users, Check, X, ChevronRight, Bell, Info } from 'lucide-react'
 import './DraftPage.css'
+import DraftTicker from './DraftTicker'
 
 // ── Drag & Drop Pick Item ────────────────────────────────────
 function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, onDragStart, onInfo, availability }) {
@@ -458,6 +459,13 @@ export default function DraftPage() {
               )}
             </div>
           </div>
+
+          {/* Live Ticker */}
+          <DraftTicker
+            picks={picks}
+            draftOrder={draftOrder}
+            isDraftComplete={isDraftComplete}
+          />
         </div>
       )}
     </div>
