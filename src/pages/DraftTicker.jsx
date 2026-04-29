@@ -3,7 +3,7 @@ import { Car, Users, Flag, Mic } from 'lucide-react'
 
 // Gemini API Konfiguration
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = "gemini-2.0-flash"
+const GEMINI_MODEL = "gemini-2.0-flash" // v2
 
 function formatTime(isoString) {
   if (!isoString) return ''
