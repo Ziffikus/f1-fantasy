@@ -18,7 +18,9 @@ export function useDraft(raceWeekendId) {
     const channel = supabase
       .channel(`draft-${raceWeekendId}`)
       .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'picks',
+        event: 'INSERT', // ← nur bei neuen Picks, nicht bei ai_comment Updates
+        schema: 'public',
+        table: 'picks',
         filter: `race_weekend_id=eq.${raceWeekendId}`
       }, async () => {
         console.log('📦 Realtime: Pick erkannt')
@@ -83,7 +85,6 @@ export function useDraft(raceWeekendId) {
   async function loadPicks() {
     const { data } = await supabase
       .from('picks')
-      // ai_comment wird jetzt mitgeladen
       .select('*, ai_comment, drivers(id, first_name, last_name, number, abbreviation, constructor_id, constructors(short_name, color)), constructors(id, name, short_name, color)')
       .eq('race_weekend_id', raceWeekendId)
       .order('created_at', { ascending: true })
