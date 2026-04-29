@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Car, Users, Flag, Mic } from 'lucide-react'
+import { Flag, Mic } from 'lucide-react'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 
 function formatTime(isoString) {
-  if (!isoString) return '–'
+  if (!isoString) return null
   return new Date(isoString).toLocaleTimeString('de-AT', {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   })
@@ -37,10 +37,12 @@ async function callGemini(prompt, retries = 2) {
 
 async function fetchComment(pick, draftOrder, weekend) {
   const playerName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? 'Ein Spieler'
-  const pickName = pick.pick_type === 'driver' ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}` : pick.constructors?.short_name
+  const pickName = pick.pick_type === 'driver'
+    ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}`
+    : pick.constructors?.short_name
   const gpName = weekend?.city ?? 'dem Grand Prix'
 
-  const prompt = `Du bist ein enthusiastischer Formel-1-Kommentator. ${playerName} hat soeben ${pickName} für den ${gpName} Grand Prix gedraftet. Schreibe genau einen kurzen, witzigen Kommentarsatz dazu auf Deutsch.`
+  const prompt = `Du bist ein humorvoller Formel-1-Kommentator. Kommentiere sachlich aber mit einem Augenzwinkern in einem einzigen deutschen Satz: ${playerName} wählt ${pickName} beim ${gpName} Grand Prix. Sprich niemanden direkt an – formuliere es wie ein klassischer Sportkommentator.`
   return callGemini(prompt)
 }
 
@@ -84,28 +86,46 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     <div className="draft-ticker">
       <div className="draft-ticker-header">
         <span className="draft-ticker-title"><Flag size={13} /> Live Ticker</span>
-        {!isDraftComplete && <span className="draft-ticker-live"><span className="ticker-live-dot" /> LIVE</span>}
+        {!isDraftComplete && (
+          <span className="draft-ticker-live"><span className="ticker-live-dot" /> LIVE</span>
+        )}
         <span className="draft-ticker-count">{entries.length} Picks</span>
       </div>
+
       <div className="draft-ticker-list" ref={listRef}>
-        {entries.map(entry => (
-          <div key={entry.id} className={`ticker-entry ${entry.id === newId ? 'ticker-entry--new' : ''}`}>
-            <div className="ticker-entry-main">
-              <span className="ticker-time">{formatTime(entry.inserted_at)}</span>
-              <span className="ticker-player">{entry.playerName}</span>
-              <span className="ticker-arrow">→</span>
-              <span className="ticker-pick-name">
-                {entry.pick_type === 'driver' ? `${entry.drivers?.first_name} ${entry.drivers?.last_name}` : entry.constructors?.short_name}
-              </span>
-            </div>
-            {(comments[entry.id] !== undefined || loading[entry.id]) && (
-              <div className="ticker-comment">
-                <Mic size={10} className="ticker-comment-icon" />
-                {loading[entry.id] ? <span>...</span> : <span className="ticker-comment-text">{comments[entry.id]}</span>}
+        {entries.map(entry => {
+          const time = formatTime(entry.inserted_at)
+          const pickName = entry.pick_type === 'driver'
+            ? `${entry.drivers?.first_name} ${entry.drivers?.last_name}`
+            : entry.constructors?.short_name
+
+          return (
+            <div
+              key={entry.id}
+              className={`ticker-entry ${entry.id === newId ? 'ticker-entry--new' : ''}`}
+            >
+              <div className="ticker-entry-main">
+                {time && <span className="ticker-time">{time}</span>}
+                <span className="ticker-player">{entry.playerName}</span>
+                <span className="ticker-arrow">→</span>
+                <span className="ticker-pick-name">{pickName}</span>
               </div>
-            )}
-          </div>
-        ))}
+
+              {(comments[entry.id] !== undefined || loading[entry.id]) && (
+                <div className="ticker-comment">
+                  <Mic size={10} className="ticker-comment-icon" />
+                  {loading[entry.id] ? (
+                    <div className="ticker-comment-loading">
+                      <span /><span /><span />
+                    </div>
+                  ) : (
+                    <span className="ticker-comment-text">{comments[entry.id]}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
