@@ -5,14 +5,14 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-2.0-flash"
 
 function formatTime(isoString) {
-  if (!isoString) return ''
+  if (!isoString) return '–'
   return new Date(isoString).toLocaleTimeString('de-AT', {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   })
 }
 
 async function callGemini(prompt) {
-  if (!API_KEY) return ''
+  if (!API_KEY) return 'Kein API Key'
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: 'POST',
@@ -23,10 +23,10 @@ async function callGemini(prompt) {
       })
     })
     const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Interessante Wahl!'
   } catch (error) {
     console.error("Gemini Fehler:", error)
-    return ''
+    return 'Fehler beim Laden'
   }
 }
 
@@ -64,7 +64,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
 
       setLoading(prev => ({ ...prev, [newest.id]: true }))
       fetchComment(newest, draftOrder, weekend)
-        .then(text => setComments(prev => ({ ...prev, [newest.id]: text })))
+        .then(text => setComments(prev => ({ ...prev, [newest.id]: text || '🏎️ Spannende Wahl!' })))
         .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
     }
   }, [entries.length, draftOrder, weekend])
@@ -93,7 +93,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
                 {entry.pick_type === 'driver' ? `${entry.drivers?.first_name} ${entry.drivers?.last_name}` : entry.constructors?.short_name}
               </span>
             </div>
-            {(comments[entry.id] || loading[entry.id]) && (
+            {(comments[entry.id] !== undefined || loading[entry.id]) && (
               <div className="ticker-comment">
                 <Mic size={10} className="ticker-comment-icon" />
                 {loading[entry.id] ? <span>...</span> : <span className="ticker-comment-text">{comments[entry.id]}</span>}
