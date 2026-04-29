@@ -465,9 +465,11 @@ export default function DraftPage() {
             picks={picks}
             draftOrder={draftOrder}
             isDraftComplete={isDraftComplete}
+            weekend={selectedWeekend}
           />
         </div>
       )}
     </div>
   )
 }
+
