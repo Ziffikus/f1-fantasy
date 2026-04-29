@@ -23,7 +23,8 @@ async function callGemini(prompt) {
       })
     })
     const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Interessante Wahl!'
+    if (data.promptFeedback?.blockReason) return 'Interessante Wahl! 🏎️'
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Interessante Wahl! 🏎️'
   } catch (error) {
     console.error("Gemini Fehler:", error)
     return 'Fehler beim Laden'
@@ -35,7 +36,7 @@ async function fetchComment(pick, draftOrder, weekend) {
   const pickName = pick.pick_type === 'driver' ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}` : pick.constructors?.short_name
   const gpName = weekend?.city ?? 'dem Grand Prix'
   
-  const prompt = `Du bist F1-Experte. Spieler ${playerName} hat "${pickName}" für den ${gpName} GP gewählt. Schreib 1 kurzen Satz dazu.`
+  const prompt = `Du bist ein enthusiastischer Formel-1-Kommentator. ${playerName} hat soeben ${pickName} für den ${gpName} Grand Prix gedraftet. Schreibe genau einen kurzen, witzigen Kommentarsatz dazu auf Deutsch.`
   return callGemini(prompt)
 }
 
@@ -64,7 +65,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
 
       setLoading(prev => ({ ...prev, [newest.id]: true }))
       fetchComment(newest, draftOrder, weekend)
-        .then(text => setComments(prev => ({ ...prev, [newest.id]: text || '🏎️ Spannende Wahl!' })))
+        .then(text => setComments(prev => ({ ...prev, [newest.id]: text || 'Interessante Wahl! 🏎️' })))
         .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
     }
   }, [entries.length, draftOrder, weekend])
