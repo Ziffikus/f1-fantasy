@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Car, Users, Flag, Mic } from 'lucide-react'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = "gemini-2.0-flash"
+const GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
 
 function formatTime(isoString) {
   if (!isoString) return '–'
@@ -11,7 +11,7 @@ function formatTime(isoString) {
   })
 }
 
-async function callGemini(prompt) {
+async function callGemini(prompt, retries = 2) {
   if (!API_KEY) return 'Kein API Key'
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
@@ -22,6 +22,10 @@ async function callGemini(prompt) {
         generationConfig: { maxOutputTokens: 150, temperature: 0.7 }
       })
     })
+    if (res.status === 429 && retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      return callGemini(prompt, retries - 1)
+    }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return 'Interessante Wahl! 🏎️'
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Interessante Wahl! 🏎️'
@@ -35,7 +39,7 @@ async function fetchComment(pick, draftOrder, weekend) {
   const playerName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? 'Ein Spieler'
   const pickName = pick.pick_type === 'driver' ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}` : pick.constructors?.short_name
   const gpName = weekend?.city ?? 'dem Grand Prix'
-  
+
   const prompt = `Du bist ein enthusiastischer Formel-1-Kommentator. ${playerName} hat soeben ${pickName} für den ${gpName} Grand Prix gedraftet. Schreibe genau einen kurzen, witzigen Kommentarsatz dazu auf Deutsch.`
   return callGemini(prompt)
 }
@@ -59,7 +63,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     if (entries.length > prevLengthRef.current) {
       const newest = entries[entries.length - 1]
       prevLengthRef.current = entries.length
-      
+
       setNewId(newest.id)
       setTimeout(() => setNewId(null), 3000)
 
