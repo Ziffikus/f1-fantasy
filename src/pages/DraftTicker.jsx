@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Flag, Mic } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
@@ -12,7 +13,7 @@ function formatTime(isoString) {
 }
 
 async function callGemini(prompt, retries = 2) {
-  if (!API_KEY) return 'Kein API Key'
+  if (!API_KEY) return null
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: 'POST',
@@ -27,15 +28,15 @@ async function callGemini(prompt, retries = 2) {
       return callGemini(prompt, retries - 1)
     }
     const data = await res.json()
-    if (data.promptFeedback?.blockReason) return 'Interessante Wahl! 🏎️'
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Interessante Wahl! 🏎️'
+    if (data.promptFeedback?.blockReason) return null
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
   } catch (error) {
     console.error("Gemini Fehler:", error)
-    return 'Fehler beim Laden'
+    return null
   }
 }
 
-async function fetchComment(pick, draftOrder, weekend) {
+async function generateAndSaveComment(pick, draftOrder, weekend) {
   const playerName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? 'Ein Spieler'
   const pickName = pick.pick_type === 'driver'
     ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}`
@@ -43,13 +44,27 @@ async function fetchComment(pick, draftOrder, weekend) {
   const gpName = weekend?.city ?? 'dem Grand Prix'
 
   const prompt = `Du bist ein humorvoller Formel-1-Kommentator. Kommentiere sachlich aber mit einem Augenzwinkern in einem einzigen deutschen Satz: ${playerName} wählt ${pickName} beim ${gpName} Grand Prix. Sprich niemanden direkt an – formuliere es wie ein klassischer Sportkommentator.`
-  return callGemini(prompt)
+
+  const comment = await callGemini(prompt)
+  if (!comment) return null
+
+  // In Supabase speichern
+  await supabase.from('picks').update({ ai_comment: comment }).eq('id', pick.id)
+
+  return comment
 }
 
 export default function DraftTicker({ picks, draftOrder, isDraftComplete, weekend }) {
   const listRef = useRef(null)
   const prevLengthRef = useRef(picks.length)
-  const [comments, setComments] = useState({})
+  // Kommentare aus picks.ai_comment vorinitialisieren
+  const [comments, setComments] = useState(() => {
+    const init = {}
+    for (const p of picks) {
+      if (p.ai_comment) init[p.id] = p.ai_comment
+    }
+    return init
+  })
   const [loading, setLoading] = useState({})
   const [newId, setNewId] = useState(null)
 
@@ -61,6 +76,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
       globalPickNumber: i + 1,
     }))
 
+  // Neue Picks aus Supabase haben noch kein ai_comment → generieren & speichern
   useEffect(() => {
     if (entries.length > prevLengthRef.current) {
       const newest = entries[entries.length - 1]
@@ -69,12 +85,30 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
       setNewId(newest.id)
       setTimeout(() => setNewId(null), 3000)
 
-      setLoading(prev => ({ ...prev, [newest.id]: true }))
-      fetchComment(newest, draftOrder, weekend)
-        .then(text => setComments(prev => ({ ...prev, [newest.id]: text || 'Interessante Wahl! 🏎️' })))
-        .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
+      // Nur generieren wenn noch kein Kommentar vorhanden
+      if (!comments[newest.id]) {
+        setLoading(prev => ({ ...prev, [newest.id]: true }))
+        generateAndSaveComment(newest, draftOrder, weekend)
+          .then(text => {
+            if (text) setComments(prev => ({ ...prev, [newest.id]: text }))
+          })
+          .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
+      }
     }
   }, [entries.length, draftOrder, weekend])
+
+  // Wenn picks neu geladen werden, ai_comment Felder in State übernehmen
+  useEffect(() => {
+    setComments(prev => {
+      const updated = { ...prev }
+      for (const p of picks) {
+        if (p.ai_comment && !updated[p.id]) {
+          updated[p.id] = p.ai_comment
+        }
+      }
+      return updated
+    })
+  }, [picks])
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight

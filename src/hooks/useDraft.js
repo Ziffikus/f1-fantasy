@@ -14,7 +14,6 @@ export function useDraft(raceWeekendId) {
     if (!raceWeekendId) return
     loadAll()
 
-    // Debounce verhindert doppeltes Laden (Realtime + manuell gleichzeitig)
     let reloadTimer = null
     const channel = supabase
       .channel(`draft-${raceWeekendId}`)
@@ -28,7 +27,6 @@ export function useDraft(raceWeekendId) {
           await loadPicks()
           console.log('📦 Lade Picks, sende Push...')
 
-          // Push an den nächsten Spieler senden
           try {
             const { data: freshPicks } = await supabase
               .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
@@ -55,7 +53,7 @@ export function useDraft(raceWeekendId) {
                       url: '/f1-fantasy/draft',
                       tag: 'draft-turn',
                     }
-                  }).catch(() => {}) // Edge Function optional
+                  }).catch(() => {})
                 }
               }
             }
@@ -85,7 +83,8 @@ export function useDraft(raceWeekendId) {
   async function loadPicks() {
     const { data } = await supabase
       .from('picks')
-      .select('*, drivers(id, first_name, last_name, number, abbreviation, constructor_id, constructors(short_name, color)), constructors(id, name, short_name, color)')
+      // ai_comment wird jetzt mitgeladen
+      .select('*, ai_comment, drivers(id, first_name, last_name, number, abbreviation, constructor_id, constructors(short_name, color)), constructors(id, name, short_name, color)')
       .eq('race_weekend_id', raceWeekendId)
       .order('created_at', { ascending: true })
     setPicks(data ?? [])
@@ -104,11 +103,9 @@ export function useDraft(raceWeekendId) {
   }
 
   const numPlayers = draftOrder.length
-  const totalExpected = numPlayers * 6 // 4 Fahrer + 2 Teams pro Spieler
+  const totalExpected = numPlayers * 6
   const isDraftComplete = numPlayers > 0 && picks.length >= totalExpected
 
-  // Round-Robin: wer ist Pick Nummer X dran?
-  // picks.length = Index des nächsten Picks (0-basiert)
   function getCurrentTurn() {
     if (isDraftComplete || numPlayers === 0) return null
     const idx = picks.length % numPlayers
@@ -118,7 +115,6 @@ export function useDraft(raceWeekendId) {
   const currentTurn = getCurrentTurn()
   const isMyTurn = currentTurn?.profile_id === profile?.id
 
-  // Picks pro Spieler
   function getPlayerPicks(profileId) {
     return picks.filter(p => p.profile_id === profileId)
   }
@@ -136,7 +132,6 @@ export function useDraft(raceWeekendId) {
   const pickedConstructorIds = picks.filter(p => p.pick_type === 'constructor').map(p => p.constructor_id)
 
   async function makePick(type, entityId) {
-    // Frischen Stand holen – verhindert Probleme mit veraltetem State
     const { data: freshPicks } = await supabase
       .from('picks')
       .select('profile_id, pick_type, driver_id, constructor_id')
@@ -158,7 +153,6 @@ export function useDraft(raceWeekendId) {
     if (type === 'driver' && myDrivers >= 4) return { error: { message: 'Du hast bereits 4 Fahrer.' } }
     if (type === 'constructor' && myTeams >= 2) return { error: { message: 'Du hast bereits 2 Teams.' } }
 
-    // Doppel-Pick verhindern
     if (type === 'driver' && fresh.some(p => p.driver_id === entityId)) {
       return { error: { message: 'Dieser Fahrer wurde bereits gepickt.' } }
     }
@@ -178,7 +172,6 @@ export function useDraft(raceWeekendId) {
     if (!error) {
       await loadPicks()
 
-      // Push an nächsten Spieler
       try {
         const { data: afterPicks } = await supabase
           .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
@@ -291,13 +284,11 @@ export function useDraftOrder(raceWeekendId) {
       .eq('race_weekend_id', prevRace.id)
     if (!prevPoints || prevPoints.length === 0) return profiles
 
-    // Gesamtwertung der Saison für Tiebreaker laden
     const { data: seasonPoints } = await supabase
       .from('player_race_points')
       .select('profile_id, total_points')
       .eq('season_id', currentRace.season_id)
 
-    // Saison-Gesamtpunkte pro Spieler summieren
     const seasonTotals = {}
     for (const sp of (seasonPoints ?? [])) {
       seasonTotals[sp.profile_id] = (seasonTotals[sp.profile_id] ?? 0) + sp.total_points
@@ -309,13 +300,10 @@ export function useDraftOrder(raceWeekendId) {
       if (!pa && !pb) return 0
       if (!pa) return 1
       if (!pb) return -1
-      // 1. Rennergebnis letztes Rennen (mehr Punkte = schlechter = zuerst drann)
       if (pb.total_points !== pa.total_points) return pb.total_points - pa.total_points
-      // 2. Tiebreaker: wer hat weniger Gesamtpunkte → zuerst dran
       const sa = seasonTotals[a.id] ?? 0
       const sb = seasonTotals[b.id] ?? 0
-      if (sa !== sb) return sb - sa  // mehr Gesamtpunkte = schlechter = zuerst dran
-      // 3. Tiebreaker: weekend_rank
+      if (sa !== sb) return sb - sa
       return pb.weekend_rank - pa.weekend_rank
     })
   }
