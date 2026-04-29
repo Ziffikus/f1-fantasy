@@ -3,7 +3,7 @@ import { Car, Users, Flag, Mic } from 'lucide-react'
 
 // Gemini API Konfiguration
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = "gemini-2.0-flash" // v2
+const GEMINI_MODEL = "gemini-2.0-flash"
 
 function formatTime(isoString) {
   if (!isoString) return ''
@@ -14,6 +14,7 @@ function formatTime(isoString) {
 
 // ── Gemini API Fetch Funktion ────────────────────────────
 async function callGemini(prompt) {
+  if (!API_KEY) return ''
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: 'POST',
@@ -51,7 +52,6 @@ async function fetchComment(pick, draftOrder, weekend) {
   return callGemini(prompt)
 }
 
-// ── TickerEntry Komponente ──────────────────────────────────
 function TickerEntry({ entry, comment, isLoading, isNew }) {
   return (
     <div className={`ticker-entry ${isNew ? 'ticker-entry--new' : ''}`}>
@@ -102,30 +102,34 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
       globalPickNumber: i + 1,
     }))
 
-  // Intro nur wenn gerade ein Draft läuft
   useEffect(() => {
-    if (entries.length > 0 && intro === null) fetchIntro(weekend).then(setIntro)
-  }, [entries.length])
+    if (entries.length > 0 && intro === null) {
+      fetchIntro(weekend).then(setIntro)
+    }
+  }, [entries.length, weekend])
 
-  // Nur auf NEUE Picks reagieren
   useEffect(() => {
     if (entries.length > prevLengthRef.current) {
       const newest = entries[entries.length - 1]
       prevLengthRef.current = entries.length
-      
       setNewId(newest.id)
       setTimeout(() => setNewId(null), 2000)
       
-      setLoading(prev => ({ ...prev, [newest.id]: true }))
-      fetchComment(newest, draftOrder, weekend)
-        .then(text => setComments(prev => ({ ...prev, [newest.id]: text })))
-        .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
+      // 1.5s warten, damit Intro-Anfrage und Pick-Anfrage nicht gleichzeitig feuern (Limit!)
+      setTimeout(() => {
+        setLoading(prev => ({ ...prev, [newest.id]: true }))
+        fetchComment(newest, draftOrder, weekend)
+          .then(text => setComments(prev => ({ ...prev, [newest.id]: text })))
+          .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
+      }, 1500)
     }
-  }, [entries.length])
+  }, [entries.length, draftOrder, weekend])
 
   useEffect(() => {
-    if (isDraftComplete && !outro) fetchOutro(weekend, entries.length).then(setOutro)
-  }, [isDraftComplete])
+    if (isDraftComplete && !outro) {
+      fetchOutro(weekend, entries.length).then(setOutro)
+    }
+  }, [isDraftComplete, weekend, entries.length])
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
