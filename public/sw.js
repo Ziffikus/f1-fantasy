@@ -62,14 +62,14 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE_NAME).then(cache => cache.put(request, clone))
           }
           return response
-        })
+        }).catch(() => new Response('', { status: 503 }))
       })
     )
     return
   }
 
   // Alles andere – direkt vom Netzwerk
-  event.respondWith(fetch(request))
+  event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })))
 })
 
 // ── Push Notifications ───────────────────────────────────────────
