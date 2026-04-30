@@ -374,7 +374,7 @@ export default function StandingsPage() {
       .eq('game', 'arcade_racing')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data }) => setGamingChamp(data?.profile_id ?? null))
   }, [])
   const [expanded, setExpanded] = useState(null)
