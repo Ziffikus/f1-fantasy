@@ -759,6 +759,30 @@ function DraftPingPanel({ raceWeekendId }) {
   const { draftOrder, picks } = useDraft(raceWeekendId)
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState(null)
+  const [pushPaused, setPushPaused] = useState(false)
+  const [pauseLoading, setPauseLoading] = useState(false)
+
+  useEffect(() => {
+    async function loadPauseState() {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'draft_push_paused')
+        .maybeSingle()
+      if (data) setPushPaused(data.value === true)
+    }
+    loadPauseState()
+  }, [])
+
+  async function togglePause() {
+    setPauseLoading(true)
+    const newVal = !pushPaused
+    await supabase
+      .from('app_settings')
+      .upsert({ key: 'draft_push_paused', value: newVal }, { onConflict: 'key' })
+    setPushPaused(newVal)
+    setPauseLoading(false)
+  }
 
   const currentPlayer = draftOrder.length > 0
     ? draftOrder[picks.length % draftOrder.length]
@@ -819,6 +843,29 @@ function DraftPingPanel({ raceWeekendId }) {
           {result && <p style={{ fontSize: '0.82rem' }}>{result}</p>}
         </div>
       )}
+
+      {/* Push pausieren */}
+      <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+        <div className="admin-sub-header">Automatische Push-Benachrichtigungen</div>
+        <button
+          className={`btn ${pushPaused ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={togglePause}
+          disabled={pauseLoading}
+          style={{ width: '100%' }}
+        >
+          {pauseLoading
+            ? <><div className="spinner" style={{ width: 14, height: 14 }} /> …</>
+            : pushPaused
+              ? '🔔 Push-Benachrichtigungen wieder aktivieren'
+              : '🔕 Push-Benachrichtigungen pausieren'
+          }
+        </button>
+        {pushPaused && (
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+            ⚠️ Automatische Pushes sind pausiert. Manuelles Anpingen funktioniert weiterhin.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

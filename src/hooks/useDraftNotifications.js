@@ -43,6 +43,17 @@ export function useDraftNotifications({ isMyTurn, isDraftComplete, myName, profi
  */
 export async function sendDraftPushToPlayer(profileId, playerName) {
   try {
+    // Pause-Status prüfen – wenn pausiert, kein Push senden
+    const { data: setting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'draft_push_paused')
+      .maybeSingle()
+    if (setting?.value === true) {
+      console.log('[Push] Automatische Push-Benachrichtigungen sind pausiert, kein Push gesendet.')
+      return
+    }
+
     await supabase.functions.invoke('send-push', {
       body: {
         profile_id: profileId,
