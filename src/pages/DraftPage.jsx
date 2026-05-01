@@ -255,12 +255,17 @@ export default function DraftPage() {
   async function handleConfirm() {
     if (!pendingPick || submitting) return
     setSubmitting(true)
+    const safetyTimer = setTimeout(() => {
+      setSubmitting(false)
+      alert('Anfrage hat zu lange gedauert – bitte nochmal versuchen.')
+    }, 12000)
     try {
       const { item, type } = pendingPick
       const { error } = await makePick(type, item.id)
       if (error) alert('Fehler: ' + (error.message ?? error))
       else setPendingPick(null)
     } finally {
+      clearTimeout(safetyTimer)
       setSubmitting(false)
     }
   }
