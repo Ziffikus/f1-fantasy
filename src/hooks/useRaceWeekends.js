@@ -7,16 +7,21 @@ export function useRaceWeekends() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    async function fetch() {
-      const { data, error } = await supabase
-        .from('race_weekends')
-        .select('*')
-        .order('round', { ascending: true })
-      if (error) setError(error)
-      else setWeekends(data ?? [])
-      setLoading(false)
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from('race_weekends')
+          .select('*')
+          .order('round', { ascending: true })
+        if (error) setError(error)
+        else setWeekends(data ?? [])
+      } catch (e) {
+        setError(e)
+      } finally {
+        setLoading(false)
+      }
     }
-    fetch()
+    load()
   }, [])
 
   const now = new Date()

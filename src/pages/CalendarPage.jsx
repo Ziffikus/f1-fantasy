@@ -24,12 +24,18 @@ function SessionRow({ label, dateStr }) {
 }
 
 export default function CalendarPage() {
-  const { weekends, loading } = useRaceWeekends()
+  const { weekends, loading, error } = useRaceWeekends()
   const [expanded, setExpanded] = useState(null)
   const now = new Date()
 
   const past = weekends.filter(w => new Date(w.race_start) < now)
   const upcoming = weekends.filter(w => new Date(w.race_start) >= now)
+
+  if (error) return (
+    <div style={{ padding: "2rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+      ⚠️ Fehler beim Laden: {error?.message ?? String(error)}
+    </div>
+  )
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
