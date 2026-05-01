@@ -14,10 +14,23 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const path = url.pathname.replace(/^\/openf1-proxy/, '')
-    const search = url.search
 
-    const target = `${OPENF1_BASE}${path}${search}`
+    // ?endpoint=/weather&session_key=11280
+    const endpoint = url.searchParams.get('endpoint')
+    if (!endpoint) {
+      return new Response(JSON.stringify({ error: 'Missing ?endpoint= parameter' }), {
+        status: 400,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Alle anderen Query-Parameter weiterleiten (außer "endpoint")
+    const forwardParams = new URLSearchParams()
+    for (const [k, v] of url.searchParams.entries()) {
+      if (k !== 'endpoint') forwardParams.set(k, v)
+    }
+
+    const target = `${OPENF1_BASE}${endpoint}?${forwardParams.toString()}`
     console.log('Proxying:', target)
 
     const response = await fetch(target, {

@@ -70,13 +70,13 @@ export function useLiveStandings(weekends, standings) {
       const { data: allDrivers } = await supabase
         .from('drivers').select('id, number, constructor_id').eq('season_id', season.id)
 
-      const sessionRes = await fetch(`${OPENF1_BASE}/sessions?session_type=${sType === 'sprint' ? 'Sprint' : 'Race'}&year=${new Date().getFullYear()}&limit=1`)
+      const sessionRes = await fetch(`${OPENF1_BASE}?endpoint=/sessions&session_type=${sType === 'sprint' ? 'Sprint' : 'Race'}&year=${new Date().getFullYear()}&limit=1`)
       const sessions = await sessionRes.json()
       if (!sessions?.length) return
 
       const sessionKey = sessions[0].session_key
       const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-      const posRes = await fetch(`${OPENF1_BASE}/position?session_key=${sessionKey}&date>=${since}`)
+      const posRes = await fetch(`${OPENF1_BASE}?endpoint=/position&session_key=${sessionKey}&date>=${since}`)
       const positions = await posRes.json()
       if (!positions?.length) return
 
