@@ -1,9 +1,11 @@
+// ─── useLiveRace.js ──────────────────────────────────────────
+// OPENF1_BASE auf Supabase Proxy geändert
+
 import { useState, useEffect, useRef } from 'react'
 
-const OPENF1_BASE = 'https://api.openf1.org/v1'
+const OPENF1_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 const POLL_INTERVAL = 60000
 
-// Reifenfarben
 export const TYRE_COLORS = {
   SOFT:         '#e8002d',
   MEDIUM:       '#ffd700',
@@ -23,8 +25,8 @@ export const TYRE_SHORT = {
 }
 
 export function useLiveRace(weekend) {
-  const [livePositions, setLivePositions] = useState({})   // driver_number → position
-  const [liveTyres, setLiveTyres] = useState({})           // driver_number → { compound, lap_start }
+  const [livePositions, setLivePositions] = useState({})
+  const [liveTyres, setLiveTyres] = useState({})
   const [isLive, setIsLive] = useState(false)
   const [sessionType, setSessionType] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
@@ -43,8 +45,8 @@ export function useLiveRace(weekend) {
     const raceActive   = now > raceStart   && (now - raceStart)   < WINDOW
     const sprintActive = sprintStart && now > sprintStart && (now - sprintStart) < WINDOW
 
-    if (raceActive)       { setIsLive(true); setSessionType('race') }
-    else if (sprintActive){ setIsLive(true); setSessionType('sprint') }
+    if (raceActive)        { setIsLive(true); setSessionType('race') }
+    else if (sprintActive) { setIsLive(true); setSessionType('sprint') }
     else { setIsLive(false); setSessionType(null); return }
 
     fetchLivePositions()
@@ -55,7 +57,6 @@ export function useLiveRace(weekend) {
   async function fetchLivePositions() {
     setLoading(true)
     try {
-      // Session holen (einmal cachen)
       if (!sessionKeyRef.current) {
         const sType = sessionType === 'sprint' ? 'Sprint' : 'Race'
         const sessionRes = await fetch(`${OPENF1_BASE}/sessions?session_type=${sType}&year=${new Date().getFullYear()}&limit=1`)
@@ -65,7 +66,6 @@ export function useLiveRace(weekend) {
       }
       const sessionKey = sessionKeyRef.current
 
-      // Positionen + Stints parallel laden
       const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
       const [posRes, stintRes] = await Promise.all([
         fetch(`${OPENF1_BASE}/position?session_key=${sessionKey}&date>=${since}`),
@@ -73,7 +73,6 @@ export function useLiveRace(weekend) {
       ])
       const [positions, stints] = await Promise.all([posRes.json(), stintRes.json()])
 
-      // Neueste Position pro Fahrer
       if (positions?.length) {
         const latest = {}
         for (const pos of positions) {
@@ -86,15 +85,14 @@ export function useLiveRace(weekend) {
         setLivePositions(posMap)
       }
 
-      // Letzter Stint pro Fahrer = aktueller Reifen
       if (stints?.length) {
         const tyreMap = {}
         for (const stint of stints) {
           const num = stint.driver_number
           if (!tyreMap[num] || stint.stint_number > tyreMap[num].stint_number) {
             tyreMap[num] = {
-              compound:   stint.compound?.toUpperCase() ?? 'TEST_UNKNOWN',
-              lap_start:  stint.lap_start,
+              compound:     stint.compound?.toUpperCase() ?? 'TEST_UNKNOWN',
+              lap_start:    stint.lap_start,
               stint_number: stint.stint_number,
             }
           }
@@ -121,7 +119,6 @@ export function mapLivePositionsToDriverIds(livePositions, drivers) {
   return mapped
 }
 
-// Gibt { compound, lap_start } für eine driver_id zurück
 export function mapLiveTyresToDriverIds(liveTyres, drivers) {
   const mapped = {}
   for (const [driverNumber, tyre] of Object.entries(liveTyres)) {

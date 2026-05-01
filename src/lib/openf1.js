@@ -1,9 +1,8 @@
 // ============================================================
-// OpenF1 API – https://openf1.org
-// Kostenlos, ~1 Minute Verzögerung während Rennen
+// OpenF1 API – via Supabase Edge Function Proxy (CORS-Fix)
 // ============================================================
 
-const BASE_URL = 'https://api.openf1.org/v1'
+const BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 
 // Generischer Fetch mit Error Handling
 async function openF1Fetch(endpoint, params = {}) {
@@ -30,10 +29,8 @@ export async function getLatestSession() {
 
 // ─── Fahrerpositionen (live während Session) ────────────────
 export async function getPositions(sessionKey) {
-  // Gibt die letzte bekannte Position jedes Fahrers zurück
   const data = await openF1Fetch('/position', { session_key: sessionKey })
 
-  // Nur die neueste Position pro Fahrer
   const latest = {}
   for (const entry of data) {
     if (
@@ -48,10 +45,7 @@ export async function getPositions(sessionKey) {
 
 // ─── Finale Ergebnisse einer Session ────────────────────────
 export async function getFinalResults(sessionKey) {
-  return openF1Fetch('/position', {
-    session_key: sessionKey,
-    // Nur finales Ergebnis (letzter Eintrag pro Fahrer)
-  })
+  return openF1Fetch('/position', { session_key: sessionKey })
 }
 
 // ─── Fahrerliste für ein Meeting ────────────────────────────
@@ -59,7 +53,7 @@ export async function getDrivers(sessionKey) {
   return openF1Fetch('/drivers', { session_key: sessionKey })
 }
 
-// ─── Meeting-Info (für Streckenbilder etc.) ──────────────────
+// ─── Meeting-Info ────────────────────────────────────────────
 export async function getMeeting(meetingKey) {
   const data = await openF1Fetch('/meetings', { meeting_key: meetingKey })
   return data[0] ?? null
@@ -95,7 +89,6 @@ export function getNextSession(raceWeekend) {
 // ─── Wetterdaten ─────────────────────────────────────────────
 export async function getWeather(sessionKey) {
   const data = await openF1Fetch('/weather', { session_key: sessionKey })
-  // Neueste Wetterdaten
   return data[data.length - 1] ?? null
 }
 
