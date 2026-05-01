@@ -38,3 +38,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: fetchWithTimeout,
   },
 })
+
+supabase.realtime.onClose(() => {
+  console.log('Realtime disconnected – reconnecting...')
+  setTimeout(() => supabase.realtime.connect(), 2000)
+})
