@@ -208,12 +208,14 @@ export function useDraft(raceWeekendId) {
     if (type === 'driver' && typePicks.length >= 4) return { error: 'Bereits 4 Fahrer.' }
     if (type === 'constructor' && typePicks.length >= 2) return { error: 'Bereits 2 Teams.' }
 
-    // FIX: max vorhandener pick_number + 1 statt count + 1
-    // Verhindert Duplicate-Key-Fehler wenn ein Pick gelöscht und neu gesetzt wird
-    const maxPickNumber = typePicks.length > 0
-      ? Math.max(...typePicks.map(p => p.pick_number))
-      : 0
-    const pickNumber = maxPickNumber + 1
+    // FIX: niedrigste freie Slot-Nummer (Gap-Filling) statt count + 1
+    // Verhindert Duplicate-Key-Fehler UND stellt sicher dass der Pick in F1-F4 / T1-T2 angezeigt wird
+    const usedNumbers = typePicks.map(p => p.pick_number)
+    const maxSlots = type === 'driver' ? 4 : 2
+    let pickNumber = maxSlots + 1 // Fallback (sollte nie vorkommen wegen Check oben)
+    for (let n = 1; n <= maxSlots; n++) {
+      if (!usedNumbers.includes(n)) { pickNumber = n; break }
+    }
 
     const { error } = await supabase.from('picks').insert({
       race_weekend_id: raceWeekendId,
