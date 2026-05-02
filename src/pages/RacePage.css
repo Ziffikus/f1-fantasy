@@ -519,3 +519,39 @@
 .race-player-pts-sep {
   opacity: 0.4;
 }
+
+/* ── Session Result Rows (kompakt, einzeilig) ─────────────────── */
+.session-results-panel {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.session-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.session-result-row:last-child { border-bottom: none; }
+
+.session-result-name {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.session-result-team {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
