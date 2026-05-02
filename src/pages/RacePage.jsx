@@ -90,13 +90,6 @@ function SessionResultsPanel({ results, loading, error }) {
           <span className={`race-pos ${r.position === 1 ? 'race-pos--1' : r.position === 2 ? 'race-pos--2' : r.position === 3 ? 'race-pos--3' : ''}`}>
             P{r.position}
           </span>
-          {r.headshot_url && (
-            <img
-              src={r.headshot_url}
-              alt={r.abbreviation}
-              className="session-result-headshot"
-            />
-          )}
           <div className="session-result-info">
             <span className="session-result-name">{r.broadcast_name || r.full_name}</span>
             <span className="session-result-team" style={{ color: r.team_colour }}>
