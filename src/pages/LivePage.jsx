@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { RefreshCw, Thermometer, Droplets, Wind, CloudRain, Flag } from 'lucide-react'
-import { useLiveSession } from '../hooks/useLiveSession'
+import { RefreshCw, Thermometer, Droplets, Wind, CloudRain, Flag, Timer } from 'lucide-react'
+import { useLiveSession, formatLapTime, formatSector, getSessionCategory } from '../hooks/useLiveSession'
 import './LivePage.css'
 
 const TYRE_COLOR = {
@@ -32,9 +32,19 @@ function TyreBadge({ compound, lap }) {
 }
 
 function EmptyState({ label }) {
-  return (
-    <p className="live-empty-state">{label}</p>
-  )
+  return <p className="live-empty-state">{label}</p>
+}
+
+// ── Sektor-Badge ──────────────────────────────────────────────
+// Lila = Session-Bestzeit, Grün = Persönliche Bestzeit, normal = keine Auszeichnung
+function SectorBadge({ time, isSessionBest, isPersonalBest }) {
+  if (!time) return <span className="live-sector live-sector--empty">–</span>
+  const cls = isSessionBest
+    ? 'live-sector live-sector--purple'
+    : isPersonalBest
+      ? 'live-sector live-sector--green'
+      : 'live-sector'
+  return <span className={cls}>{formatSector(time)}</span>
 }
 
 export default function LivePage() {
@@ -42,6 +52,8 @@ export default function LivePage() {
     session, positions, weather, currentLap, raceControl,
     loading, lastUpdate, isLive,
     getCurrentTyre, getInterval, getDriver,
+    getBestLap, getLastLap, getLapTimesRanked,
+    getBestSectors, getSessionBestSectors,
     refetch,
   } = useLiveSession()
 
@@ -59,9 +71,19 @@ export default function LivePage() {
     'Sprint Qualifying': 'Sprint Qualifying', 'Race': 'Rennen',
   }[session?.session_name] ?? session?.session_name ?? null
 
-  const hasWeather = !!weather
-  const hasPositions = positions.length > 0
+  // Kategorie bestimmt wie Lap-Daten angezeigt werden
+  const sessionCategory = getSessionCategory(session?.session_name)
+  const isQualifying = sessionCategory === 'qualifying' || sessionCategory === 'practice'
+  const isRace       = sessionCategory === 'race'
+
+  const hasWeather    = !!weather
+  const hasPositions  = positions.length > 0
   const hasRaceControl = raceControl?.length > 0
+
+  // Lap-Daten aufbereiten
+  const lapTimesRanked    = getLapTimesRanked()
+  const hasLapTimes       = lapTimesRanked.length > 0
+  const sessionBestSectors = getSessionBestSectors()
   const raining = weather?.rainfall > 0
 
   return (
@@ -141,6 +163,109 @@ export default function LivePage() {
           )}
         </div>
 
+        {/* ── Rundenzeiten ────────────────────────────────────────
+            Qualifying / Practice: Beste Runde + Sektoren + Gap
+            Race / Sprint:        Letzte Runde + Beste Runde
+        */}
+        <div className="live-laps card">
+          <div className="live-laps-title">
+            <Timer size={14} />
+            {isQualifying ? ' Qualifying-Zeiten' : isRace ? ' Rundenzeiten' : ' Rundenzeiten'}
+          </div>
+
+          {hasLapTimes ? (
+            <div className="live-laps-list">
+              {/* Spaltenköpfe */}
+              <div className="live-laps-header">
+                <span className="live-laps-col-pos">#</span>
+                <span className="live-laps-col-name">Fahrer</span>
+                {isQualifying && (
+                  <>
+                    <span className="live-laps-col-time">Beste Zeit</span>
+                    <span className="live-laps-col-gap">Abstand</span>
+                    <span className="live-laps-col-sectors">Sektoren</span>
+                  </>
+                )}
+                {isRace && (
+                  <>
+                    <span className="live-laps-col-time">Letzte Runde</span>
+                    <span className="live-laps-col-best">Beste</span>
+                  </>
+                )}
+                {!isQualifying && !isRace && (
+                  <span className="live-laps-col-time">Beste Zeit</span>
+                )}
+              </div>
+
+              {lapTimesRanked.map(({ driver_number, rank, bestLap, gap }) => {
+                const driver     = getDriver(driver_number)
+                const name       = driver?.broadcast_name ?? driver?.full_name ?? `#${driver_number}`
+                const color      = driver?.team_colour ? `#${driver.team_colour}` : '#888'
+                const bestSectors = getBestSectors(driver_number)
+                const lastLap    = getLastLap(driver_number)
+
+                return (
+                  <div key={driver_number} className={`live-laps-row ${rank === 1 ? 'live-laps-row--leader' : ''}`}>
+                    <span className="live-laps-col-pos">{rank}</span>
+
+                    <div className="live-laps-col-name">
+                      <div className="live-pos-color" style={{ background: color }} />
+                      <span className="live-pos-name">{name}</span>
+                    </div>
+
+                    {isQualifying && (
+                      <>
+                        <span className="live-laps-col-time live-laptime">
+                          {formatLapTime(bestLap.lap_duration) ?? '–'}
+                        </span>
+                        <span className="live-laps-col-gap live-lapgap">
+                          {gap === 0 ? <span className="live-lapgap--leader">P1</span> : `+${gap.toFixed(3)}`}
+                        </span>
+                        <span className="live-laps-col-sectors">
+                          <SectorBadge
+                            time={bestSectors.s1}
+                            isSessionBest={bestSectors.s1 != null && bestSectors.s1 === sessionBestSectors.s1}
+                            isPersonalBest={true}
+                          />
+                          <SectorBadge
+                            time={bestSectors.s2}
+                            isSessionBest={bestSectors.s2 != null && bestSectors.s2 === sessionBestSectors.s2}
+                            isPersonalBest={true}
+                          />
+                          <SectorBadge
+                            time={bestSectors.s3}
+                            isSessionBest={bestSectors.s3 != null && bestSectors.s3 === sessionBestSectors.s3}
+                            isPersonalBest={true}
+                          />
+                        </span>
+                      </>
+                    )}
+
+                    {isRace && (
+                      <>
+                        <span className="live-laps-col-time live-laptime">
+                          {formatLapTime(lastLap?.lap_duration) ?? '–'}
+                        </span>
+                        <span className="live-laps-col-best live-laptime live-laptime--best">
+                          {formatLapTime(bestLap.lap_duration) ?? '–'}
+                        </span>
+                      </>
+                    )}
+
+                    {!isQualifying && !isRace && (
+                      <span className="live-laps-col-time live-laptime">
+                        {formatLapTime(bestLap.lap_duration) ?? '–'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <EmptyState label="Noch keine Rundenzeiten verfügbar." />
+          )}
+        </div>
+
         {/* Positionen */}
         <div className="live-standings card">
           <div className="live-standings-title">🏎️ Positionen</div>
@@ -148,11 +273,11 @@ export default function LivePage() {
             <div className="live-standings-list">
               {positions.map((p) => {
                 const driver = getDriver(p.driver_number)
-                const tyre = getCurrentTyre(p.driver_number)
+                const tyre   = getCurrentTyre(p.driver_number)
                 const interval = getInterval(p.driver_number)
-                const name = driver?.full_name ?? driver?.broadcast_name ?? `#${p.driver_number}`
-                const team = driver?.team_name ?? ''
-                const color = driver?.team_colour ? `#${driver.team_colour}` : '#888'
+                const name   = driver?.full_name ?? driver?.broadcast_name ?? `#${p.driver_number}`
+                const team   = driver?.team_name ?? ''
+                const color  = driver?.team_colour ? `#${driver.team_colour}` : '#888'
                 const lapsSinceTyre = tyre?.lap_start && currentLap ? currentLap - tyre.lap_start : null
 
                 return (

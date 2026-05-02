@@ -1,7 +1,178 @@
-
 /* ── Empty State ─────────────────────────────────────────────── */
 .live-empty-state {
   font-size: 0.82rem;
   color: var(--text-muted);
   padding: 0.25rem 0;
+}
+
+/* ── Lap Times Card ──────────────────────────────────────────── */
+.live-laps-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.live-laps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Spaltenköpfe */
+.live-laps-header {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0 0 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Race: 2 Zeitspalten statt 3 */
+.live-laps-header:has(.live-laps-col-best) {
+  grid-template-columns: 1.5rem 1fr auto auto;
+}
+
+/* Nur beste Zeit (Practice ohne Sektoren) */
+.live-laps-header:not(:has(.live-laps-col-gap)):not(:has(.live-laps-col-best)) {
+  grid-template-columns: 1.5rem 1fr auto;
+}
+
+.live-laps-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  transition: background 0.15s;
+}
+
+.live-laps-row:last-child {
+  border-bottom: none;
+}
+
+.live-laps-row--leader {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 4px;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  margin: 0 -0.25rem;
+}
+
+/* Race-Layout */
+.live-laps-row:has(.live-laps-col-best) {
+  grid-template-columns: 1.5rem 1fr auto auto;
+}
+
+/* Nur beste Zeit */
+.live-laps-row:not(:has(.live-laps-col-gap)):not(:has(.live-laps-col-best)) {
+  grid-template-columns: 1.5rem 1fr auto;
+}
+
+/* Spalten */
+.live-laps-col-pos {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.live-laps-col-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.live-laps-col-time,
+.live-laps-col-best {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.live-laps-col-gap {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-align: right;
+  min-width: 3.5rem;
+}
+
+.live-laps-col-sectors {
+  display: flex;
+  gap: 0.2rem;
+  justify-content: flex-end;
+}
+
+/* Zeitwerte */
+.live-laptime {
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.live-laptime--best {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: 0.73rem;
+}
+
+.live-lapgap {
+  color: var(--text-secondary);
+}
+
+.live-lapgap--leader {
+  color: #a78bfa;   /* lila */
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+/* ── Sektor-Badges ───────────────────────────────────────────── */
+.live-sector {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 2.8rem;
+  text-align: center;
+}
+
+.live-sector--empty {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+/* Lila = Session-Bestzeit */
+.live-sector--purple {
+  background: color-mix(in srgb, #a78bfa 20%, transparent);
+  color: #a78bfa;
+}
+
+/* Grün = Persönliche Bestzeit */
+.live-sector--green {
+  background: color-mix(in srgb, #4ade80 15%, transparent);
+  color: #4ade80;
 }
