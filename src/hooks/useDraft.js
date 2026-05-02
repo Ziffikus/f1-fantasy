@@ -202,10 +202,19 @@ export function useDraft(raceWeekendId) {
   }
 
   async function adminMakePick(profileId, type, entityId) {
-    const count = getPlayerPickCount(profileId)
-    if (type === 'driver' && count.drivers >= 4) return { error: 'Bereits 4 Fahrer.' }
-    if (type === 'constructor' && count.constructors >= 2) return { error: 'Bereits 2 Teams.' }
-    const pickNumber = type === 'driver' ? count.drivers + 1 : count.constructors + 1
+    const playerPicks = getPlayerPicks(profileId)
+    const typePicks = playerPicks.filter(p => p.pick_type === type)
+
+    if (type === 'driver' && typePicks.length >= 4) return { error: 'Bereits 4 Fahrer.' }
+    if (type === 'constructor' && typePicks.length >= 2) return { error: 'Bereits 2 Teams.' }
+
+    // FIX: max vorhandener pick_number + 1 statt count + 1
+    // Verhindert Duplicate-Key-Fehler wenn ein Pick gelöscht und neu gesetzt wird
+    const maxPickNumber = typePicks.length > 0
+      ? Math.max(...typePicks.map(p => p.pick_number))
+      : 0
+    const pickNumber = maxPickNumber + 1
+
     const { error } = await supabase.from('picks').insert({
       race_weekend_id: raceWeekendId,
       profile_id: profileId,
