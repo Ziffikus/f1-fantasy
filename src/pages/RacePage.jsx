@@ -3,8 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { useLiveRace, mapLivePositionsToDriverIds, mapLiveTyresToDriverIds, TYRE_COLORS, TYRE_SHORT } from '../hooks/useLiveRace'
+import { useSessionResults } from '../hooks/useSessionResults'
 import TrackMap from '../components/ui/TrackMap'
-import { ArrowLeft, Trophy, Zap, Flag, Clock, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Trophy, Zap, Flag, Clock, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
 import './RacePage.css'
 
 function formatDate(dateStr) {
@@ -13,18 +14,6 @@ function formatDate(dateStr) {
     weekday: 'short', day: '2-digit', month: 'short',
     hour: '2-digit', minute: '2-digit'
   })
-}
-
-function SessionRow({ label, dateStr }) {
-  if (!dateStr) return null
-  const isPast = new Date(dateStr) < new Date()
-  return (
-    <div className={`race-session-row ${isPast ? 'race-session-row--past' : ''}`}>
-      <span className="race-session-label">{label}</span>
-      <span className="race-session-time">{formatDate(dateStr)}</span>
-      {isPast && <span className="race-session-done">✓</span>}
-    </div>
-  )
 }
 
 function PositionBadge({ pos, isLive }) {
@@ -58,7 +47,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
       racePoints += pos ?? 0
       if (isSprint) {
         const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? (spos  / 2) : 0
+        sprintPoints += spos ? (spos / 2) : 0
       }
     } else if (pick.pick_type === 'constructor') {
       const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
@@ -67,12 +56,89 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
         racePoints += pos ?? 0
         if (isSprint) {
           const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? (spos  / 2) : 0
+          sprintPoints += spos ? (spos / 2) : 0
         }
       }
     }
   }
   return { racePoints, sprintPoints, total: racePoints + sprintPoints }
+}
+
+// ── Session-Ergebnisse Komponente ─────────────────────────────
+function SessionResultsPanel({ results, loading, error }) {
+  if (loading) {
+    return (
+      <div className="session-results-panel session-results-loading">
+        <div className="spinner" style={{ width: '1.2rem', height: '1.2rem', borderWidth: '2px' }} />
+        <span>Lade OpenF1-Daten…</span>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="session-results-panel session-results-error">
+        ⚠️ {error}
+      </div>
+    )
+  }
+  if (!results.length) return null
+
+  return (
+    <div className="session-results-panel">
+      {results.map(r => (
+        <div key={r.driver_number} className="session-result-row">
+          <span className={`race-pos ${r.position === 1 ? 'race-pos--1' : r.position === 2 ? 'race-pos--2' : r.position === 3 ? 'race-pos--3' : ''}`}>
+            P{r.position}
+          </span>
+          {r.headshot_url && (
+            <img
+              src={r.headshot_url}
+              alt={r.abbreviation}
+              className="session-result-headshot"
+            />
+          )}
+          <div className="session-result-info">
+            <span className="session-result-name">{r.broadcast_name || r.full_name}</span>
+            <span className="session-result-team" style={{ color: r.team_colour }}>
+              {r.team_name}
+            </span>
+          </div>
+          <span
+            className="session-result-abbr"
+            style={{ color: r.team_colour, borderColor: r.team_colour + '55' }}
+          >
+            {r.abbreviation}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Session-Zeile mit Klappmechanik ──────────────────────────
+function SessionRow({ label, dateStr, sessionKey, onToggle, isOpen, results, loading, error }) {
+  if (!dateStr) return null
+  const isPast = new Date(dateStr) < new Date()
+
+  return (
+    <div className={`race-session-row ${isPast ? 'race-session-row--past' : ''} ${isOpen ? 'race-session-row--open' : ''}`}>
+      <div className="race-session-main" onClick={isPast ? () => onToggle(sessionKey) : undefined} style={isPast ? { cursor: 'pointer' } : {}}>
+        <span className="race-session-label">{label}</span>
+        <span className="race-session-time">{formatDate(dateStr)}</span>
+        {isPast && (
+          <span className="race-session-done" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            {isOpen
+              ? <ChevronDown size={13} />
+              : <ChevronRight size={13} />
+            }
+          </span>
+        )}
+      </div>
+      {isPast && isOpen && (
+        <SessionResultsPanel results={results} loading={loading} error={error} />
+      )}
+    </div>
+  )
 }
 
 export default function RacePage() {
@@ -88,6 +154,14 @@ export default function RacePage() {
   const [activeTab, setActiveTab] = useState('picks')
 
   const { livePositions, liveTyres, isLive, sessionType, lastUpdate, loading: liveLoading, refetch } = useLiveRace(weekend)
+
+  const {
+    fetchSession,
+    results: sessionResults,
+    loading: sessionLoading,
+    error: sessionError,
+    activeKey: openSessionKey,
+  } = useSessionResults(weekend)
 
   useEffect(() => { loadAll() }, [id])
 
@@ -113,7 +187,6 @@ export default function RacePage() {
     setProfiles(prof ?? [])
     setDraftOrder(dOrder ?? [])
 
-    // Fahrer für Team-Punkte laden
     if (rw) {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       if (season) {
@@ -134,7 +207,6 @@ export default function RacePage() {
 
   const isPast = new Date(weekend.race_start) < new Date()
 
-  // Ergebnis-Maps: driver_id → position
   const raceResultMap = {}
   const sprintResultMap = {}
   for (const r of results) {
@@ -142,7 +214,6 @@ export default function RacePage() {
     if (r.session_type === 'sprint') sprintResultMap[r.driver_id] = r.position
   }
 
-  // Live-Positionen (driver_number → driver_id) überlagern die gespeicherten
   const liveByDriverId = mapLivePositionsToDriverIds(livePositions, allDrivers)
   const tyrByDriverId = mapLiveTyresToDriverIds(liveTyres, allDrivers)
   const activeRaceMap = isLive && sessionType === 'race'
@@ -154,12 +225,10 @@ export default function RacePage() {
 
   const hasResults = results.length > 0 || isLive
 
-  // Spieler-Reihenfolge
   const orderedProfiles = draftOrder.length > 0
     ? draftOrder.map(d => profiles.find(p => p.id === d.profile_id)).filter(Boolean)
     : profiles
 
-  // Punkte berechnen + sortieren für Rang
   const playerPoints = orderedProfiles.map(player => {
     const playerPicks = picks.filter(p => p.profile_id === player.id)
     const pts = calcPlayerPoints(playerPicks, activeRaceMap, activeSprintMap, weekend.is_sprint_weekend, allDrivers)
@@ -169,6 +238,23 @@ export default function RacePage() {
   if (hasResults) {
     playerPoints.sort((a, b) => a.total - b.total)
   }
+
+  // Sessions als Array für den Tab
+  const sessionRows = weekend.is_sprint_weekend
+    ? [
+        { key: 'fp1',          label: 'FP1',               dateStr: weekend.fp1_start },
+        { key: 'sprint_quali', label: 'Sprint Qualifying',  dateStr: weekend.sprint_quali_start },
+        { key: 'sprint',       label: 'Sprint ⚡',          dateStr: weekend.sprint_start },
+        { key: 'qualifying',   label: 'Qualifying',         dateStr: weekend.qualifying_start },
+        { key: 'race',         label: 'Rennen 🏁',          dateStr: weekend.race_start },
+      ]
+    : [
+        { key: 'fp1',        label: 'FP1',         dateStr: weekend.fp1_start },
+        { key: 'fp2',        label: 'FP2',         dateStr: weekend.fp2_start },
+        { key: 'fp3',        label: 'FP3',         dateStr: weekend.fp3_start },
+        { key: 'qualifying', label: 'Qualifying',  dateStr: weekend.qualifying_start },
+        { key: 'race',       label: 'Rennen 🏁',   dateStr: weekend.race_start },
+      ]
 
   return (
     <div className="race-page page-enter">
@@ -180,27 +266,24 @@ export default function RacePage() {
       <div className="race-hero">
         <div className="race-hero-flag">{weekend.flag_emoji}</div>
         <div className="race-hero-info">
-          <div className="race-hero-round">Runde {weekend.round} · 2026</div>
+          <div className="race-hero-round">Runde {weekend.round} · {new Date(weekend.race_start).getFullYear()}</div>
           <h1 className="race-hero-title">{weekend.name}</h1>
           <div className="race-hero-meta">
             <span>{weekend.city}, {weekend.country}</span>
-            <span>·</span>
-            <span>{weekend.circuit}</span>
-            {weekend.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
+            {weekend.circuit && <><span>·</span><span>{weekend.circuit}</span></>}
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
-          <TrackMap round={weekend.round} size="lg" />
-          {isLive && (
-            <div className="race-hero-status race-hero-status--live">
-              <span className="live-dot" /> LIVE · {sessionType === 'sprint' ? 'Sprint' : 'Rennen'}
-            </div>
-          )}
-          {isPast && !isLive && (
-            <div className="race-hero-status race-hero-status--done">
-              <Flag size={14} /> Abgeschlossen
-            </div>
-          )}
+        <div>
+          <TrackMap round={weekend.round} size="sm" />
+          {isPast && !isLive ? (
+            <span className="race-hero-status race-hero-status--done">
+              <Flag size={11} /> Abgeschlossen
+            </span>
+          ) : isLive ? (
+            <span className="race-hero-status race-hero-status--live">
+              <span className="live-dot" /> Live
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -209,10 +292,10 @@ export default function RacePage() {
         <div className="live-banner">
           <div className="live-banner-left">
             <span className="live-dot" />
-            <span>Live-Hochrechnung aktiv</span>
+            <span>{sessionType === 'sprint' ? 'Sprint' : 'Rennen'} läuft</span>
             {lastUpdate && (
               <span className="live-update-time">
-                · Aktualisiert {lastUpdate.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                Aktualisiert {lastUpdate.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             )}
           </div>
@@ -226,8 +309,8 @@ export default function RacePage() {
       {/* Tabs */}
       <div className="race-tabs">
         {[
-          { id: 'picks', label: 'Picks & Punkte', icon: Trophy },
-          { id: 'sessions', label: 'Sessions', icon: Clock },
+          { id: 'picks',    label: 'Picks & Punkte', icon: Trophy },
+          { id: 'sessions', label: 'Sessions',        icon: Clock },
         ].map(t => (
           <button
             key={t.id}
@@ -317,7 +400,7 @@ export default function RacePage() {
                       const teamTotal = teamDrivers.reduce((sum, td) => sum + (activeRaceMap[td.id] ?? 0), 0)
                       const teamSprintTotal = teamDrivers.reduce((sum, td) => {
                         const spos = activeSprintMap[td.id]
-                        return sum + (spos ? (spos  / 2) : 0)
+                        return sum + (spos ? (spos / 2) : 0)
                       }, 0)
                       return (
                         <div key={pick.id} className="race-pick-row race-pick-row--team">
@@ -337,7 +420,7 @@ export default function RacePage() {
                                       </span>
                                       <PositionBadge pos={pos} isLive={isLive && liveByDriverId[td.id] !== undefined} />
                                       {weekend.is_sprint_weekend && spos && (
-                                        <span className="race-sprint-pts"><Zap size={10} />{(spos  / 2)}</span>
+                                        <span className="race-sprint-pts"><Zap size={10} />{(spos / 2)}</span>
                                       )}
                                     </span>
                                   )
@@ -371,21 +454,22 @@ export default function RacePage() {
       {/* Sessions Tab */}
       {activeTab === 'sessions' && (
         <div className="card race-sessions-card">
-          {weekend.is_sprint_weekend ? (
-            <>
-              <SessionRow label="FP1" dateStr={weekend.fp1_start} />
-              <SessionRow label="Sprint Qualifying" dateStr={weekend.sprint_quali_start} />
-              <SessionRow label="Sprint ⚡" dateStr={weekend.sprint_start} />
-            </>
-          ) : (
-            <>
-              <SessionRow label="FP1" dateStr={weekend.fp1_start} />
-              <SessionRow label="FP2" dateStr={weekend.fp2_start} />
-              <SessionRow label="FP3" dateStr={weekend.fp3_start} />
-            </>
-          )}
-          <SessionRow label="Qualifying" dateStr={weekend.qualifying_start} />
-          <SessionRow label="Rennen 🏁" dateStr={weekend.race_start} />
+          <p className="race-sessions-hint">
+            Vergangene Sessions anklicken für Ergebnisse (via OpenF1)
+          </p>
+          {sessionRows.map(s => (
+            <SessionRow
+              key={s.key}
+              label={s.label}
+              dateStr={s.dateStr}
+              sessionKey={s.key}
+              onToggle={fetchSession}
+              isOpen={openSessionKey === s.key}
+              results={openSessionKey === s.key ? sessionResults : []}
+              loading={openSessionKey === s.key && sessionLoading}
+              error={openSessionKey === s.key ? sessionError : null}
+            />
+          ))}
         </div>
       )}
     </div>
