@@ -99,6 +99,9 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
           {[1,2,3,4].map(n => {
             const pick = driverPicks.find(p => p.pick_number === n)
             const abbr = pick?.drivers?.abbreviation?.toLowerCase()
+            const firstName = pick?.drivers?.first_name
+            const lastName = pick?.drivers?.last_name
+            const displayName = firstName && lastName ? `${firstName[0]}. ${lastName}` : abbr?.toUpperCase()
             const teamColor = pick?.drivers?.constructors?.color
             const teamShort = pick?.drivers?.constructors?.short_name
             return (
@@ -115,9 +118,9 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
                       alt={abbr}
                       onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
                     />
-                    <div className="draft-pick-portrait-fallback">{abbr?.toUpperCase()}</div>
+                    <div className="draft-pick-portrait-fallback">{displayName}</div>
                     <div className="draft-pick-driver-label">
-                      <span style={{ color: teamColor }}>{abbr?.toUpperCase()}</span>
+                      <span>{displayName}</span>
                     </div>
                   </>
                 ) : (
