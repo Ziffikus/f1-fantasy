@@ -133,10 +133,23 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
           {[1,2].map(n => {
             const pick = teamPicks.find(p => p.pick_number === n)
             const teamColor = pick?.constructors?.color
-            const teamShort = pick?.constructors?.short_name?.toLowerCase()
-            // Logo-Dateinamen: Ausnahmen für mer (log_mer) und wil (logo_will)
+            const teamShort = pick?.constructors?.short_name
+            const FILE_MAP = {
+              'McLaren':      'mcl',
+              'Mercedes':     'mer',
+              'Red Bull':     'rbr',
+              'Ferrari':      'fer',
+              'Williams':     'wil',
+              'Racing Bulls': 'rb',
+              'Aston Martin': 'ast',
+              'Haas':         'haa',
+              'Audi':         'aud',
+              'Alpine':       'alp',
+              'Cadillac':     'cad',
+            }
+            const fileKey = FILE_MAP[teamShort] ?? teamShort?.toLowerCase()
             const LOGO_MAP = { mer: 'log_mer', wil: 'logo_will' }
-            const logoKey = LOGO_MAP[teamShort] ?? `logo_${teamShort}`
+            const logoKey = LOGO_MAP[fileKey] ?? `logo_${fileKey}`
             return (
               <div
                 key={`t${n}`}
@@ -147,7 +160,7 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
                   <>
                     <img
                       className="draft-pick-car"
-                      src={`${import.meta.env.BASE_URL}autos/${teamShort}.avif`}
+                      src={`${import.meta.env.BASE_URL}autos/${fileKey}.avif`}
                       alt={teamShort}
                       onError={e => { e.currentTarget.style.display = 'none' }}
                     />
