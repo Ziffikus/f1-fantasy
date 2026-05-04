@@ -111,7 +111,7 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
                   <>
                     <img
                       className="draft-pick-portrait"
-                      src={`/drivers/${abbr}.avif`}
+                      src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
                       alt={abbr}
                       onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
                     />
@@ -147,14 +147,14 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
                   <>
                     <img
                       className="draft-pick-car"
-                      src={`/autos/${teamShort}.avif`}
+                      src={`${import.meta.env.BASE_URL}autos/${teamShort}.avif`}
                       alt={teamShort}
                       onError={e => { e.currentTarget.style.display = 'none' }}
                     />
                     <div className="draft-pick-team-overlay">
                       <img
                         className="draft-pick-team-logo"
-                        src={`/logos/${logoKey}.avif`}
+                        src={`${import.meta.env.BASE_URL}logos/${logoKey}.avif`}
                         alt={teamShort}
                         onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'block' }}
                       />
