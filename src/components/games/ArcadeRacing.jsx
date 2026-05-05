@@ -11,14 +11,16 @@ const TRACK_WIDTH = 280
 const BUFFER = 80
 const INNER_LIMIT = TRACK_WIDTH / 2
 const OUTER_LIMIT = TRACK_WIDTH / 2 + BUFFER
-const LAPS_TOTAL = 3
-const GAME_W = 680
-const GAME_H = 460
+const LAPS_TOTAL = 1          // ← nur 1 Runde
+const GAME_W = 720            // ← größer
+const GAME_H = 500            // ← größer
 const CAR_SCREEN_X = GAME_W / 2
-const CAR_SCREEN_Y = GAME_H - 30
+const CAR_SCREEN_Y = GAME_H - 35
+
+const ARROWS_STORAGE_KEY = 'arcadeRacing_canada_arrows'
 
 function formatTime(ms) {
-  if (!ms && ms !== 0) return '--:--.---'
+  if (ms === null || ms === undefined) return '--:--.---'
   const mins = Math.floor(ms / 60000)
   const secs = Math.floor((ms % 60000) / 1000)
   const millis = ms % 1000
@@ -33,15 +35,16 @@ export default function ArcadeRacing({ onClose }) {
 
   const [gameState, setGameState] = useState('idle')
   const [countdown, setCountdown] = useState(3)
-  const [lap, setLap] = useState(0)
-  const [currentLapTime, setCurrentLapTime] = useState(0)
+  const [currentLapTime, setCurrentLapTime] = useState(null)   // null = noch nicht gestartet
   const [bestLap, setBestLap] = useState(null)
-  const [lastLap, setLastLap] = useState(null)
   const [totalTime, setTotalTime] = useState(0)
   const [saved, setSaved] = useState(false)
   const [leaderboard, setLeaderboard] = useState([])
   const [editMode, setEditMode] = useState(false)
   const editModeRef = useRef(false)
+
+  // Callbacks via Ref damit sie stabil im gameLoop zugänglich sind
+  const resetStateRef = useRef(null)
 
   useEffect(() => { loadLeaderboard() }, [])
   useEffect(() => { editModeRef.current = editMode }, [editMode])
@@ -66,7 +69,6 @@ export default function ArcadeRacing({ onClose }) {
       .eq('game', 'arcade_racing')
       .eq('track', 'canada')
       .single()
-
     if (!existing || lapTimeMs < existing.lap_time_ms) {
       await supabase.from('game_highscores').upsert({
         profile_id: profile.id,
@@ -79,14 +81,14 @@ export default function ArcadeRacing({ onClose }) {
     }
   }
 
+  // Vollständiger Neustart mit Countdown
   const startGame = useCallback(() => {
     setGameState('countdown')
     setCountdown(3)
-    setLap(0)
     setBestLap(null)
-    setLastLap(null)
     setTotalTime(0)
     setSaved(false)
+    setCurrentLapTime(null)
     gameRef.current?.resetCar?.()
 
     let c = 3
@@ -97,6 +99,17 @@ export default function ArcadeRacing({ onClose }) {
     }, 1000)
   }, [])
 
+  // Sofort-Reset (Leertaste / Reset-Button) – kein Countdown
+  const resetGame = useCallback(() => {
+    setGameState('racing')
+    setCurrentLapTime(null)
+    setSaved(false)
+    gameRef.current?.resetCar?.()
+  }, [])
+
+  // Ref damit der keydown-Handler immer die aktuelle Version hat
+  useEffect(() => { resetStateRef.current = resetGame }, [resetGame])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -104,6 +117,10 @@ export default function ArcadeRacing({ onClose }) {
 
     const TRK = RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
     const N = TRK.length
+
+    // ── Startposition: ~2.5s VOR der Startlinie ──────────────────────────────
+    const START_SEG = N - 8   // 8 Segmente vor Sektor 0
+    const START_SPEED = 200   // bereits im Fahren
 
     function nearestPoint(x, y) {
       let best = 1e9, bi = 0, px = x, py = y
@@ -124,44 +141,60 @@ export default function ArcadeRacing({ onClose }) {
       return Math.atan2(b[1] - a[1], b[0] - a[0])
     }
 
-    const car = { x: TRK[0][0], y: TRK[0][1], angle: segAngle(0), speed: 0 }
+    const car = {
+      x: TRK[START_SEG][0],
+      y: TRK[START_SEG][1],
+      angle: segAngle(START_SEG),
+      speed: START_SPEED
+    }
     let camX = car.x, camY = car.y
 
-    let userArrows = [], dragStart = null, dragPreview = null
-    let lapCount = 0, lapTime = 0, bestLapMs = Infinity
-    let lapStarted = false, prevSeg = 0, lastTS = null
+    // ── Pfeile: permanent aus localStorage laden ──────────────────────────────
+    let userArrows = []
+    try { userArrows = JSON.parse(localStorage.getItem(ARROWS_STORAGE_KEY) || '[]') } catch {}
+    function saveArrows() {
+      try { localStorage.setItem(ARROWS_STORAGE_KEY, JSON.stringify(userArrows)) } catch {}
+    }
+
+    let dragStart = null, dragPreview = null
+    let lapTime = 0, bestLapMs = Infinity
+    let lapStarted = false, prevSeg = START_SEG, lastTS = null
     let inBuffer = false, racing = false, finishedRef = false
-    let startTimeMs = null, lastLapMs = null, bestLapSaved = null
+    let startTimeMs = null, bestLapSaved = null
 
     function resetCar() {
-      car.x = TRK[0][0]; car.y = TRK[0][1]
-      car.angle = segAngle(0); car.speed = 0
+      car.x = TRK[START_SEG][0]; car.y = TRK[START_SEG][1]
+      car.angle = segAngle(START_SEG); car.speed = START_SPEED
       camX = car.x; camY = car.y
-      lapStarted = false; lapTime = 0; lapCount = 0; prevSeg = 0
-      bestLapMs = Infinity; startTimeMs = null; lastLapMs = null
-      inBuffer = false; finishedRef = false
+      lapStarted = false; lapTime = 0; prevSeg = START_SEG
+      startTimeMs = null; inBuffer = false; finishedRef = false
     }
 
     gameRef.current = {
       resetCar,
       get racing() { return racing },
       set racing(v) { racing = v },
-      touches: { left: false, right: false },
-      setUserArrows: (a) => { userArrows = a },
+      touches: { left: false, right: false, gas: false },
+      setUserArrows: (a) => { userArrows = a; saveArrows() },
     }
 
-    // Input
+    // ── Eingaben ──────────────────────────────────────────────────────────────
     const keys = {}
     const onKey = (e) => {
-      if (e.key === ' ') { resetCar(); e.preventDefault(); return }
-      if (['ArrowLeft','ArrowRight','a','d'].includes(e.key)) {
-        e.preventDefault(); keys[e.key] = e.type === 'keydown'
+      if (e.key === ' ') {
+        e.preventDefault()
+        resetStateRef.current?.()   // Sofort-Reset
+        return
+      }
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(e.key)) {
+        e.preventDefault()
+        keys[e.key] = e.type === 'keydown'
       }
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
 
-    // Screen→World
+    // ── Screen → World ────────────────────────────────────────────────────────
     function screenToWorld(sx, sy) {
       const dx = sx - CAR_SCREEN_X, dy = sy - CAR_SCREEN_Y
       const a = car.angle + Math.PI / 2
@@ -169,24 +202,31 @@ export default function ArcadeRacing({ onClose }) {
     }
     function canvasXY(e) {
       const r = canvas.getBoundingClientRect()
-      return [( e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)]
+      return [(e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)]
     }
+
     const onMouseDown = (e) => { if (!editModeRef.current) return; e.preventDefault(); dragStart = screenToWorld(...canvasXY(e)) }
     const onMouseUp = (e) => {
       if (!editModeRef.current || !dragStart) return; e.preventDefault()
       const end = screenToWorld(...canvasXY(e))
       const dx = end.wx - dragStart.wx, dy = end.wy - dragStart.wy
-      if (Math.sqrt(dx*dx+dy*dy) > 10) userArrows.push({ wx1: dragStart.wx, wy1: dragStart.wy, wx2: end.wx, wy2: end.wy })
+      if (Math.sqrt(dx*dx+dy*dy) > 10) {
+        userArrows.push({ wx1: dragStart.wx, wy1: dragStart.wy, wx2: end.wx, wy2: end.wy })
+        saveArrows()
+      }
       dragStart = null; dragPreview = null
     }
     const onMouseMove = (e) => { if (!editModeRef.current || !dragStart) return; dragPreview = screenToWorld(...canvasXY(e)) }
-    const onContextMenu = (e) => { if (!editModeRef.current) return; e.preventDefault(); userArrows.pop() }
+    const onContextMenu = (e) => {
+      if (!editModeRef.current) return; e.preventDefault()
+      userArrows.pop(); saveArrows()
+    }
     canvas.addEventListener('mousedown', onMouseDown)
     canvas.addEventListener('mouseup', onMouseUp)
     canvas.addEventListener('mousemove', onMouseMove)
     canvas.addEventListener('contextmenu', onContextMenu)
 
-    // Draw
+    // ── Draw ──────────────────────────────────────────────────────────────────
     function drawWorld() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
@@ -205,7 +245,6 @@ export default function ArcadeRacing({ onClose }) {
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
 
-      // Buffer stripes
       for (const side of [-1, 1]) {
         ctx.strokeStyle = 'rgba(230,150,30,0.7)'; ctx.lineWidth = BUFFER - 10; ctx.setLineDash([25, 20])
         ctx.beginPath()
@@ -218,7 +257,7 @@ export default function ArcadeRacing({ onClose }) {
         ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
       }
 
-      // User arrows
+      // Benutzer-Pfeile
       const allArrows = [...userArrows]
       if (editModeRef.current && dragStart && dragPreview)
         allArrows.push({ wx1:dragStart.wx, wy1:dragStart.wy, wx2:dragPreview.wx, wy2:dragPreview.wy, preview:true })
@@ -236,7 +275,6 @@ export default function ArcadeRacing({ onClose }) {
         ctx.restore()
       }
 
-      // White edges
       for (const side of [-1, 1]) {
         ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=6
         ctx.beginPath()
@@ -249,12 +287,11 @@ export default function ArcadeRacing({ onClose }) {
         ctx.closePath(); ctx.stroke()
       }
 
-      // Center dash
       ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
       stroke('rgba(255,255,255,0.15)', 4)
       ctx.setLineDash([])
 
-      // Start/finish line
+      // Start/Ziel-Linie
       const sa=TRK[0],sb=TRK[1]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
@@ -313,24 +350,37 @@ export default function ArcadeRacing({ onClose }) {
       ctx.save(); ctx.fillStyle='rgba(232,196,64,0.07)'; ctx.fillRect(0,0,GAME_W,GAME_H)
       ctx.font='bold 11px monospace'; ctx.textAlign='center'
       ctx.fillStyle='rgba(232,196,64,0.65)'
-      ctx.fillText('✏️  PFEIL-MODUS  —  Ziehen = Pfeil · Rechtsklick = löschen',GAME_W/2,GAME_H-10)
+      ctx.fillText('✏️  PFEIL-MODUS  —  Ziehen = Pfeil · Rechtsklick = löschen  ·  ⬆ Gas',GAME_W/2,GAME_H-10)
       ctx.restore()
     }
 
-    // Main loop
+    // ── Main loop ─────────────────────────────────────────────────────────────
     function loop(ts) {
       if (!lastTS) lastTS = ts
       const dt = Math.min((ts-lastTS)/1000, 0.05)
       lastTS = ts
       camX = car.x; camY = car.y
 
-      if (racing && !finishedRef && !editModeRef.current) {
+      if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
+        const gasKey = keys['ArrowUp']   || keys['w'] || gameRef.current?.touches.gas
+
         const maxSpd=855, acc=665, steer=1.8
 
-        car.speed = Math.min(car.speed+acc*dt, maxSpd)
-        const sf = Math.min(1,Math.abs(car.speed)/400)
+        if (editModeRef.current) {
+          // ── Pfeil-Modus: NUR Gas wenn Vorwärts gedrückt ──────────────────
+          if (gasKey) {
+            car.speed = Math.min(car.speed + acc*dt, maxSpd)
+          } else {
+            car.speed = Math.max(0, car.speed - acc*1.5*dt)
+          }
+        } else {
+          // ── Rennen: automatisches Gas ─────────────────────────────────────
+          car.speed = Math.min(car.speed + acc*dt, maxSpd)
+        }
+
+        const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
         if (right) car.angle += steer*sf*dt
         car.x += Math.cos(car.angle)*car.speed*dt
@@ -347,30 +397,37 @@ export default function ArcadeRacing({ onClose }) {
           car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=0.72
         } else { inBuffer=false }
 
-        if (!startTimeMs) startTimeMs=ts
-        lapTime=(ts-(lastLapMs??startTimeMs))/1000
+        // ── Rundenzeitmessung (nur im Rennen, nicht im Pfeil-Modus) ──────────
+        if (!editModeRef.current) {
+          const atStart  = seg <= 1 || seg >= N-2
+          const wasStart = prevSeg <= 1 || prevSeg >= N-2
 
-        const atStart=seg<=1||seg>=N-2
-        const wasStart=prevSeg<=1||prevSeg>=N-2
-        if (!wasStart&&atStart&&lapStarted&&lapTime>2) {
-          const lapMs=Math.round(lapTime*1000)
-          const isNewBest=lapMs<bestLapMs
-          if (isNewBest) bestLapMs=lapMs
-          setBestLap(prev=>(!prev||lapMs<prev)?lapMs:prev)
-          setLastLap(lapMs)
-          lastLapMs=ts; lapCount++; setLap(lapCount)
-          if (lapCount>=LAPS_TOTAL) {
-            finishedRef=true
-            setTotalTime(Math.round(ts-startTimeMs))
-            setGameState('finished')
-            if (bestLapMs!==Infinity&&bestLapMs!==bestLapSaved) {
-              bestLapSaved=bestLapMs; saveHighscore(bestLapMs)
+          if (!wasStart && atStart) {
+            if (!lapStarted) {
+              // Erstes Überqueren der Linie → Timer startet JETZT
+              lapStarted = true
+              startTimeMs = ts
+            } else if (startTimeMs && lapTime > 2) {
+              // Runde abgeschlossen
+              const lapMs = Math.round(ts - startTimeMs)
+              if (lapMs < bestLapMs) bestLapMs = lapMs
+              setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
+              setTotalTime(lapMs)
+              finishedRef = true
+              setGameState('finished')
+              if (bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
+                bestLapSaved = bestLapMs; saveHighscore(bestLapMs)
+              }
             }
           }
+
+          if (startTimeMs) {
+            lapTime = (ts - startTimeMs) / 1000
+            setCurrentLapTime(Math.round(lapTime * 1000))
+          }
         }
-        if (!lapStarted&&atStart) lapStarted=true
-        prevSeg=seg
-        setCurrentLapTime(Math.round(lapTime*1000))
+
+        prevSeg = seg
       }
 
       ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
@@ -403,27 +460,17 @@ export default function ArcadeRacing({ onClose }) {
       <div className="arcade-game-wrap">
         <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
-        {/* HUD */}
+        {/* Pfeil-Modus & Lösch-Button als kleine Overlay-Buttons oben rechts */}
         {gameState==='racing' && (
-          <div className="arcade-hud">
-            <div className="arcade-hud-left">
-              <div className="arcade-hud-lap">Runde {Math.min(lap+1,LAPS_TOTAL)} / {LAPS_TOTAL}</div>
-              <div className="arcade-hud-time">{formatTime(currentLapTime)}</div>
-              {bestLap && <div className="arcade-hud-best">Best: {formatTime(bestLap)}</div>}
-              {lastLap && <div className="arcade-hud-last">Letzte: {formatTime(lastLap)}</div>}
-            </div>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
-              <button onClick={()=>setEditMode(v=>!v)} style={{
-                padding:'3px 8px',borderRadius:5,fontSize:11,cursor:'pointer',fontWeight:700,pointerEvents:'all',
-                border:'1.5px solid #e8c440',background:editMode?'#e8c440':'rgba(0,0,0,0.6)',color:editMode?'#1a1a2e':'#e8c440',
-              }}>{editMode?'🎮':'✏️'}</button>
-              {editMode && (
-                <button onClick={()=>gameRef.current?.setUserArrows([])} style={{
-                  padding:'3px 8px',borderRadius:5,fontSize:11,cursor:'pointer',pointerEvents:'all',
-                  border:'1px solid #555',background:'rgba(0,0,0,0.6)',color:'#aaa',
-                }}>🗑</button>
-              )}
-            </div>
+          <div className="arcade-edit-buttons">
+            <button onClick={()=>setEditMode(v=>!v)} className={`arcade-edit-btn ${editMode?'arcade-edit-btn--active':''}`}>
+              {editMode?'🎮 Fahren':'✏️ Pfeile'}
+            </button>
+            {editMode && (
+              <button onClick={()=>gameRef.current?.setUserArrows([])} className="arcade-edit-btn arcade-edit-btn--delete">
+                🗑
+              </button>
+            )}
           </div>
         )}
 
@@ -434,13 +481,13 @@ export default function ArcadeRacing({ onClose }) {
           </div>
         )}
 
-        {/* Finished */}
+        {/* Ziel */}
         {gameState==='finished' && (
           <div className="arcade-overlay">
             <div className="arcade-finish-card">
               <div className="arcade-finish-title">🏁 Ziel!</div>
-              <div className="arcade-finish-row"><span>Gesamtzeit</span><span>{formatTime(totalTime)}</span></div>
-              <div className="arcade-finish-row"><span>Beste Runde</span><span style={{color:'#4ade80'}}>{formatTime(bestLap)}</span></div>
+              <div className="arcade-finish-row"><span>Rundenzeit</span><span style={{color:'#4ade80'}}>{formatTime(totalTime)}</span></div>
+              {bestLap && <div className="arcade-finish-row"><span>Bestzeit</span><span style={{color:'#4ade80'}}>{formatTime(bestLap)}</span></div>}
               {saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
               <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.75rem'}}>Nochmal</button>
             </div>
@@ -452,21 +499,52 @@ export default function ArcadeRacing({ onClose }) {
           <div className="arcade-overlay">
             <div className="arcade-start-card">
               <div className="arcade-start-title">🏎️ Canada</div>
-              <p className="arcade-start-sub">{LAPS_TOTAL} Runden · Auto gibt automatisch Gas</p>
-              <div className="arcade-controls-hint">← → Lenken · Leertaste Reset</div>
+              <p className="arcade-start-sub">1 Runde · Auto gibt automatisch Gas</p>
+              <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
               <button className="btn btn-primary" onClick={startGame}>START</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Touch Controls */}
+      {/* ── HUD-Leiste unter dem Canvas ───────────────────────────────────────── */}
+      {(gameState==='racing' || gameState==='finished') && (
+        <div className="arcade-hud-bar">
+          <div className="arcade-hud-bar-time">
+            <span className="arcade-hud-bar-label">Zeit</span>
+            <span className="arcade-hud-bar-value">
+              {currentLapTime !== null ? formatTime(currentLapTime) : '--:--.---'}
+            </span>
+          </div>
+          {bestLap && (
+            <div className="arcade-hud-bar-best">
+              <span className="arcade-hud-bar-label">Best</span>
+              <span className="arcade-hud-bar-value arcade-hud-bar-value--green">{formatTime(bestLap)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Touch-Steuerung ───────────────────────────────────────────────────── */}
       <div className="arcade-touch-controls">
         <div className="arcade-touch-left">
           <button className="arcade-btn arcade-btn--turn"
             onTouchStart={()=>touchStart('left')} onTouchEnd={()=>touchEnd('left')}
             onMouseDown={()=>touchStart('left')} onMouseUp={()=>touchEnd('left')}>◀</button>
+          {editMode && (
+            <button className="arcade-btn arcade-btn--gas"
+              onTouchStart={()=>touchStart('gas')} onTouchEnd={()=>touchEnd('gas')}
+              onMouseDown={()=>touchStart('gas')} onMouseUp={()=>touchEnd('gas')}>⬆ GAS</button>
+          )}
         </div>
+
+        {/* ── RESET-Button mittig ──────────────────────────────────────────────── */}
+        <button
+          className="arcade-btn arcade-btn--reset"
+          onClick={resetGame}
+          onTouchStart={(e)=>{ e.preventDefault(); resetGame() }}
+        >↺</button>
+
         <div className="arcade-touch-right">
           <button className="arcade-btn arcade-btn--turn"
             onTouchStart={()=>touchStart('right')} onTouchEnd={()=>touchEnd('right')}
