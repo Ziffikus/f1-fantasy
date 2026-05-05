@@ -92,38 +92,101 @@ function PlayerDropZone({ player, picks, isCurrentTurn, isMe, onDrop, onConfirm,
         <span className="draft-pick-count">{totalPicks}/6</span>
       </div>
 
-      {/* Picks */}
+      {/* Picks – Visual Grid */}
       <div className="draft-zone-picks">
-        {[1,2,3,4].map(n => {
-          const pick = driverPicks.find(p => p.pick_number === n)
-          return (
-            <div key={`d${n}`} className={`draft-slot ${pick ? 'draft-slot--filled' : ''}`}>
-              <span className="draft-slot-label">F{n}</span>
-              {pick ? (
-                <span className="draft-slot-value">
-                  <span style={{ color: pick.drivers?.constructors?.color }}>■</span>{' '}
-                  {pick.drivers?.abbreviation}
-                </span>
-              ) : (
-                <span className="draft-slot-empty">–</span>
-              )}
-            </div>
-          )
-        })}
-        {[1,2].map(n => {
-          const pick = teamPicks.find(p => p.pick_number === n)
-          return (
-            <div key={`t${n}`} className={`draft-slot draft-slot--team ${pick ? 'draft-slot--filled' : ''}`}
-              style={pick ? { borderLeftColor: pick.constructors?.color } : {}}>
-              <span className="draft-slot-label">T{n}</span>
-              {pick ? (
-                <span className="draft-slot-value">{pick.constructors?.short_name}</span>
-              ) : (
-                <span className="draft-slot-empty">–</span>
-              )}
-            </div>
-          )
-        })}
+        {/* Zeile 1: 4 Fahrer-Quadrate */}
+        <div className="draft-picks-drivers">
+          {[1,2,3,4].map(n => {
+            const pick = driverPicks.find(p => p.pick_number === n)
+            const abbr = pick?.drivers?.abbreviation?.toLowerCase()
+            const firstName = pick?.drivers?.first_name
+            const lastName = pick?.drivers?.last_name
+            const displayName = firstName && lastName ? `${firstName[0]}. ${lastName}` : abbr?.toUpperCase()
+            const teamColor = pick?.drivers?.constructors?.color
+            const teamShort = pick?.drivers?.constructors?.short_name
+            return (
+              <div
+                key={`d${n}`}
+                className={`draft-pick-driver-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
+                style={pick ? { '--slot-color': teamColor } : {}}
+              >
+                {pick ? (
+                  <>
+                    <img
+                      className="draft-pick-portrait"
+                      src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
+                      alt={abbr}
+                      onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
+                    />
+                    <div className="draft-pick-portrait-fallback">{displayName}</div>
+                    <div className="draft-pick-driver-label">
+                      <span>{displayName}</span>
+                    </div>
+                  </>
+                ) : (
+                  <span className="draft-pick-slot-num">F{n}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Zeile 2: 2 Team-Rechtecke */}
+        <div className="draft-picks-teams">
+          {[1,2].map(n => {
+            const pick = teamPicks.find(p => p.pick_number === n)
+            const teamColor = pick?.constructors?.color
+            const teamShort = pick?.constructors?.short_name
+            const FILE_MAP = {
+              'McLaren':      'mcl',
+              'Mercedes':     'mer',
+              'Red Bull':     'rbr',
+              'Ferrari':      'fer',
+              'Williams':     'wil',
+              'Racing Bulls': 'rb',
+              'Aston Martin': 'ast',
+              'Haas':         'haa',
+              'Audi':         'aud',
+              'Alpine':       'alp',
+              'Cadillac':     'cad',
+            }
+            const fileKey = FILE_MAP[teamShort] ?? teamShort?.toLowerCase()
+            const LOGO_MAP = { mer: 'log_mer', wil: 'logo_will' }
+            const logoKey = LOGO_MAP[fileKey] ?? `logo_${fileKey}`
+            return (
+              <div
+                key={`t${n}`}
+                className={`draft-pick-team-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
+                style={pick ? { '--slot-color': teamColor } : {}}
+              >
+                {pick ? (
+                  <>
+                    <img
+                      className="draft-pick-car"
+                      src={`${import.meta.env.BASE_URL}autos/${fileKey}.avif`}
+                      alt={teamShort}
+                      onError={e => { e.currentTarget.style.display = 'none' }}
+                    />
+                    <div className="draft-pick-team-overlay">
+                      <img
+                        className="draft-pick-team-logo"
+                        src={`${import.meta.env.BASE_URL}logos/${logoKey}.avif`}
+                        alt={teamShort}
+                        onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'block' }}
+                      />
+                      <span className="draft-pick-team-logo-fallback" style={{ color: teamColor }}>{teamShort?.toUpperCase()}</span>
+                    </div>
+                    <div className="draft-pick-driver-label">
+                      <span style={{ color: teamColor }}>{teamShort?.toUpperCase()}</span>
+                    </div>
+                  </>
+                ) : (
+                  <span className="draft-pick-slot-num">T{n}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* Pending Pick + Bestätigen */}
