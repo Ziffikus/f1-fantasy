@@ -3,123 +3,55 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import './ArcadeRacing.css'
 
-// ── Monaco Track Waypoints (normalisiert 0-1) ─────────────────
-const TRACK_WAYPOINTS = [
-  [0.72, 0.85], [0.62, 0.88], [0.50, 0.88], [0.40, 0.85],
-  [0.30, 0.78], [0.22, 0.68], [0.18, 0.58], [0.18, 0.48],
-  [0.20, 0.38], [0.25, 0.28], [0.32, 0.20], [0.40, 0.15],
-  [0.48, 0.12], [0.55, 0.12], [0.60, 0.15], [0.65, 0.20],
-  [0.68, 0.28], [0.72, 0.35], [0.78, 0.38], [0.82, 0.35],
-  [0.84, 0.28], [0.82, 0.20], [0.78, 0.15], [0.75, 0.18],
-  [0.73, 0.25], [0.75, 0.32], [0.80, 0.42], [0.82, 0.52],
-  [0.82, 0.62], [0.80, 0.72], [0.76, 0.80], [0.72, 0.85],
-]
+// ── Canada Track ──────────────────────────────────────────────────────────────
+const RAW = [[420.16,368.0],[427.57,365.31],[440.97,360.0],[460.22,352.13],[485.16,341.78],[515.64,329.02],[530.98,322.56],[552.69,313.42],[579.68,302.07],[604.94,291.48],[621.43,284.58],[635.76,276.11],[639.19,257.52],[651.13,252.16],[666.89,245.63],[687.67,236.74],[711.3,226.42],[735.66,215.63],[758.58,205.33],[777.92,196.47],[793.87,188.69],[811.38,177.57],[828.64,163.9],[844.41,149.84],[860.44,139.52],[877.73,141.81],[903.8,152.74],[927.55,155.85],[944.25,148.04],[950.0,129.03],[942.79,111.37],[926.02,97.75],[907.23,87.72],[887.5,78.1],[867.83,69.77],[849.18,62.53],[827.88,54.46],[806.65,50.0],[787.82,54.62],[768.03,62.59],[749.64,61.7],[727.29,54.57],[707.39,50.53],[687.25,50.2],[667.12,53.35],[647.26,59.71],[627.92,69.05],[609.37,81.12],[591.86,95.68],[572.62,106.56],[563.33,89.54],[551.03,70.72],[534.63,65.14],[513.19,73.26],[503.6,78.29],[485.62,88.53],[459.9,103.61],[440.0,115.42],[421.53,126.48],[402.93,137.63],[387.9,148.37],[367.62,165.17],[353.0,177.39],[334.32,192.75],[319.0,204.92],[302.14,222.37],[300.03,239.46],[298.87,262.34],[288.99,276.74],[283.52,282.03],[271.12,293.63],[253.8,309.72],[233.54,328.47],[212.32,348.06],[192.12,366.66],[174.94,382.44],[162.77,393.58],[148.72,402.1],[126.49,411.25],[106.92,419.21],[86.35,427.42],[67.91,435.26],[50.0,447.5],[52.79,466.55],[68.97,473.47],[90.62,467.54],[113.35,459.73],[133.79,452.36],[156.2,445.07],[168.6,442.44],[185.28,439.04],[211.37,433.39],[235.32,428.11],[257.5,423.23],[271.56,420.17],[283.26,416.56],[302.66,410.15],[326.98,401.87],[353.45,392.7],[379.31,383.57],[401.79,375.44],[418.12,369.26]]
 
-const TRACK_WIDTH = 28
-const START_WAYPOINT = 0
+const TRACK_SCALE = 15
+const TRACK_WIDTH = 280
+const BUFFER = 80
+const INNER_LIMIT = TRACK_WIDTH / 2
+const OUTER_LIMIT = TRACK_WIDTH / 2 + BUFFER
 const LAPS_TOTAL = 3
-
-const TYRE_COLORS = ['#E8002D', '#FF8000', '#27F4D2', '#3671C6', '#229971']
+const GAME_W = 680
+const GAME_H = 460
+const CAR_SCREEN_X = GAME_W / 2
+const CAR_SCREEN_Y = GAME_H - 30
 
 function formatTime(ms) {
-  if (!ms) return '--:--.---'
+  if (!ms && ms !== 0) return '--:--.---'
   const mins = Math.floor(ms / 60000)
   const secs = Math.floor((ms % 60000) / 1000)
   const millis = ms % 1000
   return `${mins}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`
 }
 
-function getTrackPoints(w, h) {
-  return TRACK_WAYPOINTS.map(([x, y]) => [x * w, y * h])
-}
-
-function getPointOnTrack(points, t) {
-  const i = Math.floor(t * (points.length - 1))
-  return points[Math.min(i, points.length - 1)]
-}
-
-function dist(a, b) {
-  return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-}
-
-function findClosestWaypoint(pos, points) {
-  let minD = Infinity, idx = 0
-  points.forEach((p, i) => {
-    const d = dist(pos, p)
-    if (d < minD) { minD = d; idx = i }
-  })
-  return { idx, d: minD }
-}
-
-// Simple AI car
-class AICar {
-  constructor(color, startOffset, speed) {
-    this.color = color
-    this.waypointIdx = startOffset % TRACK_WAYPOINTS.length
-    this.speed = speed
-    this.x = 0; this.y = 0; this.angle = 0
-    this.lap = 0
-  }
-
-  update(points) {
-    const target = points[this.waypointIdx]
-    if (!target) return
-    const dx = target[0] - this.x
-    const dy = target[1] - this.y
-    const d = Math.sqrt(dx * dx + dy * dy)
-    if (d < 15) {
-      const next = (this.waypointIdx + 1) % points.length
-      if (this.waypointIdx === points.length - 1 && next === 0) this.lap++
-      this.waypointIdx = next
-    } else {
-      this.angle = Math.atan2(dy, dx)
-      this.x += Math.cos(this.angle) * this.speed
-      this.y += Math.sin(this.angle) * this.speed
-    }
-  }
-
-  draw(ctx) {
-    ctx.save()
-    ctx.translate(this.x, this.y)
-    ctx.rotate(this.angle + Math.PI / 2)
-    ctx.fillStyle = this.color
-    ctx.beginPath()
-    ctx.roundRect(-5, -9, 10, 18, 3)
-    ctx.fill()
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'
-    ctx.fillRect(-4, -7, 8, 5)
-    ctx.restore()
-  }
-}
-
 export default function ArcadeRacing({ onClose }) {
   const canvasRef = useRef(null)
   const gameRef = useRef(null)
+  const rafRef = useRef(null)
   const { profile } = useAuthStore()
 
-  const [gameState, setGameState] = useState('idle') // idle | countdown | racing | finished
+  const [gameState, setGameState] = useState('idle')
   const [countdown, setCountdown] = useState(3)
   const [lap, setLap] = useState(0)
   const [currentLapTime, setCurrentLapTime] = useState(0)
   const [bestLap, setBestLap] = useState(null)
   const [lastLap, setLastLap] = useState(null)
   const [totalTime, setTotalTime] = useState(0)
-  const [position, setPosition] = useState(1)
-  const [finished, setFinished] = useState(false)
   const [saved, setSaved] = useState(false)
   const [leaderboard, setLeaderboard] = useState([])
+  const [editMode, setEditMode] = useState(false)
+  const editModeRef = useRef(false)
 
-  // Load leaderboard
-  useEffect(() => {
-    loadLeaderboard()
-  }, [])
+  useEffect(() => { loadLeaderboard() }, [])
+  useEffect(() => { editModeRef.current = editMode }, [editMode])
 
   async function loadLeaderboard() {
     const { data } = await supabase
       .from('game_highscores')
       .select('lap_time_ms, profiles(display_name, avatar_url)')
       .eq('game', 'arcade_racing')
-      .eq('track', 'monaco')
+      .eq('track', 'canada')
       .order('lap_time_ms', { ascending: true })
       .limit(10)
     setLeaderboard(data ?? [])
@@ -132,14 +64,14 @@ export default function ArcadeRacing({ onClose }) {
       .select('lap_time_ms')
       .eq('profile_id', profile.id)
       .eq('game', 'arcade_racing')
-      .eq('track', 'monaco')
+      .eq('track', 'canada')
       .single()
 
     if (!existing || lapTimeMs < existing.lap_time_ms) {
       await supabase.from('game_highscores').upsert({
         profile_id: profile.id,
         game: 'arcade_racing',
-        track: 'monaco',
+        track: 'canada',
         lap_time_ms: lapTimeMs,
       }, { onConflict: 'profile_id,game,track' })
       setSaved(true)
@@ -154,17 +86,14 @@ export default function ArcadeRacing({ onClose }) {
     setBestLap(null)
     setLastLap(null)
     setTotalTime(0)
-    setFinished(false)
     setSaved(false)
+    gameRef.current?.resetCar?.()
 
     let c = 3
     const timer = setInterval(() => {
       c--
       setCountdown(c)
-      if (c <= 0) {
-        clearInterval(timer)
-        setGameState('racing')
-      }
+      if (c <= 0) { clearInterval(timer); setGameState('racing') }
     }, 1000)
   }, [])
 
@@ -173,344 +102,359 @@ export default function ArcadeRacing({ onClose }) {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    const W = canvas.width
-    const H = canvas.height
-    const points = getTrackPoints(W, H)
+    const TRK = RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
+    const N = TRK.length
 
-    // Player car
-    const player = {
-      x: points[START_WAYPOINT][0],
-      y: points[START_WAYPOINT][1],
-      angle: 0,
-      speed: 0,
-      maxSpeed: 4.5,
-      accel: 0.15,
-      brake: 0.3,
-      friction: 0.06,
-      turnSpeed: 0.045,
-      lap: 0,
-      lastWaypointIdx: START_WAYPOINT,
-      lapStart: 0,
-      lapTimes: [],
+    function nearestPoint(x, y) {
+      let best = 1e9, bi = 0, px = x, py = y
+      for (let i = 0; i < N; i++) {
+        const a = TRK[i], b = TRK[(i + 1) % N]
+        const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy
+        let t = l2 > 0 ? ((x - a[0]) * dx + (y - a[1]) * dy) / l2 : 0
+        t = Math.max(0, Math.min(1, t))
+        const qx = a[0] + t * dx, qy = a[1] + t * dy
+        const d = (x - qx) ** 2 + (y - qy) ** 2
+        if (d < best) { best = d; bi = i; px = qx; py = qy }
+      }
+      return { seg: bi, dist: Math.sqrt(best), cx: px, cy: py }
     }
 
-    // AI cars
-    const aiCars = [
-      new AICar('#FF8000', 2, 3.2),
-      new AICar('#27F4D2', 5, 3.0),
-      new AICar('#3671C6', 8, 3.4),
-    ]
-    aiCars.forEach((car, i) => {
-      car.x = points[(START_WAYPOINT + i + 1) % points.length][0]
-      car.y = points[(START_WAYPOINT + i + 1) % points.length][1]
-    })
+    function segAngle(i) {
+      const a = TRK[i], b = TRK[(i + 1) % N]
+      return Math.atan2(b[1] - a[1], b[0] - a[0])
+    }
 
+    const car = { x: TRK[0][0], y: TRK[0][1], angle: segAngle(0), speed: 0 }
+    let camX = car.x, camY = car.y
+
+    let userArrows = [], dragStart = null, dragPreview = null
+    let lapCount = 0, lapTime = 0, bestLapMs = Infinity
+    let lapStarted = false, prevSeg = 0, lastTS = null
+    let inBuffer = false, racing = false, finishedRef = false
+    let startTimeMs = null, lastLapMs = null, bestLapSaved = null
+
+    function resetCar() {
+      car.x = TRK[0][0]; car.y = TRK[0][1]
+      car.angle = segAngle(0); car.speed = 0
+      camX = car.x; camY = car.y
+      lapStarted = false; lapTime = 0; lapCount = 0; prevSeg = 0
+      bestLapMs = Infinity; startTimeMs = null; lastLapMs = null
+      inBuffer = false; finishedRef = false
+    }
+
+    gameRef.current = {
+      resetCar,
+      get racing() { return racing },
+      set racing(v) { racing = v },
+      touches: { left: false, right: false },
+      setUserArrows: (a) => { userArrows = a },
+    }
+
+    // Input
     const keys = {}
-    const touches = { left: false, right: false, up: false, brake: false }
-
-    function onKey(e) {
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
-        e.preventDefault()
-        keys[e.key] = e.type === 'keydown'
+    const onKey = (e) => {
+      if (e.key === ' ') { resetCar(); e.preventDefault(); return }
+      if (['ArrowLeft','ArrowRight','a','d'].includes(e.key)) {
+        e.preventDefault(); keys[e.key] = e.type === 'keydown'
       }
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
 
-    gameRef.current = { touches }
-
-    let animId
-    let startTime = null
-    let lastLapTimeRef = null
-    let bestLapRef = null
-    let racing = false
-    let finishedRef = false
-
-    function drawTrack() {
-      // Background
-      ctx.fillStyle = '#1a1a2e'
-      ctx.fillRect(0, 0, W, H)
-
-      // Track shadow
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)'
-      ctx.lineWidth = TRACK_WIDTH + 8
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      ctx.beginPath()
-      points.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y))
-      ctx.closePath()
-      ctx.stroke()
-
-      // Track surface
-      ctx.strokeStyle = '#2d2d3a'
-      ctx.lineWidth = TRACK_WIDTH
-      ctx.beginPath()
-      points.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y))
-      ctx.closePath()
-      ctx.stroke()
-
-      // Track border outer
-      ctx.strokeStyle = '#fff'
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      points.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y))
-      ctx.closePath()
-      ctx.stroke()
-
-      // Kerbs every few waypoints
-      points.forEach(([x, y], i) => {
-        if (i % 3 === 0) {
-          ctx.fillStyle = i % 6 === 0 ? '#E8002D' : '#fff'
-          ctx.beginPath()
-          ctx.arc(x, y, 3, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      })
-
-      // Start/Finish line
-      const sp = points[START_WAYPOINT]
-      const sp2 = points[(START_WAYPOINT + 1) % points.length]
-      const angle = Math.atan2(sp2[1] - sp[1], sp2[0] - sp[0])
-      ctx.save()
-      ctx.translate(sp[0], sp[1])
-      ctx.rotate(angle + Math.PI / 2)
-      for (let i = -2; i <= 2; i++) {
-        ctx.fillStyle = (i % 2 === 0) ? '#fff' : '#000'
-        ctx.fillRect(i * 4, -TRACK_WIDTH / 2, 4, TRACK_WIDTH)
-      }
-      ctx.restore()
+    // Screen→World
+    function screenToWorld(sx, sy) {
+      const dx = sx - CAR_SCREEN_X, dy = sy - CAR_SCREEN_Y
+      const a = car.angle + Math.PI / 2
+      return { wx: camX + dx * Math.cos(a) - dy * Math.sin(a), wy: camY + dx * Math.sin(a) + dy * Math.cos(a) }
     }
+    function canvasXY(e) {
+      const r = canvas.getBoundingClientRect()
+      return [( e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)]
+    }
+    const onMouseDown = (e) => { if (!editModeRef.current) return; e.preventDefault(); dragStart = screenToWorld(...canvasXY(e)) }
+    const onMouseUp = (e) => {
+      if (!editModeRef.current || !dragStart) return; e.preventDefault()
+      const end = screenToWorld(...canvasXY(e))
+      const dx = end.wx - dragStart.wx, dy = end.wy - dragStart.wy
+      if (Math.sqrt(dx*dx+dy*dy) > 10) userArrows.push({ wx1: dragStart.wx, wy1: dragStart.wy, wx2: end.wx, wy2: end.wy })
+      dragStart = null; dragPreview = null
+    }
+    const onMouseMove = (e) => { if (!editModeRef.current || !dragStart) return; dragPreview = screenToWorld(...canvasXY(e)) }
+    const onContextMenu = (e) => { if (!editModeRef.current) return; e.preventDefault(); userArrows.pop() }
+    canvas.addEventListener('mousedown', onMouseDown)
+    canvas.addEventListener('mouseup', onMouseUp)
+    canvas.addEventListener('mousemove', onMouseMove)
+    canvas.addEventListener('contextmenu', onContextMenu)
 
-    function drawCar(x, y, angle, color, isPlayer) {
+    // Draw
+    function drawWorld() {
       ctx.save()
-      ctx.translate(x, y)
-      ctx.rotate(angle + Math.PI / 2)
+      ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
+      ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.translate(-camX, -camY)
 
-      // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'
-      ctx.beginPath()
-      ctx.ellipse(2, 2, 6, 10, 0, 0, Math.PI * 2)
-      ctx.fill()
+      const stroke = (style, width, close = true) => {
+        ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'
+        ctx.beginPath(); ctx.moveTo(TRK[0][0], TRK[0][1])
+        for (let i = 1; i < N; i++) ctx.lineTo(TRK[i][0], TRK[i][1])
+        if (close) ctx.closePath(); ctx.stroke()
+      }
 
-      // Body
-      ctx.fillStyle = color
-      ctx.beginPath()
-      ctx.roundRect(-5, -10, 10, 20, 3)
-      ctx.fill()
+      stroke('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
+      stroke('#2e2e3e', TRACK_WIDTH + 20)
+      stroke('#484858', TRACK_WIDTH)
 
-      // Cockpit
-      ctx.fillStyle = isPlayer ? '#fff' : 'rgba(255,255,255,0.6)'
-      ctx.beginPath()
-      ctx.roundRect(-3, -7, 6, 7, 2)
-      ctx.fill()
-
-      // Front wing
-      ctx.fillStyle = color
-      ctx.fillRect(-7, -12, 14, 3)
-
-      // Rear wing
-      ctx.fillRect(-6, 9, 12, 2)
-
-      // Wheels
-      ctx.fillStyle = '#111'
-      ;[[-7, -6], [5, -6], [-7, 5], [5, 5]].forEach(([wx, wy]) => {
+      // Buffer stripes
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle = 'rgba(230,150,30,0.7)'; ctx.lineWidth = BUFFER - 10; ctx.setLineDash([25, 20])
         ctx.beginPath()
-        ctx.roundRect(wx, wy, 3, 5, 1)
-        ctx.fill()
-      })
-
-      if (isPlayer) {
-        ctx.strokeStyle = '#fff'
-        ctx.lineWidth = 1
-        ctx.strokeRect(-5, -10, 10, 20)
+        for (let i = 0; i < N; i++) {
+          const a = TRK[i], b = TRK[(i+1)%N]
+          const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          i===0 ? ctx.moveTo(a[0]+nx,a[1]+ny) : ctx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
       }
+
+      // User arrows
+      const allArrows = [...userArrows]
+      if (editModeRef.current && dragStart && dragPreview)
+        allArrows.push({ wx1:dragStart.wx, wy1:dragStart.wy, wx2:dragPreview.wx, wy2:dragPreview.wy, preview:true })
+      for (const arr of allArrows) {
+        const dx=arr.wx2-arr.wx1, dy=arr.wy2-arr.wy1, len=Math.sqrt(dx*dx+dy*dy)||1
+        const ux=dx/len, uy=dy/len, qx=-uy, qy=ux, sz=Math.min(len,80)
+        ctx.save(); ctx.globalAlpha=arr.preview?0.5:0.9
+        ctx.strokeStyle='#e8c440'; ctx.lineWidth=8; ctx.lineCap='round'
+        ctx.beginPath(); ctx.moveTo(arr.wx1,arr.wy1); ctx.lineTo(arr.wx2-ux*sz*0.3,arr.wy2-uy*sz*0.3); ctx.stroke()
+        ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.moveTo(arr.wx2,arr.wy2)
+        ctx.lineTo(arr.wx2-ux*sz*0.45+qx*sz*0.25,arr.wy2-uy*sz*0.45+qy*sz*0.25)
+        ctx.lineTo(arr.wx2-ux*sz*0.45-qx*sz*0.25,arr.wy2-uy*sz*0.45-qy*sz*0.25)
+        ctx.closePath(); ctx.fill()
+        ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=2; ctx.stroke()
+        ctx.restore()
+      }
+
+      // White edges
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=6
+        ctx.beginPath()
+        for (let i=0;i<N;i++) {
+          const a=TRK[i],b=TRK[(i+1)%N]
+          const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.sqrt(dx*dx+dy*dy)||1
+          const nx=-dy/len*side*(TRACK_WIDTH/2),ny=dx/len*side*(TRACK_WIDTH/2)
+          i===0?ctx.moveTo(a[0]+nx,a[1]+ny):ctx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        ctx.closePath(); ctx.stroke()
+      }
+
+      // Center dash
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
+      stroke('rgba(255,255,255,0.15)', 4)
+      ctx.setLineDash([])
+
+      // Start/finish line
+      const sa=TRK[0],sb=TRK[1]
+      const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
+      const hw=TRACK_WIDTH/2+4, cw=hw*2/8
+      ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(-ddy/fl,ddx/fl))
+      for (let i=0;i<8;i++) { ctx.fillStyle=i%2===0?'#fff':'#e8c440'; ctx.fillRect(-hw+i*cw,-8,cw,16) }
+      ctx.restore()
+
       ctx.restore()
     }
 
-    function checkLap(nowMs) {
-      const { idx } = findClosestWaypoint([player.x, player.y], points)
+    function drawCar() {
+      ctx.save(); ctx.translate(CAR_SCREEN_X,CAR_SCREEN_Y); ctx.rotate(Math.PI/2)
+      ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(3,6,14,7,0,0,Math.PI*2); ctx.fill()
+      ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.ellipse(0,0,16,7,0,0,Math.PI*2); ctx.fill()
+      ctx.fillStyle='#1a1a2e'; ctx.beginPath(); ctx.ellipse(2,0,6,4,0,0,Math.PI*2); ctx.fill()
+      ctx.fillStyle='#cc0000'; ctx.fillRect(13,-9,5,18); ctx.fillRect(-18,-9,4,18)
+      ctx.fillStyle='#111'
+      for (const [wx,wy] of [[9,-9],[9,9],[-10,-9],[-10,9]]) { ctx.beginPath(); ctx.ellipse(wx,wy,5,3,0,0,Math.PI*2); ctx.fill() }
+      ctx.restore()
+    }
 
-      if (player.lastWaypointIdx >= points.length - 3 && idx <= 2) {
-        // Crossed finish line
-        if (racing && !finishedRef) {
-          const lapTime = nowMs - (lastLapTimeRef ?? startTime)
-          lastLapTimeRef = nowMs
-          player.lapTimes.push(lapTime)
+    function drawMinimap() {
+      const mx=12,my=12,mw=110,mh=78
+      ctx.save(); ctx.globalAlpha=0.88
+      ctx.fillStyle='rgba(10,10,20,0.85)'; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.fill()
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.stroke()
+      const pad=8,xs=RAW.map(p=>p[0]),ys=RAW.map(p=>p[1])
+      const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys)
+      const sc2=Math.min((mw-pad*2)/(mxx-mnx),(mh-pad*2)/(mxy-mny))
+      const ox2=mx+pad+(mw-pad*2-(mxx-mnx)*sc2)/2, oy2=my+pad+(mh-pad*2-(mxy-mny)*sc2)/2
+      const mm=(p)=>[ox2+(p[0]-mnx)*sc2,oy2+(p[1]-mny)*sc2]
+      ctx.strokeStyle='#4a4a5e'; ctx.lineWidth=4
+      ctx.beginPath(); const p0=mm(RAW[0]); ctx.moveTo(p0[0],p0[1])
+      for (let i=1;i<N;i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
+      ctx.closePath(); ctx.stroke()
+      ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5
+      ctx.beginPath(); ctx.moveTo(p0[0],p0[1])
+      for (let i=1;i<N;i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
+      ctx.closePath(); ctx.stroke()
+      const cp=mm([car.x/TRACK_SCALE,car.y/TRACK_SCALE])
+      ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.arc(cp[0],cp[1],3,0,Math.PI*2); ctx.fill()
+      ctx.globalAlpha=1; ctx.restore()
+    }
 
-          const newBest = !bestLapRef || lapTime < bestLapRef ? lapTime : bestLapRef
-          bestLapRef = newBest
+    function drawBufferWarning() {
+      if (!inBuffer) return
+      ctx.save(); ctx.globalAlpha=0.7+0.3*Math.sin(Date.now()/120)
+      ctx.fillStyle='rgba(255,100,20,0.18)'; ctx.fillRect(0,0,GAME_W,GAME_H)
+      ctx.fillStyle='rgba(255,120,30,0.9)'; ctx.font='bold 15px monospace'; ctx.textAlign='center'
+      ctx.fillText('⚠ BUFFERZONE – 50% Speed',GAME_W/2,28)
+      ctx.globalAlpha=1; ctx.restore()
+    }
 
-          setLastLap(lapTime)
-          setBestLap(newBest)
-          player.lap++
-          setLap(player.lap)
+    function drawEditOverlay() {
+      if (!editModeRef.current) return
+      ctx.save(); ctx.fillStyle='rgba(232,196,64,0.07)'; ctx.fillRect(0,0,GAME_W,GAME_H)
+      ctx.font='bold 11px monospace'; ctx.textAlign='center'
+      ctx.fillStyle='rgba(232,196,64,0.65)'
+      ctx.fillText('✏️  PFEIL-MODUS  —  Ziehen = Pfeil · Rechtsklick = löschen',GAME_W/2,GAME_H-10)
+      ctx.restore()
+    }
 
-          if (player.lap >= LAPS_TOTAL) {
-            finishedRef = true
+    // Main loop
+    function loop(ts) {
+      if (!lastTS) lastTS = ts
+      const dt = Math.min((ts-lastTS)/1000, 0.05)
+      lastTS = ts
+      camX = car.x; camY = car.y
+
+      if (racing && !finishedRef && !editModeRef.current) {
+        const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
+        const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
+        const maxSpd=855, acc=665, steer=1.8
+
+        car.speed = Math.min(car.speed+acc*dt, maxSpd)
+        const sf = Math.min(1,Math.abs(car.speed)/400)
+        if (left)  car.angle -= steer*sf*dt
+        if (right) car.angle += steer*sf*dt
+        car.x += Math.cos(car.angle)*car.speed*dt
+        car.y += Math.sin(car.angle)*car.speed*dt
+
+        const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
+        if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
+          inBuffer=true
+          const bufCap=maxSpd*0.5
+          if (car.speed>bufCap) car.speed=Math.max(bufCap,car.speed-1800*dt)
+        } else if (dist>OUTER_LIMIT) {
+          inBuffer=false
+          const push=(dist-OUTER_LIMIT)/dist
+          car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=0.72
+        } else { inBuffer=false }
+
+        if (!startTimeMs) startTimeMs=ts
+        lapTime=(ts-(lastLapMs??startTimeMs))/1000
+
+        const atStart=seg<=1||seg>=N-2
+        const wasStart=prevSeg<=1||prevSeg>=N-2
+        if (!wasStart&&atStart&&lapStarted&&lapTime>2) {
+          const lapMs=Math.round(lapTime*1000)
+          const isNewBest=lapMs<bestLapMs
+          if (isNewBest) bestLapMs=lapMs
+          setBestLap(prev=>(!prev||lapMs<prev)?lapMs:prev)
+          setLastLap(lapMs)
+          lastLapMs=ts; lapCount++; setLap(lapCount)
+          if (lapCount>=LAPS_TOTAL) {
+            finishedRef=true
+            setTotalTime(Math.round(ts-startTimeMs))
             setGameState('finished')
-            setFinished(true)
-            const total = nowMs - startTime
-            setTotalTime(total)
-            if (newBest) saveHighscore(newBest)
+            if (bestLapMs!==Infinity&&bestLapMs!==bestLapSaved) {
+              bestLapSaved=bestLapMs; saveHighscore(bestLapMs)
+            }
           }
         }
-      }
-      player.lastWaypointIdx = idx
-    }
-
-    function calcPosition() {
-      const allProgress = [
-        player.lap * points.length + findClosestWaypoint([player.x, player.y], points).idx,
-        ...aiCars.map(ai => ai.lap * points.length + ai.waypointIdx)
-      ]
-      const myProgress = allProgress[0]
-      return allProgress.filter(p => p > myProgress).length + 1
-    }
-
-    function loop(ts) {
-      if (!startTime) startTime = ts
-      const now = ts - startTime
-
-      ctx.clearRect(0, 0, W, H)
-      drawTrack()
-
-      if (racing) {
-        // Input
-        const left  = keys['ArrowLeft']  || keys['a'] || touches.left
-        const right = keys['ArrowRight'] || keys['d'] || touches.right
-        const up    = keys['ArrowUp']    || keys['w'] || touches.up
-        const brake = keys['ArrowDown']  || keys['s'] || touches.brake
-
-        if (up)    player.speed = Math.min(player.speed + player.accel, player.maxSpeed)
-        if (brake) player.speed = Math.max(player.speed - player.brake, -1.5)
-        player.speed *= (1 - player.friction)
-
-        if (left)  player.angle -= player.turnSpeed * Math.min(Math.abs(player.speed) / 2, 1)
-        if (right) player.angle += player.turnSpeed * Math.min(Math.abs(player.speed) / 2, 1)
-
-        player.x += Math.cos(player.angle) * player.speed
-        player.y += Math.sin(player.angle) * player.speed
-
-        // Keep in bounds
-        player.x = Math.max(10, Math.min(W - 10, player.x))
-        player.y = Math.max(10, Math.min(H - 10, player.y))
-
-        checkLap(now)
-        setCurrentLapTime(now - (lastLapTimeRef ?? 0))
-        setPosition(calcPosition())
-
-        // AI
-        aiCars.forEach(ai => ai.update(points))
+        if (!lapStarted&&atStart) lapStarted=true
+        prevSeg=seg
+        setCurrentLapTime(Math.round(lapTime*1000))
       }
 
-      // Draw AI
-      aiCars.forEach(ai => {
-        if (ai.x && ai.y) {
-          ai.draw(ctx)
-        }
-      })
-
-      // Draw player
-      drawCar(player.x, player.y, player.angle, '#E8002D', true)
-
-      animId = requestAnimationFrame(loop)
+      ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
+      drawWorld(); drawCar(); drawBufferWarning(); drawMinimap(); drawEditOverlay()
+      rafRef.current=requestAnimationFrame(loop)
     }
 
-    // Start when gameState becomes 'racing'
-    const checkRacing = setInterval(() => {
-      if (gameRef.current?.racing) {
-        racing = true
-        clearInterval(checkRacing)
-      }
-    }, 100)
-
-    animId = requestAnimationFrame(loop)
+    rafRef.current=requestAnimationFrame(loop)
 
     return () => {
-      cancelAnimationFrame(animId)
-      clearInterval(checkRacing)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('keyup', onKey)
+      cancelAnimationFrame(rafRef.current)
+      window.removeEventListener('keydown',onKey)
+      window.removeEventListener('keyup',onKey)
+      canvas.removeEventListener('mousedown',onMouseDown)
+      canvas.removeEventListener('mouseup',onMouseUp)
+      canvas.removeEventListener('mousemove',onMouseMove)
+      canvas.removeEventListener('contextmenu',onContextMenu)
     }
   }, [])
 
-  // Sync racing state to ref
   useEffect(() => {
-    if (gameRef.current) {
-      gameRef.current.racing = gameState === 'racing'
-    }
+    if (gameRef.current) gameRef.current.racing = gameState==='racing'
   }, [gameState])
 
-  // Touch controls
-  function touchStart(action) {
-    if (gameRef.current) gameRef.current.touches[action] = true
-  }
-  function touchEnd(action) {
-    if (gameRef.current) gameRef.current.touches[action] = false
-  }
-
-  const posLabel = position === 1 ? 'P1 🥇' : position === 2 ? 'P2 🥈' : position === 3 ? 'P3 🥉' : `P${position}`
+  function touchStart(action) { if (gameRef.current) gameRef.current.touches[action]=true }
+  function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
 
   return (
     <div className="arcade-root">
       <div className="arcade-game-wrap">
-        {/* Canvas */}
-        <canvas ref={canvasRef} width={480} height={360} className="arcade-canvas" />
+        <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
         {/* HUD */}
-        {gameState === 'racing' && (
+        {gameState==='racing' && (
           <div className="arcade-hud">
             <div className="arcade-hud-left">
-              <div className="arcade-hud-lap">Runde {Math.min(lap + 1, LAPS_TOTAL)} / {LAPS_TOTAL}</div>
+              <div className="arcade-hud-lap">Runde {Math.min(lap+1,LAPS_TOTAL)} / {LAPS_TOTAL}</div>
               <div className="arcade-hud-time">{formatTime(currentLapTime)}</div>
               {bestLap && <div className="arcade-hud-best">Best: {formatTime(bestLap)}</div>}
               {lastLap && <div className="arcade-hud-last">Letzte: {formatTime(lastLap)}</div>}
             </div>
-            <div className="arcade-hud-pos">{posLabel}</div>
-          </div>
-        )}
-
-        {/* Countdown */}
-        {gameState === 'countdown' && (
-          <div className="arcade-overlay">
-            <div className="arcade-countdown">{countdown > 0 ? countdown : 'GO!'}</div>
-          </div>
-        )}
-
-        {/* Finished */}
-        {gameState === 'finished' && (
-          <div className="arcade-overlay arcade-overlay--finish">
-            <div className="arcade-finish-card">
-              <div className="arcade-finish-title">🏁 Ziel!</div>
-              <div className="arcade-finish-pos">{posLabel}</div>
-              <div className="arcade-finish-row">
-                <span>Gesamtzeit</span>
-                <span>{formatTime(totalTime)}</span>
-              </div>
-              <div className="arcade-finish-row">
-                <span>Beste Runde</span>
-                <span style={{ color: '#4ade80' }}>{formatTime(bestLap)}</span>
-              </div>
-              {saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
-              <button className="btn btn-primary" onClick={startGame} style={{ marginTop: '0.75rem' }}>
-                Nochmal
-              </button>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
+              <button onClick={()=>setEditMode(v=>!v)} style={{
+                padding:'3px 8px',borderRadius:5,fontSize:11,cursor:'pointer',fontWeight:700,pointerEvents:'all',
+                border:'1.5px solid #e8c440',background:editMode?'#e8c440':'rgba(0,0,0,0.6)',color:editMode?'#1a1a2e':'#e8c440',
+              }}>{editMode?'🎮':'✏️'}</button>
+              {editMode && (
+                <button onClick={()=>gameRef.current?.setUserArrows([])} style={{
+                  padding:'3px 8px',borderRadius:5,fontSize:11,cursor:'pointer',pointerEvents:'all',
+                  border:'1px solid #555',background:'rgba(0,0,0,0.6)',color:'#aaa',
+                }}>🗑</button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Start screen */}
-        {gameState === 'idle' && (
+        {/* Countdown */}
+        {gameState==='countdown' && (
+          <div className="arcade-overlay">
+            <div className="arcade-countdown">{countdown>0?countdown:'GO!'}</div>
+          </div>
+        )}
+
+        {/* Finished */}
+        {gameState==='finished' && (
+          <div className="arcade-overlay">
+            <div className="arcade-finish-card">
+              <div className="arcade-finish-title">🏁 Ziel!</div>
+              <div className="arcade-finish-row"><span>Gesamtzeit</span><span>{formatTime(totalTime)}</span></div>
+              <div className="arcade-finish-row"><span>Beste Runde</span><span style={{color:'#4ade80'}}>{formatTime(bestLap)}</span></div>
+              {saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
+              <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.75rem'}}>Nochmal</button>
+            </div>
+          </div>
+        )}
+
+        {/* Start */}
+        {gameState==='idle' && (
           <div className="arcade-overlay">
             <div className="arcade-start-card">
-              <div className="arcade-start-title">🏎️ Monaco</div>
-              <p className="arcade-start-sub">{LAPS_TOTAL} Runden · 3 KI-Gegner</p>
-              <div className="arcade-controls-hint">
-                <span>↑↓←→ / WASD</span>
-              </div>
-              <button className="btn btn-primary" onClick={startGame}>
-                START
-              </button>
+              <div className="arcade-start-title">🏎️ Canada</div>
+              <p className="arcade-start-sub">{LAPS_TOTAL} Runden · Auto gibt automatisch Gas</p>
+              <div className="arcade-controls-hint">← → Lenken · Leertaste Reset</div>
+              <button className="btn btn-primary" onClick={startGame}>START</button>
             </div>
           </div>
         )}
@@ -519,53 +463,29 @@ export default function ArcadeRacing({ onClose }) {
       {/* Touch Controls */}
       <div className="arcade-touch-controls">
         <div className="arcade-touch-left">
-          <button
-            className="arcade-btn arcade-btn--turn"
-            onTouchStart={() => touchStart('left')}
-            onTouchEnd={() => touchEnd('left')}
-            onMouseDown={() => touchStart('left')}
-            onMouseUp={() => touchEnd('left')}
-          >◀</button>
-          <button
-            className="arcade-btn arcade-btn--turn"
-            onTouchStart={() => touchStart('right')}
-            onTouchEnd={() => touchEnd('right')}
-            onMouseDown={() => touchStart('right')}
-            onMouseUp={() => touchEnd('right')}
-          >▶</button>
+          <button className="arcade-btn arcade-btn--turn"
+            onTouchStart={()=>touchStart('left')} onTouchEnd={()=>touchEnd('left')}
+            onMouseDown={()=>touchStart('left')} onMouseUp={()=>touchEnd('left')}>◀</button>
         </div>
         <div className="arcade-touch-right">
-          <button
-            className="arcade-btn arcade-btn--gas"
-            onTouchStart={() => touchStart('up')}
-            onTouchEnd={() => touchEnd('up')}
-            onMouseDown={() => touchStart('up')}
-            onMouseUp={() => touchEnd('up')}
-          >GAS</button>
-          <button
-            className="arcade-btn arcade-btn--brake"
-            onTouchStart={() => touchStart('brake')}
-            onTouchEnd={() => touchEnd('brake')}
-            onMouseDown={() => touchStart('brake')}
-            onMouseUp={() => touchEnd('brake')}
-          >BREMSE</button>
+          <button className="arcade-btn arcade-btn--turn"
+            onTouchStart={()=>touchStart('right')} onTouchEnd={()=>touchEnd('right')}
+            onMouseDown={()=>touchStart('right')} onMouseUp={()=>touchEnd('right')}>▶</button>
         </div>
       </div>
 
       {/* Leaderboard */}
       <div className="arcade-leaderboard card">
-        <div className="arcade-lb-title">🏆 Bestzeiten Monaco</div>
-        {leaderboard.length === 0 ? (
-          <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Zeiten. Sei der Erste!</p>
-        ) : (
-          leaderboard.map((entry, i) => (
-            <div key={i} className={`arcade-lb-row ${i === 0 ? 'arcade-lb-row--gold' : ''}`}>
-              <span className="arcade-lb-rank">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
-              <span className="arcade-lb-name">{entry.profiles?.display_name ?? '–'}</span>
-              <span className="arcade-lb-time">{formatTime(entry.lap_time_ms)}</span>
-            </div>
-          ))
-        )}
+        <div className="arcade-lb-title">🏆 Bestzeiten Canada</div>
+        {leaderboard.length===0 ? (
+          <p className="text-muted" style={{fontSize:'0.8rem'}}>Noch keine Zeiten. Sei der Erste!</p>
+        ) : leaderboard.map((entry,i)=>(
+          <div key={i} className={`arcade-lb-row ${i===0?'arcade-lb-row--gold':''}`}>
+            <span className="arcade-lb-rank">{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span>
+            <span className="arcade-lb-name">{entry.profiles?.display_name??'–'}</span>
+            <span className="arcade-lb-time">{formatTime(entry.lap_time_ms)}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
