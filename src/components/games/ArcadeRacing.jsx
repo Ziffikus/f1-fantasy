@@ -18,6 +18,7 @@ const CAR_SCREEN_X = GAME_W / 2
 const CAR_SCREEN_Y = GAME_H - 35
 
 const ARROWS_STORAGE_KEY = 'arcadeRacing_canada_arrows'
+const ZOOM = 0.62   // <1 = weiter herausgezoomt
 
 function formatTime(ms) {
   if (ms === null || ms === undefined) return '--:--.---'
@@ -231,6 +232,7 @@ export default function ArcadeRacing({ onClose }) {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
       ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
 
       const stroke = (style, width, close = true) => {
@@ -295,7 +297,7 @@ export default function ArcadeRacing({ onClose }) {
       const sa=TRK[0],sb=TRK[1]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
-      ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(-ddy/fl,ddx/fl))
+      ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(ddx/fl,-ddy/fl))
       for (let i=0;i<8;i++) { ctx.fillStyle=i%2===0?'#fff':'#e8c440'; ctx.fillRect(-hw+i*cw,-8,cw,16) }
       ctx.restore()
 

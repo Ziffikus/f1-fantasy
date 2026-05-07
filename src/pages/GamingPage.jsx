@@ -7,7 +7,7 @@ const GAMES = [
   {
     id: 'arcade_racing',
     title: 'Arcade Racing',
-    subtitle: 'Monaco · 3 Runden',
+    subtitle: 'Canada · 1 Runde',
     emoji: '🏎️',
     description: 'Steuere einen F1-Boliden durch Monaco. Schnellste Runde gewinnt die Krone!',
     component: ArcadeRacing,
