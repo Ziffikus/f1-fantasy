@@ -88,8 +88,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap; /* Geändert von nowrap auf wrap */
-  overflow: visible; /* Geändert von hidden auf visible */
+  flex-wrap: wrap;       /* Erlaubt Umbruch in neue Zeile */
+  overflow: visible;     /* Verhindert Abschneiden */
   margin-bottom: 0.5rem;
 }
 
@@ -128,7 +128,7 @@
   text-transform: uppercase;
   color: var(--text-primary);
   
-  /* GEÄNDERT: Kein Abschneiden mehr */
+  /* GEÄNDERT: Volle Textanzeige ohne Pünktchen */
   white-space: normal;      /* Erlaubt Zeilenumbruch */
   overflow: visible;        /* Zeigt den Text vollständig */
   text-overflow: clip;      /* Entfernt die Punkte (...) */
@@ -143,6 +143,10 @@
   background: var(--bg-elevated);
   border-radius: var(--radius);
   border-left: 2px solid var(--accent);
+  
+  /* GEÄNDERT: Absicherung für volle Breite */
+  width: 100%;
+  box-sizing: border-box;
   min-width: 0;
   overflow: visible;
 }
