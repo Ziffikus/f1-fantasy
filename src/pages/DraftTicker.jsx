@@ -3,7 +3,7 @@ import { Flag, Mic } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = "gemini-2.5-pro"
+const GEMINI_MODEL = "gemini-2.5-flash"
 
 function formatTime(isoString) {
   if (!isoString) return null
@@ -24,7 +24,7 @@ async function callGemini(prompt, retries = 2) {
       })
     })
     if (res.status === 429 && retries > 0) {
-      await new Promise(resolve => setTimeout(resolve, 3000))
+      await new Promise(resolve => setTimeout(resolve, 8000))
       return callGemini(prompt, retries - 1)
     }
     const data = await res.json()
