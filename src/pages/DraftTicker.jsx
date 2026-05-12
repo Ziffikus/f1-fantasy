@@ -29,7 +29,10 @@ async function callGemini(prompt, retries = 2) {
     }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+    if (!raw) return null
+    // Prompt-Leakage abschneiden falls Modell Kategorien mit ausgibt
+    return raw.split(/KATEGORIE|\[A\]|\[B\]|\[C\]|Regeln:/)[0].trim() || null
   } catch (error) {
     console.error("Gemini Fehler:", error)
     return null
@@ -81,7 +84,7 @@ Regeln:
 - Ironie darf eine halbe Sekunde brauchen – das ist gewollt.
 - Kein Zynismus ohne Herz. Erschöpft, nicht verbittert.
 - Niemals zweimal denselben Winkel in Folge.
-- Antworte nur mit dem Kommentar, ohne Anführungszeichen oder Erklärungen.
+- WICHTIG: Antworte NUR mit den 2 Sätzen des Kommentars. Keine Kategorienbezeichnung, kein [A]/[B]/[C], kein Präambel, keine Anführungszeichen.
 `
 
   const comment = await callGemini(prompt)
