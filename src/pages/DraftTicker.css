@@ -1,4 +1,4 @@
-/* ── DraftTicker ────────────────────────────────────────────── */
+/* ── DraftTicker (Single Line Force) ───────────────────────── */
 
 .draft-ticker {
   background: var(--bg-card);
@@ -58,9 +58,10 @@
   margin-left: auto;
 }
 
-/* ── Liste: kein max-height, wächst mit Inhalt ────────────── */
+/* ── Liste ────────────────────────────────────────────────── */
 .draft-ticker-list {
   padding: 0.25rem 0;
+  overflow: visible !important;
 }
 
 /* ── Einzelner Eintrag ────────────────────────────────────── */
@@ -71,26 +72,20 @@
   padding: 0.75rem 1rem 0.7rem;
   border-bottom: 1px solid var(--border);
   transition: background 0.2s;
+  overflow: visible !important; /* Verhindert Abschneiden auf Element-Ebene */
 }
 .ticker-entry:last-child { border-bottom: none; }
 .ticker-entry:hover { background: var(--bg-elevated); }
 
-.ticker-entry--new {
-  animation: ticker-flash 2s ease-out forwards;
-}
-@keyframes ticker-flash {
-  0%   { background: var(--accent-dim); }
-  100% { background: transparent; }
-}
-
-/* ── Hauptzeile (GEÄNDERT für Zeilenumbruch) ──────────────── */
+/* ── Hauptzeile (ERZWUNGENE EINZELZEILE) ──────────────────── */
 .ticker-entry-main {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;       /* Erlaubt Umbruch in neue Zeile */
-  overflow: visible;     /* Verhindert Abschneiden */
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  flex-wrap: nowrap !important;   /* Kein Umbruch erlaubt */
+  overflow: visible !important;    /* Zeigt Text über den Rand hinaus an */
   margin-bottom: 0.5rem;
+  width: max-content;              /* Container wächst mit Textlänge */
 }
 
 .ticker-time {
@@ -110,7 +105,7 @@
   text-transform: uppercase;
   color: var(--accent);
   flex-shrink: 0;
-  white-space: nowrap;
+  white-space: nowrap !important;
 }
 
 .ticker-arrow {
@@ -128,33 +123,31 @@
   text-transform: uppercase;
   color: var(--text-primary);
   
-  /* GEÄNDERT: Volle Textanzeige ohne Pünktchen */
-  white-space: normal;      /* Erlaubt Zeilenumbruch */
-  overflow: visible;        /* Zeigt den Text vollständig */
-  text-overflow: clip;      /* Entfernt die Punkte (...) */
+  /* ERZWUNGEN: Eine Zeile, kein Abschneiden */
+  white-space: nowrap !important;   /* Verbietet Zeilenumbruch */
+  overflow: visible !important;     /* Verhindert Verstecken des Überlaufs */
+  text-overflow: clip !important;   /* Entfernt die Punkte (...) */
+  display: inline-block;
 }
 
 /* ── Kommentar ────────────────────────────────────────────── */
 .ticker-comment {
-  display: flex;
-  align-items: flex-start;
+  display: flex !important;
+  align-items: center !important;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   background: var(--bg-elevated);
   border-radius: var(--radius);
   border-left: 2px solid var(--accent);
   
-  /* GEÄNDERT: Absicherung für volle Breite */
-  width: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-  overflow: visible;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  width: max-content;
 }
 
 .ticker-comment-icon {
   color: var(--accent);
   flex-shrink: 0;
-  margin-top: 0.2rem;
   opacity: 0.8;
 }
 
@@ -162,30 +155,13 @@
   font-size: 0.8rem;
   color: var(--text-secondary);
   font-style: italic;
-  line-height: 1.55;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  line-height: 1;
+  white-space: nowrap !important; /* Kein Umbruch im Kommentar */
+  overflow: visible !important;
   min-width: 0;
 }
 
-/* ── Lade-Animation ───────────────────────────────────────── */
-.ticker-comment-loading {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0;
-}
-.ticker-comment-loading span {
-  width: 5px;
-  height: 5px;
-  background: var(--accent);
-  border-radius: 50%;
-  animation: ticker-dot-bounce 1s ease-in-out infinite;
-}
-.ticker-comment-loading span:nth-child(2) { animation-delay: 0.15s; }
-.ticker-comment-loading span:nth-child(3) { animation-delay: 0.3s; }
-
+/* ── Animationen bleiben gleich ── */
 @keyframes ticker-dot-bounce {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40%           { transform: scale(1);   opacity: 1;   }
