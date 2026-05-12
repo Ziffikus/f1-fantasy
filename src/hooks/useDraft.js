@@ -2,6 +2,31 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 
+/**
+ * Sendet einen Push nur wenn draft_push_paused != true.
+ * Zentraler Ersatz für alle direkten supabase.functions.invoke('send-push') Aufrufe.
+ */
+async function sendPushIfEnabled(body) {
+  try {
+    const { data: setting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'draft_push_paused')
+      .maybeSingle()
+    if (setting?.value === true) {
+      console.log('[Push] Pausiert – kein Push gesendet.')
+      return
+    }
+    const { data: { session } } = await supabase.auth.getSession()
+    supabase.functions.invoke('send-push', {
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      body,
+    }).catch(e => console.warn('Push failed:', e))
+  } catch (e) {
+    console.warn('Push error:', e)
+  }
+}
+
 export function useDraft(raceWeekendId) {
   const { profile } = useAuthStore()
   const [draftOrder, setDraftOrder] = useState([])
@@ -45,17 +70,13 @@ export function useDraft(raceWeekendId) {
                 const idx = freshPicks.length % numPlayers
                 const nextPlayer = order[idx]
                 if (nextPlayer?.profiles?.id) {
-                  const { data: { session } } = await supabase.auth.getSession()
-                  supabase.functions.invoke('send-push', {
-                    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-                    body: {
-                      profile_id: nextPlayer.profiles.id,
-                      title: '🏎️ Du bist dran!',
-                      body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
-                      url: '/f1-fantasy/draft',
-                      tag: 'draft-turn',
-                    }
-                  }).catch(() => {})
+                  await sendPushIfEnabled({
+                    profile_id: nextPlayer.profiles.id,
+                    title: '🏎️ Du bist dran!',
+                    body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+                    url: '/f1-fantasy/draft',
+                    tag: 'draft-turn',
+                  })
                 }
               }
             }
@@ -182,17 +203,13 @@ export function useDraft(raceWeekendId) {
           const idx = (afterPicks?.length ?? 0) % numPlayers
           const nextPlayer = draftOrder[idx]
           if (nextPlayer?.profile_id && nextPlayer?.profiles?.display_name) {
-            const { data: { session } } = await supabase.auth.getSession()
-            supabase.functions.invoke('send-push', {
-              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-              body: {
-                profile_id: nextPlayer.profile_id,
-                title: '🏎️ Du bist dran!',
-                body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
-                url: '/f1-fantasy/draft',
-                tag: 'draft-turn',
-              }
-            }).catch(e => console.warn('Push failed:', e))
+            await sendPushIfEnabled({
+              profile_id: nextPlayer.profile_id,
+              title: '🏎️ Du bist dran!',
+              body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+              url: '/f1-fantasy/draft',
+              tag: 'draft-turn',
+            })
           }
         }
       } catch (e) { console.warn('Push error:', e) }
@@ -236,17 +253,13 @@ export function useDraft(raceWeekendId) {
           const idx = (afterPicks?.length ?? 0) % numPlayers
           const nextPlayer = draftOrder[idx]
           if (nextPlayer?.profile_id && nextPlayer?.profiles?.display_name) {
-            const { data: { session } } = await supabase.auth.getSession()
-            supabase.functions.invoke('send-push', {
-              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-              body: {
-                profile_id: nextPlayer.profile_id,
-                title: '🏎️ Du bist dran!',
-                body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
-                url: '/f1-fantasy/draft',
-                tag: 'draft-turn',
-              }
-            }).catch(e => console.warn('Push failed:', e))
+            await sendPushIfEnabled({
+              profile_id: nextPlayer.profile_id,
+              title: '🏎️ Du bist dran!',
+              body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+              url: '/f1-fantasy/draft',
+              tag: 'draft-turn',
+            })
           }
         }
       } catch (e) { console.warn('Push error:', e) }
