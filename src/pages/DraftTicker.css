@@ -1,13 +1,10 @@
-/* ── DraftTicker (ULTRA FIX - NO WRAP - NO ELLIPSIS) ── */
-
-/* Der Hauptcontainer erlaubt nun horizontales Scrollen, falls der Text zu lang ist */
+/* ── DraftTicker (Erzwungene Einzeile) ── */
 .draft-ticker {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-top: 3px solid var(--accent);
   border-radius: var(--radius-lg);
-  overflow-x: auto !important; /* Wichtig für lange Zeilen */
-  overflow-y: visible;
+  overflow-x: auto !important; /* Erlaubt horizontales Scrollen */
   width: 100%;
 }
 
@@ -22,49 +19,28 @@
   flex-direction: column;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
-  min-width: max-content; /* Zwingt den Eintrag zur vollen Breite des Textes */
+  min-width: max-content; /* Zwingt Container zur Textbreite */
 }
 
-/* Die Zeile mit Zeit, Name und Pick */
 .ticker-entry-main {
   display: flex !important;
   align-items: center !important;
   gap: 0.5rem !important;
-  white-space: nowrap !important; /* KEIN Umbruch */
-  flex-wrap: nowrap !important;   /* KEIN Umbruch */
-  overflow: visible !important;   /* Zeige alles */
-}
-
-.ticker-time {
-  font-family: var(--font-display);
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.ticker-player {
-  font-family: var(--font-display);
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: var(--accent);
-  flex-shrink: 0;
+  white-space: nowrap !important;
+  flex-wrap: nowrap !important;
+  overflow: visible !important;
 }
 
 .ticker-pick-name {
   font-family: var(--font-display);
-  font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-primary);
-  
-  /* HIER WIRD DAS ABSCHNEIDEN VERBOTEN */
   white-space: nowrap !important;
   overflow: visible !important;
-  text-overflow: clip !important;
-  min-width: max-content;
+  text-overflow: clip !important; /* Entfernt die Punkte (...) */
 }
 
-/* Der Kommentar-Bereich */
 .ticker-comment {
   display: flex !important;
   align-items: center !important;
@@ -76,13 +52,11 @@
 
 .ticker-comment-text {
   font-size: 0.8rem;
-  color: var(--text-secondary);
   font-style: italic;
   white-space: nowrap !important;
   overflow: visible !important;
 }
 
-/* Hilfsklasse für den Fall, dass die Sidebar schneidet */
-.draft-main {
-    overflow: visible !important;
-}
+/* Scrollbar Styling */
+.draft-ticker::-webkit-scrollbar { height: 4px; }
+.draft-ticker::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
