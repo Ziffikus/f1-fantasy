@@ -83,13 +83,13 @@
   100% { background: transparent; }
 }
 
-/* ── Hauptzeile ───────────────────────────────────────────── */
+/* ── Hauptzeile (GEÄNDERT für Zeilenumbruch) ──────────────── */
 .ticker-entry-main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex-wrap: wrap; /* Geändert von nowrap auf wrap */
+  overflow: visible; /* Geändert von hidden auf visible */
   margin-bottom: 0.5rem;
 }
 
@@ -127,9 +127,11 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  
+  /* GEÄNDERT: Kein Abschneiden mehr */
+  white-space: normal;      /* Erlaubt Zeilenumbruch */
+  overflow: visible;        /* Zeigt den Text vollständig */
+  text-overflow: clip;      /* Entfernt die Punkte (...) */
 }
 
 /* ── Kommentar ────────────────────────────────────────────── */
