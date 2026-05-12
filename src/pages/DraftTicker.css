@@ -141,6 +141,8 @@
   background: var(--bg-elevated);
   border-radius: var(--radius);
   border-left: 2px solid var(--accent);
+  min-width: 0;
+  overflow: visible;
 }
 
 .ticker-comment-icon {
@@ -155,6 +157,10 @@
   color: var(--text-secondary);
   font-style: italic;
   line-height: 1.55;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 /* ── Lade-Animation ───────────────────────────────────────── */
