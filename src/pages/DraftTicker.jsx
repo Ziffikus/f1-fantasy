@@ -20,7 +20,7 @@ async function callGemini(prompt, retries = 2) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 500, temperature: 1.4 }
+        generationConfig: { maxOutputTokens: 1000, temperature: 1.4 }
       })
     })
     if (res.status === 429 && retries > 0) {
