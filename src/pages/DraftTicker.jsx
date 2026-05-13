@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Radio } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import './DraftTicker.css'   // 
+import './DraftTicker.css'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-2.5-flash"
@@ -14,7 +14,7 @@ async function callGemini(prompt, retries = 2) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 500, temperature: 1.4 }
+        generationConfig: { maxOutputTokens: 5000, temperature: 1.4 }
       })
     })
     if (res.status === 429 && retries > 0) {
@@ -139,6 +139,14 @@ async function saveCommentary(raceWeekendId, field, value) {
   )
 }
 
+// ── Spielerfarben ─────────────────────────────────────────────
+const PLAYER_COLORS = [
+  '#e60000', // Rot   (accent)
+  '#3b82f6', // Blau
+  '#f59e0b', // Amber
+  '#10b981', // Grün
+]
+
 // ── Hauptkomponente ───────────────────────────────────────────
 export default function DraftTicker({ picks, draftOrder, isDraftComplete, weekend }) {
   const raceWeekendId = weekend?.id
@@ -162,11 +170,17 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
   const [outroLoading, setOutroLoading] = useState(false)
   const [newId, setNewId] = useState(null)
 
+  // Spieler → Farbe (stabil nach Position in draftOrder)
+  const playerColorMap = Object.fromEntries(
+    draftOrder.map((o, i) => [o.profile_id, PLAYER_COLORS[i % PLAYER_COLORS.length]])
+  )
+
   const entries = [...picks]
     .sort((a, b) => new Date(a.inserted_at ?? 0) - new Date(b.inserted_at ?? 0))
     .map((p, i) => ({
       ...p,
       playerName: draftOrder.find(o => o.profile_id === p.profile_id)?.profiles?.display_name ?? '?',
+      playerColor: playerColorMap[p.profile_id] ?? PLAYER_COLORS[0],
       globalPickNumber: i + 1,
     }))
 
@@ -303,7 +317,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
                   {idx > 0 && <div className="draft-commentary-divider">—</div>}
 
                   <div className="draft-commentary-pick-label">
-                    <span className="draft-commentary-player">{entry.playerName}</span>
+                    <span className="draft-commentary-player" style={{ color: entry.playerColor }}>{entry.playerName}</span>
                     {' '}<span className="draft-commentary-pickt">pickt</span>{' '}
                     <span className="draft-commentary-pick-name">{pickName}</span>
                   </div>
