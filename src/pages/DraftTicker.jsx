@@ -29,10 +29,7 @@ async function callGemini(prompt, retries = 2) {
     }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
-    if (!raw) return null
-    // Prompt-Leakage abschneiden falls Modell Kategorien mit ausgibt
-    return raw.split(/KATEGORIE|\[A\]|\[B\]|\[C\]|Regeln:/)[0].trim() || null
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
   } catch (error) {
     console.error("Gemini Fehler:", error)
     return null
