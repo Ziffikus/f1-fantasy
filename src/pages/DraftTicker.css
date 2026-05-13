@@ -6,8 +6,12 @@
   border-top: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   overflow: clip;
-  margin-top: 0.5rem;
-  box-shadow: 0 0 0 1px var(--border);
+  /* Mehr Abstand nach oben – trennt den Ticker klar von draft-rounds */
+  margin-top: 1rem;
+  /* Subtiler Glow statt doppelter Border */
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.25),
+    0 0 0 0px var(--border);
 }
 
 /* ── Header ───────────────────────────────────────────────────── */
@@ -62,6 +66,13 @@
 }
 
 /* ── Intro ────────────────────────────────────────────────────── */
+.draft-commentary-intro {
+  /* Visueller Abschnitt: leicht abgesetzt mit einer dezenten Trennlinie unten */
+  padding-bottom: 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
 .draft-commentary-intro p {
   font-size: 0.88rem;
   line-height: 1.7;
@@ -73,7 +84,8 @@
 .draft-commentary-picks {
   display: flex;
   flex-direction: column;
-  margin-top: 0;
+  /* Abstand vom Intro */
+  margin-top: 0.5rem;
 }
 
 .draft-commentary-pick {
@@ -82,8 +94,12 @@
   gap: 0.35rem;
 }
 
+.draft-commentary-pick--new .draft-commentary-pick-label {
+  animation: commentary-fade-in 0.4s ease-out forwards;
+}
+
 .draft-commentary-pick--new .draft-commentary-text p {
-  animation: commentary-fade-in 0.6s ease-out forwards;
+  animation: commentary-fade-in 0.6s ease-out 0.1s both;
 }
 
 @keyframes commentary-fade-in {
@@ -97,7 +113,7 @@
   color: var(--text-muted);
   opacity: 0.4;
   text-align: center;
-  padding: 0.6rem 0;
+  padding: 0.65rem 0;
   letter-spacing: 0.2em;
   user-select: none;
 }
@@ -144,15 +160,27 @@
 }
 
 /* Kommentartext */
+.draft-commentary-text {
+  /* Leichte Einrückung – visuell unter dem Label */
+  padding-left: 0.1rem;
+}
+
 .draft-commentary-text p {
   font-size: 0.85rem;
   line-height: 1.65;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-style: italic;
   margin: 0;
 }
 
 /* ── Outro ────────────────────────────────────────────────────── */
+.draft-commentary-outro {
+  /* Dezente Trennlinie oben */
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  margin-top: 0.5rem;
+}
+
 .draft-commentary-outro p {
   font-size: 0.88rem;
   line-height: 1.7;
