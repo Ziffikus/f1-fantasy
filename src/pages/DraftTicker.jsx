@@ -303,7 +303,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
 
                   <div className="draft-commentary-pick-label">
                     <span className="draft-commentary-player">{entry.playerName}</span>
-                    <span className="draft-commentary-pickt">pickt</span>
+                    {' '}<span className="draft-commentary-pickt">pickt</span>{' '}
                     <span className="draft-commentary-pick-name">{pickName}</span>
                   </div>
 

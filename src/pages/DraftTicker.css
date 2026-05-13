@@ -6,6 +6,8 @@
   border-top: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   overflow: clip;
+  margin-top: 0.5rem;
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 /* ── Header ───────────────────────────────────────────────────── */
@@ -53,7 +55,7 @@
 
 /* ── Body ─────────────────────────────────────────────────────── */
 .draft-commentary-body {
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0;
