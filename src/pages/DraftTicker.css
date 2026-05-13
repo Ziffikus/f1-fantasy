@@ -1,62 +1,180 @@
-/* ── DraftTicker (Erzwungene Einzeile) ── */
-.draft-ticker {
+/* ── Draft Commentary ────────────────────────────────────────── */
+
+.draft-commentary {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-top: 3px solid var(--accent);
   border-radius: var(--radius-lg);
-  overflow-x: auto !important; /* Erlaubt horizontales Scrollen */
-  width: 100%;
+  overflow: clip;
 }
 
-.draft-ticker-list {
-  padding: 0.25rem 0;
+/* ── Header ───────────────────────────────────────────────────── */
+.draft-commentary-header {
   display: flex;
-  flex-direction: column;
-}
-
-.ticker-entry {
-  display: flex;
-  flex-direction: column;
-  padding: 0.75rem 1rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
-  min-width: max-content; /* Zwingt Container zur Textbreite */
+  background: var(--bg-elevated);
 }
 
-.ticker-entry-main {
-  display: flex !important;
-  align-items: center !important;
-  gap: 0.5rem !important;
-  white-space: nowrap !important;
-  flex-wrap: nowrap !important;
-  overflow: visible !important;
-}
-
-.ticker-pick-name {
+.draft-commentary-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-family: var(--font-display);
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-primary);
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: clip !important; /* Entfernt die Punkte (...) */
+  flex: 1;
 }
 
-.ticker-comment {
-  display: flex !important;
-  align-items: center !important;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-  white-space: nowrap !important;
-  width: max-content;
+.draft-commentary-live {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--accent);
 }
 
-.ticker-comment-text {
-  font-size: 0.8rem;
+.ticker-live-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+.draft-commentary-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Intro ────────────────────────────────────────────────────── */
+.draft-commentary-intro p {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Picks ────────────────────────────────────────────────────── */
+.draft-commentary-picks {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+}
+
+.draft-commentary-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.draft-commentary-pick--new .draft-commentary-text p {
+  animation: commentary-fade-in 0.6s ease-out forwards;
+}
+
+@keyframes commentary-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Trenner zwischen Picks */
+.draft-commentary-divider {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.4;
+  text-align: center;
+  padding: 0.6rem 0;
+  letter-spacing: 0.2em;
+  user-select: none;
+}
+
+.draft-commentary-divider--end {
+  opacity: 0.6;
+  padding: 1rem 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+/* Pick-Label: "Alex pickt Russell" */
+.draft-commentary-pick-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.draft-commentary-player {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.draft-commentary-pickt {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+}
+
+.draft-commentary-pick-name {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Kommentartext */
+.draft-commentary-text p {
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--text-primary);
   font-style: italic;
-  white-space: nowrap !important;
-  overflow: visible !important;
+  margin: 0;
 }
 
-/* Scrollbar Styling */
-.draft-ticker::-webkit-scrollbar { height: 4px; }
-.draft-ticker::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+/* ── Outro ────────────────────────────────────────────────────── */
+.draft-commentary-outro p {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Lade-Animation ───────────────────────────────────────────── */
+.draft-commentary-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.draft-commentary-loading span {
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: ticker-dot-bounce 1s ease-in-out infinite;
+}
+.draft-commentary-loading span:nth-child(2) { animation-delay: 0.15s; }
+.draft-commentary-loading span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes ticker-dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
