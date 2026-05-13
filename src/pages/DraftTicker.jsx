@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Radio } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import './DraftTicker.css'   // 
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-2.5-flash"
