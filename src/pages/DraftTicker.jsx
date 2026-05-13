@@ -27,9 +27,9 @@ async function callGemini(prompt, retries = 2) {
       await new Promise(resolve => setTimeout(resolve, 8000))
       return callGemini(prompt, retries - 1)
     }
-    const data = await res.json()
-    if (data.promptFeedback?.blockReason) return null
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+   const data = await res.json()
+   console.log('Gemini raw:', JSON.stringify(data.candidates?.[0], null, 2))
+   return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
   } catch (error) {
     console.error("Gemini Fehler:", error)
     return null
