@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
 import ArcadeRacing from '../components/games/ArcadeRacing'
-import TriggerRally from '../components/games/TriggerRally'
 import './GamingPage.css'
 
 const GAMES = [
@@ -12,14 +11,6 @@ const GAMES = [
     emoji: '🏎️',
     description: 'Steuere einen F1-Boliden durch Canada. Schnellste Runde gewinnt die Krone!',
     component: ArcadeRacing,
-  },
-  {
-    id: 'trigger_rally',
-    title: 'Trigger Rally',
-    subtitle: 'Rally · WebGL',
-    emoji: '🚗',
-    description: 'Actionreiches 3D-Rally-Racing im Browser. Hunderte Strecken, volle WebGL-Grafik.',
-    component: TriggerRally,
   },
   // Zukünftige Spiele hier eintragen
 ]
