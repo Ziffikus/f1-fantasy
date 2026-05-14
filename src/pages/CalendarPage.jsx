@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import TrackMap from '../components/ui/TrackMap'
@@ -23,13 +23,62 @@ function SessionRow({ label, dateStr }) {
   )
 }
 
+// ── Countdown-Timer — exportiert damit GamingPage ihn mitnutzen kann ──────────
+export function RaceCountdown({ targetDate, raceName, flag }) {
+  const [diff, setDiff] = useState(targetDate - Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setDiff(targetDate - Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [targetDate])
+
+  if (diff <= 0) return null
+
+  const days    = Math.floor(diff / 86400000)
+  const hours   = Math.floor((diff % 86400000) / 3600000)
+  const minutes = Math.floor((diff % 3600000)  / 60000)
+  const seconds = Math.floor((diff % 60000)    / 1000)
+
+  const pad = (n) => String(n).padStart(2, '0')
+
+  return (
+    <div className="cal-countdown">
+      <div className="cal-countdown-label">
+        {flag} Nächstes Rennen: <strong>{raceName}</strong>
+      </div>
+      <div className="cal-countdown-timer">
+        <div className="cal-countdown-unit">
+          <span className="cal-countdown-value">{days}</span>
+          <span className="cal-countdown-unit-label">Tage</span>
+        </div>
+        <span className="cal-countdown-sep">:</span>
+        <div className="cal-countdown-unit">
+          <span className="cal-countdown-value">{pad(hours)}</span>
+          <span className="cal-countdown-unit-label">Std</span>
+        </div>
+        <span className="cal-countdown-sep">:</span>
+        <div className="cal-countdown-unit">
+          <span className="cal-countdown-value">{pad(minutes)}</span>
+          <span className="cal-countdown-unit-label">Min</span>
+        </div>
+        <span className="cal-countdown-sep">:</span>
+        <div className="cal-countdown-unit">
+          <span className="cal-countdown-value">{pad(seconds)}</span>
+          <span className="cal-countdown-unit-label">Sek</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   const { weekends, loading, error } = useRaceWeekends()
   const [expanded, setExpanded] = useState(null)
   const now = new Date()
 
-  const past = weekends.filter(w => new Date(w.race_start) < now)
+  const past     = weekends.filter(w => new Date(w.race_start) < now)
   const upcoming = weekends.filter(w => new Date(w.race_start) >= now)
+  const nextRace = upcoming[0] ?? null
 
   if (error) return (
     <div style={{ padding: "2rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
@@ -45,8 +94,8 @@ export default function CalendarPage() {
 
   function RaceCard({ w }) {
     const isExpanded = expanded === w.id
-    const isPast = new Date(w.race_start) < now
-    const isNext = upcoming[0]?.id === w.id
+    const isPast     = new Date(w.race_start) < now
+    const isNext     = upcoming[0]?.id === w.id
 
     return (
       <div className={`cal-card ${isPast ? 'cal-card--past' : ''} ${isNext ? 'cal-card--next' : ''}`}>
@@ -76,7 +125,7 @@ export default function CalendarPage() {
               {w.is_sprint_weekend ? (
                 <>
                   <SessionRow label="Sprint Qualifying" dateStr={w.sprint_quali_start} />
-                  <SessionRow label="Sprint" dateStr={w.sprint_start} />
+                  <SessionRow label="Sprint"            dateStr={w.sprint_start} />
                 </>
               ) : (
                 <>
@@ -85,7 +134,7 @@ export default function CalendarPage() {
                 </>
               )}
               <SessionRow label="Qualifying" dateStr={w.qualifying_start} />
-              <SessionRow label="Rennen 🏁" dateStr={w.race_start} />
+              <SessionRow label="Rennen 🏁"  dateStr={w.race_start} />
             </div>
             <div className="cal-sessions-track">
               <TrackMap round={w.round} size="md" />
@@ -111,6 +160,14 @@ export default function CalendarPage() {
         {weekends.length} Rennen · {weekends.filter(w => w.is_sprint_weekend).length} Sprint-Wochenenden
         · Alle Zeiten in Ortszeit ({Intl.DateTimeFormat().resolvedOptions().timeZone})
       </p>
+
+      {nextRace && (
+        <RaceCountdown
+          targetDate={new Date(nextRace.race_start).getTime()}
+          raceName={nextRace.name}
+          flag={nextRace.flag_emoji}
+        />
+      )}
 
       {upcoming.length > 0 && (
         <section className="cal-section">

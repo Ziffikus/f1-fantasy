@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
 import ArcadeRacing from '../components/games/ArcadeRacing'
+import { useRaceWeekends } from '../hooks/useRaceWeekends'
+import { RaceCountdown } from './CalendarPage'
 import './GamingPage.css'
 
 const GAMES = [
@@ -12,13 +14,16 @@ const GAMES = [
     description: 'Steuere einen F1-Boliden durch Canada. Schnellste Runde gewinnt die Krone!',
     component: ArcadeRacing,
   },
-  // Zukünftige Spiele hier eintragen
 ]
 
 export default function GamingPage() {
   const [activeGame, setActiveGame] = useState(null)
+  const { weekends } = useRaceWeekends()
 
-  const game = GAMES.find(g => g.id === activeGame)
+  const now      = new Date()
+  const nextRace = weekends.find(w => new Date(w.race_start) >= now) ?? null
+
+  const game          = GAMES.find(g => g.id === activeGame)
   const GameComponent = game?.component
 
   if (activeGame && GameComponent) {
@@ -45,6 +50,14 @@ export default function GamingPage() {
         </div>
       </div>
 
+      {nextRace && (
+        <RaceCountdown
+          targetDate={new Date(nextRace.race_start).getTime()}
+          raceName={nextRace.name}
+          flag={nextRace.flag_emoji}
+        />
+      )}
+
       <div className="gaming-grid">
         {GAMES.map(g => (
           <div key={g.id} className="gaming-card card" onClick={() => setActiveGame(g.id)}>
@@ -58,7 +71,6 @@ export default function GamingPage() {
           </div>
         ))}
 
-        {/* Coming soon placeholder */}
         <div className="gaming-card gaming-card--soon card">
           <div className="gaming-card-emoji">🎯</div>
           <div className="gaming-card-info">
