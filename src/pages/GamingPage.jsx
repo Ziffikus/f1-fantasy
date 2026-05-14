@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
 import ArcadeRacing from '../components/games/ArcadeRacing'
-import { useRaceWeekends } from '../hooks/useRaceWeekends'
-import { RaceCountdown } from './CalendarPage'
+import { useRaceWeekends, useCountdown } from '../hooks/useRaceWeekends'
 import './GamingPage.css'
 
 const GAMES = [
@@ -16,12 +15,41 @@ const GAMES = [
   },
 ]
 
+function RaceCountdown({ weekend }) {
+  const t = useCountdown(weekend.race_start)
+  if (!t || t.over) return null
+  const pad = n => String(n).padStart(2, '0')
+  return (
+    <div className="gaming-countdown card">
+      <div className="gaming-countdown-label">
+        {weekend.flag_emoji} <strong>{weekend.name}</strong>
+        {weekend.is_sprint_weekend && <span className="badge badge-sprint" style={{marginLeft:'0.4rem'}}>Sprint</span>}
+      </div>
+      <div className="gaming-countdown-sub">Rennstart</div>
+      <div className="gaming-countdown-timer">
+        {[['Tage', t.days], ['Std', pad(t.hours)], ['Min', pad(t.minutes)], ['Sek', pad(t.seconds)]].map(([label, val], i, arr) => (
+          <>
+            <div key={label} className="gaming-countdown-unit">
+              <span className="gaming-countdown-value">{val}</span>
+              <span className="gaming-countdown-unit-label">{label}</span>
+            </div>
+            {i < arr.length - 1 && <span className="gaming-countdown-sep">:</span>}
+          </>
+        ))}
+      </div>
+      <div className="gaming-countdown-date">
+        {new Date(weekend.race_start).toLocaleString('de-AT', {
+          weekday: 'long', day: '2-digit', month: 'long',
+          hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function GamingPage() {
   const [activeGame, setActiveGame] = useState(null)
-  const { weekends } = useRaceWeekends()
-
-  const now      = new Date()
-  const nextRace = weekends.find(w => new Date(w.race_start) >= now) ?? null
+  const { nextWeekend } = useRaceWeekends()
 
   const game          = GAMES.find(g => g.id === activeGame)
   const GameComponent = game?.component
@@ -50,13 +78,7 @@ export default function GamingPage() {
         </div>
       </div>
 
-      {nextRace && (
-        <RaceCountdown
-          targetDate={new Date(nextRace.race_start).getTime()}
-          raceName={nextRace.name}
-          flag={nextRace.flag_emoji}
-        />
-      )}
+      {nextWeekend && <RaceCountdown weekend={nextWeekend} />}
 
       <div className="gaming-grid">
         {GAMES.map(g => (
