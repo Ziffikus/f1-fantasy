@@ -149,6 +149,9 @@ function AdminPicksPanel({ raceWeekendId, profiles }) {
 
   if (loading) return <div style={{ padding: '1rem' }}><div className="spinner" /></div>
 
+  const driverPicks = playerPicks.filter(p => p.pick_type === 'driver')
+  const constructorPicks = playerPicks.filter(p => p.pick_type === 'constructor')
+
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
@@ -169,78 +172,143 @@ function AdminPicksPanel({ raceWeekendId, profiles }) {
       </div>
 
       {selectedProfile && (
-        <div className="admin-picks-content">
-          {/* Aktuelle Picks */}
-          <div className="admin-current-picks">
-            <div className="admin-sub-header">Aktuelle Picks ({playerPicks.length}/6)</div>
-            {playerPicks.length === 0
-              ? <p className="text-muted" style={{ fontSize: '0.8rem' }}>Noch keine Picks.</p>
-              : playerPicks.map(pick => (
-                <div key={pick.id} className="admin-pick-row">
-                  <span className="admin-pick-type">{pick.pick_type === 'driver' ? `F${pick.pick_number}` : `T${pick.pick_number}`}</span>
-                  <span className="admin-pick-value">
-                    {pick.pick_type === 'driver'
-                      ? `${pick.drivers?.first_name} ${pick.drivers?.last_name} #${pick.drivers?.number}`
-                      : pick.constructors?.name}
-                  </span>
-                  <button className="admin-delete-btn" onClick={() => handleDelete(pick.id)}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))
-            }
-          </div>
+        <div className="apicks-layout">
 
-          {/* Pick hinzufügen */}
-          <div className="admin-add-pick">
-            <div className="admin-sub-header">Pick hinzufügen</div>
-            <div className="pick-panel-tabs" style={{ margin: '0 0 0.5rem' }}>
-              <button className={`pick-tab ${tab === 'driver' ? 'pick-tab--active' : ''}`} onClick={() => setTab('driver')}>
-                Fahrer ({pickCount.drivers}/4)
-              </button>
-              <button className={`pick-tab ${tab === 'constructor' ? 'pick-tab--active' : ''}`} onClick={() => setTab('constructor')}>
-                Teams ({pickCount.constructors}/2)
-              </button>
+          {/* ── Linke Spalte: Aktuelle Picks ── */}
+          <div className="apicks-current">
+            <div className="apicks-section-label">
+              Aktuelle Picks
+              <span className="apicks-count-badge">{playerPicks.length}/6</span>
             </div>
 
-            <div className="pick-list" style={{ maxHeight: '250px' }}>
-              {tab === 'driver' && drivers.map(d => {
-                const isPicked = pickedDriverIds.includes(d.id)
+            {/* Fahrer-Picks */}
+            <div className="apicks-group-label">Fahrer ({driverPicks.length}/4)</div>
+            <div className="apicks-slots apicks-slots--drivers">
+              {[1,2,3,4].map(n => {
+                const pick = driverPicks.find(p => p.pick_number === n)
                 return (
-                  <button
-                    key={d.id}
-                    className={`pick-item ${isPicked ? 'pick-item--taken' : ''}`}
-                    disabled={isPicked || pickCount.drivers >= 4}
-                    onClick={() => handlePick('driver', d.id)}
-                  >
-                    <span className="pick-item-num">#{d.number}</span>
-                    <div className="pick-item-info">
-                      <span className="pick-item-name">{d.first_name} {d.last_name}</span>
-                      <span className="pick-item-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
-                    </div>
-                    {isPicked && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>vergeben</span>}
-                  </button>
+                  <div key={n} className={`apicks-slot ${pick ? 'apicks-slot--filled' : 'apicks-slot--empty'}`}
+                    style={pick ? { '--slot-color': pick.drivers?.constructors?.color ?? 'var(--accent)' } : {}}>
+                    {pick ? (
+                      <>
+                        <div className="apicks-slot-badge">F{n}</div>
+                        <div className="apicks-slot-num">#{pick.drivers?.number}</div>
+                        <div className="apicks-slot-name">{pick.drivers?.last_name}</div>
+                        <div className="apicks-slot-team" style={{ color: pick.drivers?.constructors?.color }}>
+                          {pick.drivers?.constructors?.short_name}
+                        </div>
+                        <button className="apicks-slot-del" onClick={() => handleDelete(pick.id)} title="Löschen">
+                          <Trash2 size={11} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="apicks-slot-badge apicks-slot-badge--empty">F{n}</div>
+                        <div className="apicks-slot-empty-label">Leer</div>
+                      </>
+                    )}
+                  </div>
                 )
               })}
-              {tab === 'constructor' && constructors.map(c => {
-                const isPicked = pickedConstructorIds.includes(c.id)
+            </div>
+
+            {/* Team-Picks */}
+            <div className="apicks-group-label" style={{ marginTop: '0.75rem' }}>Teams ({constructorPicks.length}/2)</div>
+            <div className="apicks-slots apicks-slots--teams">
+              {[1,2].map(n => {
+                const pick = constructorPicks.find(p => p.pick_number === n)
                 return (
-                  <button
-                    key={c.id}
-                    className={`pick-item ${isPicked ? 'pick-item--taken' : ''}`}
-                    disabled={isPicked || pickCount.constructors >= 2}
-                    onClick={() => handlePick('constructor', c.id)}
-                  >
-                    <div className="pick-item-team-color" style={{ background: c.color }} />
-                    <div className="pick-item-info">
-                      <span className="pick-item-name">{c.name}</span>
-                    </div>
-                    {isPicked && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>vergeben</span>}
-                  </button>
+                  <div key={n} className={`apicks-slot apicks-slot--team ${pick ? 'apicks-slot--filled' : 'apicks-slot--empty'}`}
+                    style={pick ? { '--slot-color': pick.constructors?.color ?? 'var(--accent)' } : {}}>
+                    {pick ? (
+                      <>
+                        <div className="apicks-slot-badge">T{n}</div>
+                        <div className="apicks-slot-team-color" style={{ background: pick.constructors?.color }} />
+                        <div className="apicks-slot-name">{pick.constructors?.name}</div>
+                        <button className="apicks-slot-del" onClick={() => handleDelete(pick.id)} title="Löschen">
+                          <Trash2 size={11} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="apicks-slot-badge apicks-slot-badge--empty">T{n}</div>
+                        <div className="apicks-slot-empty-label">Leer</div>
+                      </>
+                    )}
+                  </div>
                 )
               })}
             </div>
           </div>
+
+          {/* ── Rechte Spalte: Pick hinzufügen ── */}
+          <div className="apicks-add">
+            <div className="apicks-section-label">Pick hinzufügen</div>
+            <div className="apicks-tabs">
+              <button
+                className={`apicks-tab ${tab === 'driver' ? 'apicks-tab--active' : ''}`}
+                onClick={() => setTab('driver')}
+                disabled={pickCount.drivers >= 4}
+              >
+                Fahrer <span className="apicks-tab-count">{pickCount.drivers}/4</span>
+              </button>
+              <button
+                className={`apicks-tab ${tab === 'constructor' ? 'apicks-tab--active' : ''}`}
+                onClick={() => setTab('constructor')}
+                disabled={pickCount.constructors >= 2}
+              >
+                Teams <span className="apicks-tab-count">{pickCount.constructors}/2</span>
+              </button>
+            </div>
+
+            {tab === 'driver' && (
+              <div className="apicks-driver-grid">
+                {drivers.map(d => {
+                  const isPicked = pickedDriverIds.includes(d.id)
+                  const isMine = driverPicks.some(p => p.driver_id === d.id)
+                  const disabled = isPicked || pickCount.drivers >= 4
+                  return (
+                    <button
+                      key={d.id}
+                      className={`apicks-driver-card ${isPicked ? 'apicks-driver-card--taken' : ''} ${isMine ? 'apicks-driver-card--mine' : ''}`}
+                      disabled={disabled}
+                      onClick={() => handlePick('driver', d.id)}
+                      style={{ '--team-color': d.constructors?.color ?? '#888' }}
+                    >
+                      <span className="apicks-driver-num">#{d.number}</span>
+                      <span className="apicks-driver-name">{d.last_name}</span>
+                      <span className="apicks-driver-team" style={{ color: d.constructors?.color }}>{d.constructors?.short_name}</span>
+                      {isPicked && <span className="apicks-driver-taken-dot" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {tab === 'constructor' && (
+              <div className="apicks-team-grid">
+                {constructors.map(c => {
+                  const isPicked = pickedConstructorIds.includes(c.id)
+                  const isMine = constructorPicks.some(p => p.constructor_id === c.id)
+                  const disabled = isPicked || pickCount.constructors >= 2
+                  return (
+                    <button
+                      key={c.id}
+                      className={`apicks-team-card ${isPicked ? 'apicks-team-card--taken' : ''} ${isMine ? 'apicks-team-card--mine' : ''}`}
+                      disabled={disabled}
+                      onClick={() => handlePick('constructor', c.id)}
+                      style={{ '--team-color': c.color ?? '#888' }}
+                    >
+                      <div className="apicks-team-swatch" style={{ background: c.color }} />
+                      <span className="apicks-team-name">{c.name}</span>
+                      {isPicked && <span className="apicks-driver-taken-dot" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
       )}
     </div>

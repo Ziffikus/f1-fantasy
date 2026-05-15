@@ -494,3 +494,365 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Admin Picks — neu gestaltet
+   ══════════════════════════════════════════════════════════════ */
+
+.apicks-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ── Sektion-Label ── */
+.apicks-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+.apicks-count-badge {
+  margin-left: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+}
+
+.apicks-group-label {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+/* ── Slot-Raster (aktuelle Picks) ── */
+.apicks-slots {
+  display: grid;
+  gap: 0.35rem;
+}
+.apicks-slots--drivers { grid-template-columns: repeat(4, 1fr); }
+.apicks-slots--teams   { grid-template-columns: repeat(2, 1fr); }
+
+.apicks-slot {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: 0.55rem 0.5rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
+  transition: all var(--transition);
+  min-height: 72px;
+}
+.apicks-slot--filled {
+  border-color: var(--slot-color);
+  background: color-mix(in srgb, var(--slot-color) 8%, var(--bg-elevated));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--slot-color) 30%, transparent);
+}
+.apicks-slot--empty {
+  border-style: dashed;
+  justify-content: center;
+}
+.apicks-slot--team {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  min-height: 44px;
+}
+
+.apicks-slot-badge {
+  position: absolute;
+  top: 0.22rem;
+  left: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slot-color, var(--accent));
+  line-height: 1;
+}
+.apicks-slot-badge--empty { color: var(--text-muted); }
+
+.apicks-slot-num {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-top: 0.8rem;
+}
+.apicks-slot-name {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.apicks-slot-team {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+}
+.apicks-slot-empty-label {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.apicks-slot-del {
+  position: absolute;
+  bottom: 0.2rem;
+  right: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0.15rem;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+.apicks-slot:hover .apicks-slot-del { opacity: 1; }
+.apicks-slot-del:hover { color: var(--accent); }
+
+.apicks-slot-team-color {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.apicks-slot--team .apicks-slot-badge {
+  position: static;
+  min-width: 1.5rem;
+}
+.apicks-slot--team .apicks-slot-name {
+  flex: 1;
+  text-align: left;
+  margin: 0;
+  font-size: 0.75rem;
+}
+.apicks-slot--team .apicks-slot-del {
+  position: static;
+  opacity: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.apicks-slot--team:hover .apicks-slot-del { opacity: 1; }
+
+/* ── Rechte Spalte: Tabs ── */
+.apicks-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+.apicks-tab {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.apicks-tab:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-accent); }
+.apicks-tab--active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.apicks-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+.apicks-tab-count {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.62rem;
+}
+.apicks-tab--active .apicks-tab-count {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* ── Fahrer-Grid ── */
+.apicks-driver-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.apicks-driver-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--team-color, var(--border));
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition);
+  color: var(--text-primary);
+}
+.apicks-driver-card:hover:not(:disabled) {
+  border-color: var(--team-color);
+  background: color-mix(in srgb, var(--team-color) 10%, var(--bg-elevated));
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+}
+.apicks-driver-card--taken {
+  opacity: 0.3;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.apicks-driver-card--mine {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+  opacity: 1 !important;
+  text-decoration: none !important;
+  cursor: default;
+}
+.apicks-driver-card:disabled:not(.apicks-driver-card--taken):not(.apicks-driver-card--mine) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.apicks-driver-num {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.apicks-driver-name {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.apicks-driver-team {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.apicks-driver-taken-dot {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ── Team-Grid ── */
+.apicks-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.35rem;
+}
+
+.apicks-team-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--team-color, var(--border));
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition);
+  color: var(--text-primary);
+  position: relative;
+}
+.apicks-team-card:hover:not(:disabled) {
+  border-color: var(--team-color);
+  background: color-mix(in srgb, var(--team-color) 10%, var(--bg-elevated));
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+}
+.apicks-team-card--taken {
+  opacity: 0.3;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.apicks-team-card--mine {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+  opacity: 1 !important;
+  text-decoration: none !important;
+  cursor: default;
+}
+.apicks-team-card:disabled:not(.apicks-team-card--taken):not(.apicks-team-card--mine) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.apicks-team-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.apicks-team-name {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .apicks-layout {
+    grid-template-columns: 1fr;
+  }
+  .apicks-slots--drivers { grid-template-columns: repeat(4, 1fr); }
+}
