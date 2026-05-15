@@ -908,3 +908,87 @@
 @media (max-width: 500px) {
   .admin-free-push-row { grid-template-columns: 1fr; }
 }
+
+/* ── Ticker Admin Panel ───────────────────────────────────────── */
+.ticker-admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.ticker-admin-section:first-of-type { padding-top: 0; }
+.ticker-admin-section:last-of-type  { border-bottom: none; }
+
+.ticker-admin-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ticker-admin-section-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.ticker-admin-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.ticker-admin-saved {
+  font-size: 0.72rem;
+  color: #22c55e;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.ticker-admin-preview {
+  font-size: 0.83rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0;
+  background: var(--bg-elevated);
+  border-left: 2px solid var(--accent);
+  padding: 0.6rem 0.8rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.ticker-admin-empty {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+.ticker-admin-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.ticker-admin-picks {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticker-admin-custom-result {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}

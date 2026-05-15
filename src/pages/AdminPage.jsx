@@ -1132,6 +1132,247 @@ function GamingRewardPanel() {
   )
 }
 
+
+// ── Ticker Admin ─────────────────────────────────────────────
+const GEMINI_MODEL_ADMIN = "gemini-2.5-flash"
+
+async function callGeminiAdmin(prompt) {
+  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+  if (!API_KEY) return null
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_ADMIN}:generateContent?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 5000, temperature: 1.4 }
+      })
+    })
+    const data = await res.json()
+    if (data.promptFeedback?.blockReason) return null
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+  } catch (e) {
+    console.error('Gemini Fehler:', e)
+    return null
+  }
+}
+
+function TickerSection({ label, fieldKey, value, generating, saved, onRegen, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value ?? '')
+  useEffect(() => { setDraft(value ?? '') }, [value])
+  return (
+    <div className="ticker-admin-section">
+      <div className="ticker-admin-section-header">
+        <span className="ticker-admin-section-label">{label}</span>
+        <div className="ticker-admin-section-actions">
+          {saved && <span className="ticker-admin-saved">✅ gespeichert</span>}
+          <button className="btn btn-secondary btn-sm" onClick={onRegen} disabled={generating}>
+            {generating ? <><div className="spinner" style={{ width: 12, height: 12 }} /> generiere…</> : '✨ Neu generieren'}
+          </button>
+          {value && <button className="btn btn-secondary btn-sm" onClick={() => setEditing(e => !e)}>
+            {editing ? 'Abbrechen' : '✏️ Bearbeiten'}
+          </button>}
+        </div>
+      </div>
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <textarea className="input ticker-admin-textarea" value={draft} onChange={e => setDraft(e.target.value)} rows={4} />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-primary btn-sm" onClick={() => { onSave(fieldKey, draft); setEditing(false) }}>
+              <Save size={12} /> Speichern
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>Abbrechen</button>
+          </div>
+        </div>
+      ) : value ? (
+        <p className="ticker-admin-preview">{value}</p>
+      ) : (
+        <p className="ticker-admin-empty">Noch kein Text – generieren oder bearbeiten.</p>
+      )}
+    </div>
+  )
+}
+
+function TickerPanel({ raceWeekendId }) {
+  const { draftOrder, picks } = useDraft(raceWeekendId)
+  const [weekend, setWeekend] = useState(null)
+  const [commentary, setCommentary] = useState({ intro: null, outro: null })
+  const [pickComments, setPickComments] = useState({})
+  const [generating, setGenerating] = useState({})
+  const [saved, setSaved] = useState({})
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [customResult, setCustomResult] = useState(null)
+  const [customGenerating, setCustomGenerating] = useState(false)
+  const [customSaveTarget, setCustomSaveTarget] = useState('intro')
+
+  const gpName = weekend?.city ?? 'dem Grand Prix'
+  const sortedPicks = [...picks].sort((a, b) => new Date(a.inserted_at ?? 0) - new Date(b.inserted_at ?? 0))
+
+  useEffect(() => {
+    if (!raceWeekendId) return
+    supabase.from('race_weekends').select('*').eq('id', raceWeekendId).single().then(({ data }) => setWeekend(data))
+    supabase.from('draft_commentary').select('intro, outro').eq('race_weekend_id', raceWeekendId).maybeSingle()
+      .then(({ data }) => { if (data) setCommentary({ intro: data.intro, outro: data.outro }) })
+  }, [raceWeekendId])
+
+  useEffect(() => {
+    const map = {}
+    for (const p of picks) { if (p.ai_comment) map[p.id] = p.ai_comment }
+    setPickComments(map)
+  }, [picks.length])
+
+  function markSaved(key) {
+    setSaved(p => ({ ...p, [key]: true }))
+    setTimeout(() => setSaved(p => ({ ...p, [key]: false })), 2500)
+  }
+
+  async function saveField(fieldKey, value) {
+    if (fieldKey === 'intro' || fieldKey === 'outro') {
+      setCommentary(p => ({ ...p, [fieldKey]: value }))
+      await supabase.from('draft_commentary').upsert({ race_weekend_id: raceWeekendId, [fieldKey]: value }, { onConflict: 'race_weekend_id' })
+    } else {
+      setPickComments(p => ({ ...p, [fieldKey]: value }))
+      await supabase.from('picks').update({ ai_comment: value }).eq('id', fieldKey)
+    }
+    markSaved(fieldKey)
+  }
+
+  async function regenIntro() {
+    setGenerating(p => ({ ...p, intro: true }))
+    let lastWeekPoints = []
+    try {
+      const { data } = await supabase.from('player_race_points').select('profile_id, total_points, weekend_rank').eq('race_weekend_id', raceWeekendId - 1)
+      if (data?.length) lastWeekPoints = data.map(p => ({ ...p, name: draftOrder.find(o => o.profile_id === p.profile_id)?.profiles?.display_name ?? '?' }))
+    } catch (_) {}
+    const orderText = draftOrder.map((o, i) => `${i + 1}. ${o.profiles?.display_name}`).join(', ')
+    const pointsText = lastWeekPoints.length
+      ? lastWeekPoints.sort((a, b) => a.weekend_rank - b.weekend_rank).map(p => `${p.name}: ${p.total_points} Pkt (Platz ${p.weekend_rank})`).join(', ')
+      : 'keine Vorwochendaten'
+    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.\nSchreib ein Intro (3-5 Sätze) für den Fantasy Draft zum GP von ${gpName}.\nDraft-Reihenfolge: ${orderText}. Letzte Woche: ${pointsText}.\nSpieler: Mandi (konservativ), Alex (methodisch, Familienvater), Andii (Zocker, Eishockey), Ferk (Bauchentscheider, Paragleiter).\nStil: Trockener Witz, erschöpfte Präzision. Nur Fließtext, keine Überschriften, keine Anführungszeichen.`
+    const text = await callGeminiAdmin(prompt)
+    if (text) await saveField('intro', text)
+    setGenerating(p => ({ ...p, intro: false }))
+  }
+
+  async function regenOutro() {
+    setGenerating(p => ({ ...p, outro: true }))
+    const summaries = draftOrder.map(o => {
+      const name = o.profiles?.display_name
+      const pp = picks.filter(p => p.profile_id === o.profile_id)
+      const d = pp.filter(p => p.pick_type === 'driver').map(p => `${p.drivers?.first_name} ${p.drivers?.last_name}`).join(', ')
+      const t = pp.filter(p => p.pick_type === 'constructor').map(p => p.constructors?.short_name).join(', ')
+      return `${name}: ${d}${t ? ' + ' + t : ''}`
+    }).join(' | ')
+    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.\nSchreib ein Outro (3-5 Sätze) für den abgeschlossenen Fantasy Draft zum GP von ${gpName}.\nAlle Picks: ${summaries}.\nSpieler: Mandi (konservativ), Alex (methodisch), Andii (Zocker), Ferk (Bauchentscheider).\nStil: Erschöpfter Abschluss mit Wärme. Nur Fließtext, keine Anführungszeichen.`
+    const text = await callGeminiAdmin(prompt)
+    if (text) await saveField('outro', text)
+    setGenerating(p => ({ ...p, outro: false }))
+  }
+
+  async function regenPick(pick) {
+    const key = pick.id
+    setGenerating(p => ({ ...p, [key]: true }))
+    const playerName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? '?'
+    const pickName = pick.pick_type === 'driver'
+      ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}`
+      : pick.constructors?.short_name
+    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht.\nDein Stil: Trockener Witz, erschöpfte Präzision.\nSpieler: Mandi (konservativ), Alex (methodisch, Familienvater), Andii (Zocker, Eishockey), Ferk (Bauchentscheider).\nEreignis: ${playerName} pickt ${pickName} beim GP von ${gpName}.\nGenau 2 Sätze. Nur die 2 Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.`
+    const text = await callGeminiAdmin(prompt)
+    if (text) await saveField(key, text)
+    setGenerating(p => ({ ...p, [key]: false }))
+  }
+
+  async function handleCustomGenerate() {
+    if (!customPrompt.trim()) return
+    setCustomGenerating(true)
+    setCustomResult(null)
+    const text = await callGeminiAdmin(customPrompt)
+    setCustomResult(text)
+    setCustomGenerating(false)
+  }
+
+  async function handleCustomSave() {
+    if (!customResult) return
+    await saveField(customSaveTarget, customResult)
+    setCustomResult(null)
+    setCustomPrompt('')
+  }
+
+  return (
+    <div className="admin-panel">
+      <div className="admin-panel-header">
+        <h3>📻 Ticker-Kommentar</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>Kies Bettmann — Texte neu generieren oder bearbeiten</span>
+      </div>
+
+      <TickerSection label="Intro" fieldKey="intro" value={commentary.intro}
+        generating={generating.intro} saved={saved.intro} onRegen={regenIntro} onSave={saveField} />
+
+      <TickerSection label="Outro" fieldKey="outro" value={commentary.outro}
+        generating={generating.outro} saved={saved.outro} onRegen={regenOutro} onSave={saveField} />
+
+      {sortedPicks.length > 0 && <>
+        <div className="admin-sub-header" style={{ marginTop: '0.5rem' }}>Pick-Kommentare ({sortedPicks.length})</div>
+        <div className="ticker-admin-picks">
+          {sortedPicks.map((pick, idx) => {
+            const pName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? '?'
+            const pPickName = pick.pick_type === 'driver'
+              ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}`
+              : pick.constructors?.short_name
+            const comment = pickComments[pick.id] ?? pick.ai_comment
+            return (
+              <TickerSection key={pick.id}
+                label={`${idx + 1}. ${pName} → ${pPickName}`}
+                fieldKey={pick.id} value={comment}
+                generating={generating[pick.id]} saved={saved[pick.id]}
+                onRegen={() => regenPick(pick)} onSave={saveField} />
+            )
+          })}
+        </div>
+      </>}
+
+      {/* Freier Prompt */}
+      <div className="ticker-admin-section ticker-admin-section--free" style={{ marginTop: '0.75rem', borderTop: '2px dashed var(--border)', paddingTop: '1rem' }}>
+        <div className="ticker-admin-section-header">
+          <span className="ticker-admin-section-label">Freier Kies-Prompt</span>
+        </div>
+        <p className="ticker-admin-empty" style={{ marginBottom: '0.5rem' }}>
+          Eigener Prompt — Ergebnis kann als Intro, Outro oder Pick-Kommentar gespeichert werden.
+        </p>
+        <textarea className="input ticker-admin-textarea" value={customPrompt}
+          onChange={e => setCustomPrompt(e.target.value)}
+          placeholder="Du bist Kies Bettmann…" rows={4} />
+        <button className="btn btn-secondary btn-sm" onClick={handleCustomGenerate}
+          disabled={customGenerating || !customPrompt.trim()} style={{ marginTop: '0.4rem' }}>
+          {customGenerating ? <><div className="spinner" style={{ width: 12, height: 12 }} /> generiere…</> : '✨ Generieren'}
+        </button>
+        {customResult && (
+          <div className="ticker-admin-custom-result">
+            <p className="ticker-admin-preview">{customResult}</p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              <span className="admin-sub-label" style={{ margin: 0 }}>Speichern als:</span>
+              <select className="input" value={customSaveTarget} onChange={e => setCustomSaveTarget(e.target.value)}
+                style={{ width: 'auto', fontSize: '0.78rem' }}>
+                <option value="intro">Intro</option>
+                <option value="outro">Outro</option>
+                {sortedPicks.map((pick, idx) => {
+                  const pName = draftOrder.find(o => o.profile_id === pick.profile_id)?.profiles?.display_name ?? '?'
+                  const pPickName = pick.pick_type === 'driver' ? pick.drivers?.last_name : pick.constructors?.short_name
+                  return <option key={pick.id} value={pick.id}>{idx + 1}. {pName} → {pPickName}</option>
+                })}
+              </select>
+              <button className="btn btn-primary btn-sm" onClick={handleCustomSave}>
+                <Save size={12} /> Übernehmen
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Admin Page ──────────────────────────────────────────
 export default function AdminPage() {
   const { weekends } = useRaceWeekends()
@@ -1181,6 +1422,7 @@ export default function AdminPage() {
           { id: 'substitutions', label: 'Ersatzfahrer', short: 'Ersatz',   icon: '🔄' },
           { id: 'ping',          label: 'Ping',         short: 'Ping',     icon: '📲' },
           { id: 'gaming',        label: 'Gaming',       short: 'Gaming',   icon: '🎮' },
+          { id: 'ticker',        label: 'Ticker',       short: 'Ticker',   icon: '📻' },
         ].map(t => (
           <button
             key={t.id}
@@ -1203,6 +1445,7 @@ export default function AdminPage() {
           {tab === 'substitutions' && <SubstitutionPanel raceWeekendId={selectedId} />}
           {tab === 'ping' && <DraftPingPanel raceWeekendId={selectedId} />}
           {tab === 'gaming' && <GamingRewardPanel />}
+          {tab === 'ticker' && <TickerPanel raceWeekendId={selectedId} />}
         </div>
       )}
     </div>
