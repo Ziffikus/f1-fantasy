@@ -91,6 +91,9 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <p className="login-hint">
+          🔒 Das ist eine private Website. Deine Daten werden ausschließlich für diese Fantasy-Liga verwendet und nicht weitergegeben.
+        </p>
 
       </div>
 
