@@ -1174,20 +1174,22 @@ export default function AdminPage() {
       {/* Tabs */}
       <div className="admin-tabs">
         {[
-          { id: 'order', label: 'Draft-Reihenfolge' },
-          { id: 'picks', label: 'Picks eintragen' },
-          { id: 'results', label: 'Ergebnisse' },
-          { id: 'availability', label: 'Fahrerstatus' },
-          { id: 'substitutions', label: 'Ersatzfahrer' },
-          { id: 'ping', label: '📲 Ping' },
-          { id: 'gaming', label: '🎮 Gaming' },
+          { id: 'order',         label: 'Reihenfolge', short: 'Reihenf.', icon: '🔢' },
+          { id: 'picks',         label: 'Picks',        short: 'Picks',    icon: '🎯' },
+          { id: 'results',       label: 'Ergebnisse',   short: 'Erg.',     icon: '🏁' },
+          { id: 'availability',  label: 'Fahrerstatus', short: 'Status',   icon: '🚦' },
+          { id: 'substitutions', label: 'Ersatzfahrer', short: 'Ersatz',   icon: '🔄' },
+          { id: 'ping',          label: 'Ping',         short: 'Ping',     icon: '📲' },
+          { id: 'gaming',        label: 'Gaming',       short: 'Gaming',   icon: '🎮' },
         ].map(t => (
           <button
             key={t.id}
             className={`admin-tab ${tab === t.id ? 'admin-tab--active' : ''}`}
             onClick={() => setTab(t.id)}
           >
-            {t.label}
+            <span className="admin-tab-icon">{t.icon}</span>
+            <span className="admin-tab-label-full">{t.label}</span>
+            <span className="admin-tab-label-short">{t.short}</span>
           </button>
         ))}
       </div>

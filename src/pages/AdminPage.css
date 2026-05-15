@@ -14,30 +14,58 @@
 /* ── Tabs ───────────────────────────────────────────────────── */
 .admin-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
-  border-bottom: 1px solid var(--border);
   margin-bottom: 1.25rem;
 }
 
 .admin-tab {
-  padding: 0.6rem 1rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
   font-family: var(--font-display);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
   transition: all var(--transition);
-  margin-bottom: -1px;
+  white-space: nowrap;
 }
-.admin-tab:hover { color: var(--text-primary); }
+.admin-tab:hover { color: var(--text-primary); border-color: var(--border-accent); }
 .admin-tab--active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.admin-tab-icon { font-size: 0.9rem; line-height: 1; }
+.admin-tab-label-short { display: none; }
+
+@media (max-width: 640px) {
+  .admin-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.3rem;
+  }
+  .admin-tab {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.5rem 0.3rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+    text-align: center;
+  }
+  .admin-tab-icon { font-size: 1.1rem; }
+  .admin-tab-label-full { display: none; }
+  .admin-tab-label-short { display: block; }
 }
 
 /* ── Panel ──────────────────────────────────────────────────── */
