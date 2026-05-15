@@ -856,3 +856,27 @@
   }
   .apicks-slots--drivers { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ── Free Push Form ──────────────────────────────────────────── */
+.admin-free-push {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-free-push-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.6rem;
+}
+
+.admin-free-push-textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 500px) {
+  .admin-free-push-row { grid-template-columns: 1fr; }
+}

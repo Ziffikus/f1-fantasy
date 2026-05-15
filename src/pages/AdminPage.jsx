@@ -830,6 +830,19 @@ function DraftPingPanel({ raceWeekendId }) {
   const [pushPaused, setPushPaused] = useState(false)
   const [pauseLoading, setPauseLoading] = useState(false)
 
+  // Freier Push
+  const [profiles, setProfiles] = useState([])
+  const [freeTarget, setFreeTarget] = useState('all')
+  const [freeTitle, setFreeTitle] = useState('🏎️ F1 Fantasy')
+  const [freeBody, setFreeBody] = useState('')
+  const [freeSending, setFreeSending] = useState(false)
+  const [freeResult, setFreeResult] = useState(null)
+
+  useEffect(() => {
+    supabase.from('profiles').select('id, display_name').order('display_name')
+      .then(({ data }) => setProfiles(data ?? []))
+  }, [])
+
   useEffect(() => {
     async function loadPauseState() {
       const { data } = await supabase
@@ -841,6 +854,35 @@ function DraftPingPanel({ raceWeekendId }) {
     }
     loadPauseState()
   }, [])
+
+  async function sendFreePush() {
+    if (!freeBody.trim()) return
+    setFreeSending(true)
+    setFreeResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const targets = freeTarget === 'all' ? profiles : profiles.filter(p => p.id === freeTarget)
+      let sent = 0
+      for (const p of targets) {
+        const { data, error } = await supabase.functions.invoke('send-push', {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          body: {
+            profile_id: p.id,
+            title: freeTitle || '🏎️ F1 Fantasy',
+            body: freeBody,
+            url: '/f1-fantasy/',
+            tag: 'manual-push',
+          }
+        })
+        if (error) throw error
+        if (data?.sent > 0) sent++
+      }
+      setFreeResult(sent > 0 ? `✅ Push gesendet (${sent} Empfänger)` : '⚠️ Keine aktiven Subscriptions gefunden.')
+    } catch (e) {
+      setFreeResult('❌ Fehler: ' + e.message)
+    }
+    setFreeSending(false)
+  }
 
   async function togglePause() {
     setPauseLoading(true)
@@ -913,6 +955,49 @@ function DraftPingPanel({ raceWeekendId }) {
       )}
 
       {/* Push pausieren */}
+      <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+        <div className="admin-sub-header">Freier Push</div>
+        <div className="admin-free-push">
+          <div className="admin-free-push-row">
+            <div className="admin-sub-field">
+              <label className="admin-sub-label">Empfänger</label>
+              <select className="input" value={freeTarget} onChange={e => setFreeTarget(e.target.value)}>
+                <option value="all">📣 Alle Spieler</option>
+                {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+              </select>
+            </div>
+            <div className="admin-sub-field" style={{ flex: 2 }}>
+              <label className="admin-sub-label">Titel</label>
+              <input
+                className="input"
+                value={freeTitle}
+                onChange={e => setFreeTitle(e.target.value)}
+                placeholder="🏎️ F1 Fantasy"
+              />
+            </div>
+          </div>
+          <div className="admin-sub-field">
+            <label className="admin-sub-label">Nachricht</label>
+            <textarea
+              className="input admin-free-push-textarea"
+              value={freeBody}
+              onChange={e => setFreeBody(e.target.value)}
+              placeholder="Deine Nachricht…"
+              rows={3}
+            />
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={sendFreePush}
+            disabled={freeSending || !freeBody.trim()}
+          >
+            {freeSending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Sende…</> : '📲 Push senden'}
+          </button>
+          {freeResult && <p style={{ fontSize: '0.82rem' }}>{freeResult}</p>}
+        </div>
+      </div>
+
+      {/* Automatische Pushes pausieren */}
       <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
         <div className="admin-sub-header">Automatische Push-Benachrichtigungen</div>
         <button
@@ -1002,32 +1087,6 @@ function GamingRewardPanel() {
     setValidUntil(next.toISOString().slice(0, 16))
   }
 
-  const [testTarget, setTestTarget] = useState('')
-  const [testSending, setTestSending] = useState(false)
-  const [testResult, setTestResult] = useState(null)
-
-  async function handleTestPush() {
-    if (!testTarget) return
-    setTestSending(true)
-    setTestResult(null)
-    try {
-      const { data, error } = await supabase.functions.invoke('send-push', {
-        body: {
-          profile_id: testTarget,
-          title: '🏎️ Test Push',
-          body: 'Push-Benachrichtigungen funktionieren!',
-          url: '/f1-fantasy/',
-          tag: 'test',
-        }
-      })
-      if (error) throw error
-      setTestResult(data?.sent > 0 ? '✅ Push gesendet!' : '⚠️ Keine aktive Subscription gefunden.')
-    } catch (e) {
-      setTestResult('❌ Fehler: ' + e.message)
-    }
-    setTestSending(false)
-  }
-
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
@@ -1050,23 +1109,6 @@ function GamingRewardPanel() {
       ) : (
         <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>Aktuell hat niemand die Gaming-Krone.</p>
       )}
-      <div className="admin-panel-header" style={{ marginTop: '1.5rem' }}>
-        <h3>📲 Push testen</h3>
-      </div>
-      <div className="admin-reward-form" style={{ marginBottom: '1.5rem' }}>
-        <div className="admin-sub-field">
-          <label className="admin-sub-label">Spieler</label>
-          <select className="input" value={testTarget} onChange={e => setTestTarget(e.target.value)}>
-            <option value="">– Spieler wählen –</option>
-            {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-          </select>
-        </div>
-        <button className="btn btn-secondary" onClick={handleTestPush} disabled={testSending || !testTarget}>
-          {testSending ? <><div className="spinner" style={{ width: 14, height: 14 }} /> Sende…</> : '📲 Test-Push senden'}
-        </button>
-        {testResult && <p style={{ fontSize: '0.82rem', marginTop: '0.25rem' }}>{testResult}</p>}
-      </div>
-
       <div className="admin-reward-form">
         <div className="admin-sub-field">
           <label className="admin-sub-label">Spieler</label>
