@@ -3,824 +3,49 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import './MonacoTraining.css'
 
-// ── Gespiegelte Monaco-Strecke (Start bei Punkt 60) ─────────────────────────
+// ── Exakte Monaco-Ideallinie (Punkte 0 bis 101 aus der JSON) ────────────────
 const RAW = [
-    [
-      887.23,
-      -286.84
-    ],
-    [
-      908.66,
-      -299.65
-    ],
-    [
-      927.31,
-      -290.55
-    ],
-    [
-      950.0,
-      -268.97
-    ],
-    [
-      940.92,
-      -248.58
-    ],
-    [
-      926.91,
-      -238.8
-    ],
-    [
-      907.83,
-      -226.0
-    ],
-    [
-      883.63,
-      -210.14
-    ],
-    [
-      854.28,
-      -191.18
-    ],
-    [
-      826.07,
-      -173.36
-    ],
-    [
-      802.25,
-      -162.17
-    ],
-    [
-      777.23,
-      -154.72
-    ],
-    [
-      751.15,
-      -150.81
-    ],
-    [
-      724.14,
-      -150.28
-    ],
-    [
-      696.48,
-      -152.9
-    ],
-    [
-      670.1,
-      -158.09
-    ],
-    [
-      644.49,
-      -165.61
-    ],
-    [
-      619.31,
-      -175.36
-    ],
-    [
-      603.19,
-      -183.64
-    ],
-    [
-      577.94,
-      -198.65
-    ],
-    [
-      551.14,
-      -215.24
-    ],
-    [
-      527.35,
-      -229.98
-    ],
-    [
-      502.13,
-      -244.82
-    ],
-    [
-      481.69,
-      -236.19
-    ],
-    [
-      458.03,
-      -233.02
-    ],
-    [
-      438.2,
-      -248.12
-    ],
-    [
-      430.73,
-      -272.88
-    ],
-    [
-      413.45,
-      -286.93
-    ],
-    [
-      390.02,
-      -305.14
-    ],
-    [
-      365.51,
-      -324.19
-    ],
-    [
-      343.94,
-      -340.22
-    ],
-    [
-      322.24,
-      -356.13
-    ],
-    [
-      299.03,
-      -363.28
-    ],
-    [
-      274.71,
-      -346.21
-    ],
-    [
-      252.14,
-      -326.21
-    ],
-    [
-      236.19,
-      -311.13
-    ],
-    [
-      236.15,
-      -286.91
-    ],
-    [
-      226.28,
-      -263.01
-    ],
-    [
-      206.65,
-      -239.02
-    ],
-    [
-      191.64,
-      -220.84
-    ],
-    [
-      169.83,
-      -212.33
-    ],
-    [
-      148.97,
-      -209.63
-    ],
-    [
-      142.45,
-      -185.82
-    ],
-    [
-      139.68,
-      -156.44
-    ],
-    [
-      139.64,
-      -128.86
-    ],
-    [
-      145.0,
-      -104.32
-    ],
-    [
-      156.41,
-      -77.33
-    ],
-    [
-      150.79,
-      -53.72
-    ],
-    [
-      128.35,
-      -50.0
-    ],
-    [
-      107.45,
-      -62.52
-    ],
-    [
-      82.31,
-      -81.35
-    ],
-    [
-      60.81,
-      -97.79
-    ],
-    [
-      50.0,
-      -121.55
-    ],
-    [
-      66.32,
-      -140.08
-    ],
-    [
-      73.5,
-      -165.49
-    ],
-    [
-      78.73,
-      -190.93
-    ],
-    [
-      87.92,
-      -216.26
-    ],
-    [
-      98.34,
-      -239.86
-    ],
-    [
-      109.62,
-      -260.32
-    ],
-    [
-      125.29,
-      -282.66
-    ],
-    [
-      144.56,
-      -306.15
-    ],
-    [
-      161.82,
-      -325.24
-    ],
-    [
-      181.01,
-      -344.98
-    ],
-    [
-      200.08,
-      -363.6
-    ],
-    [
-      219.48,
-      -381.81
-    ],
-    [
-      239.78,
-      -400.19
-    ],
-    [
-      259.88,
-      -417.8
-    ],
-    [
-      281.03,
-      -436.74
-    ],
-    [
-      304.02,
-      -441.39
-    ],
-    [
-      323.5,
-      -422.46
-    ],
-    [
-      333.35,
-      -415.43
-    ],
-    [
-      349.37,
-      -405.29
-    ],
-    [
-      371.22,
-      -391.47
-    ],
-    [
-      397.06,
-      -375.14
-    ],
-    [
-      425.05,
-      -357.46
-    ],
-    [
-      453.36,
-      -339.61
-    ],
-    [
-      480.15,
-      -322.75
-    ],
-    [
-      503.78,
-      -308.17
-    ],
-    [
-      526.59,
-      -296.98
-    ],
-    [
-      551.93,
-      -284.93
-    ],
-    [
-      574.87,
-      -272.96
-    ],
-    [
-      597.24,
-      -256.88
-    ],
-    [
-      620.69,
-      -239.53
-    ],
-    [
-      644.73,
-      -228.47
-    ],
-    [
-      670.97,
-      -228.33
-    ],
-    [
-      689.41,
-      -242.92
-    ],
-    [
-      699.2,
-      -265.93
-    ],
-    [
-      701.66,
-      -294.43
-    ],
-    [
-      706.97,
-      -320.37
-    ],
-    [
-      725.16,
-      -337.23
-    ],
-    [
-      757.63,
-      -345.6
-    ],
-    [
-      793.73,
-      -351.72
-    ],
-    [
-      824.11,
-      -356.89
-    ],
-    [
-      848.79,
-      -361.1
-    ],
-    [
-      867.75,
-      -364.35
-    ],
-    [
-      886.35,
-      -366.13
-    ],
-    [
-      905.44,
-      -354.25
-    ],
-    [
-      896.2,
-      -328.55
-    ],
-    [
-      879.06,
-      -309.11
-    ],
-    [
-      867.86,
-      -286.83
-    ],
-    [
-      857.51,
-      -260.06
-    ],
-    [
-      877.41,
-      -270.83
-    ],
-    [
-      339.39,
-      -362.43
-    ],
-    [
-      361.37,
-      -346.81
-    ],
-    [
-      382.4,
-      -330.82
-    ],
-    [
-      409.1,
-      -310.03
-    ],
-    [
-      426.25,
-      -296.79
-    ],
-    [
-      445.49,
-      -279.14
-    ],
-    [
-      452.72,
-      -253.84
-    ],
-    [
-      474.56,
-      -250.8
-    ],
-    [
-      497.97,
-      -262.5
-    ],
-    [
-      519.8,
-      -253.04
-    ],
-    [
-      544.26,
-      -237.96
-    ],
-    [
-      567.8,
-      -223.33
-    ],
-    [
-      597.46,
-      -205.21
-    ],
-    [
-      617.99,
-      -193.43
-    ],
-    [
-      636.73,
-      -185.14
-    ],
-    [
-      662.91,
-      -176.31
-    ],
-    [
-      688.95,
-      -170.17
-    ],
-    [
-      716.4,
-      -166.54
-    ],
-    [
-      743.76,
-      -166.12
-    ],
-    [
-      770.06,
-      -169.32
-    ],
-    [
-      795.16,
-      -176.32
-    ],
-    [
-      818.9,
-      -187.34
-    ],
-    [
-      847.62,
-      -205.5
-    ],
-    [
-      876.81,
-      -224.34
-    ],
-    [
-      900.63,
-      -239.93
-    ],
-    [
-      919.07,
-      -252.27
-    ],
-    [
-      932.13,
-      -261.37
-    ],
-    [
-      914.22,
-      -280.55
-    ],
-    [
-      898.86,
-      -275.19
-    ],
-    [
-      883.78,
-      -253.95
-    ],
-    [
-      859.08,
-      -241.86
-    ],
-    [
-      842.23,
-      -256.3
-    ],
-    [
-      848.5,
-      -283.52
-    ],
-    [
-      861.01,
-      -307.42
-    ],
-    [
-      874.98,
-      -328.28
-    ],
-    [
-      889.95,
-      -349.83
-    ],
-    [
-      871.82,
-      -349.15
-    ],
-    [
-      853.42,
-      -346.02
-    ],
-    [
-      829.35,
-      -341.94
-    ],
-    [
-      799.6,
-      -336.9
-    ],
-    [
-      764.19,
-      -330.9
-    ],
-    [
-      730.33,
-      -322.39
-    ],
-    [
-      717.35,
-      -302.73
-    ],
-    [
-      716.63,
-      -274.24
-    ],
-    [
-      710.02,
-      -248.24
-    ],
-    [
-      696.93,
-      -227.32
-    ],
-    [
-      676.46,
-      -213.7
-    ],
-    [
-      650.98,
-      -211.4
-    ],
-    [
-      623.4,
-      -220.2
-    ],
-    [
-      602.29,
-      -233.43
-    ],
-    [
-      577.63,
-      -252.45
-    ],
-    [
-      556.52,
-      -265.38
-    ],
-    [
-      532.63,
-      -276.99
-    ],
-    [
-      508.16,
-      -288.75
-    ],
-    [
-      484.13,
-      -302.16
-    ],
-    [
-      455.87,
-      -319.93
-    ],
-    [
-      425.0,
-      -339.38
-    ],
-    [
-      393.95,
-      -358.99
-    ],
-    [
-      365.14,
-      -377.2
-    ],
-    [
-      341.0,
-      -392.47
-    ],
-    [
-      323.94,
-      -403.27
-    ],
-    [
-      316.4,
-      -408.04
-    ],
-    [
-      307.75,
-      -417.51
-    ],
-    [
-      288.35,
-      -421.97
-    ],
-    [
-      267.25,
-      -403.12
-    ],
-    [
-      247.19,
-      -385.48
-    ],
-    [
-      227.0,
-      -367.16
-    ],
-    [
-      207.71,
-      -349.0
-    ],
-    [
-      188.46,
-      -329.99
-    ],
-    [
-      169.69,
-      -310.37
-    ],
-    [
-      152.14,
-      -290.6
-    ],
-    [
-      133.23,
-      -266.73
-    ],
-    [
-      119.0,
-      -245.07
-    ],
-    [
-      108.57,
-      -223.63
-    ],
-    [
-      98.21,
-      -199.26
-    ],
-    [
-      91.0,
-      -174.35
-    ],
-    [
-      87.07,
-      -147.62
-    ],
-    [
-      73.63,
-      -125.72
-    ],
-    [
-      74.78,
-      -106.94
-    ],
-    [
-      98.11,
-      -89.12
-    ],
-    [
-      120.51,
-      -72.66
-    ],
-    [
-      140.84,
-      -65.41
-    ],
-    [
-      133.67,
-      -91.48
-    ],
-    [
-      126.04,
-      -116.05
-    ],
-    [
-      123.85,
-      -141.72
-    ],
-    [
-      125.19,
-      -169.57
-    ],
-    [
-      129.41,
-      -199.03
-    ],
-    [
-      137.85,
-      -221.37
-    ],
-    [
-      158.62,
-      -233.76
-    ],
-    [
-      181.81,
-      -233.1
-    ],
-    [
-      197.19,
-      -251.78
-    ],
-    [
-      215.77,
-      -274.64
-    ],
-    [
-      218.0,
-      -301.41
-    ],
-    [
-      226.14,
-      -323.27
-    ],
-    [
-      241.8,
-      -337.89
-    ],
-    [
-      264.44,
-      -357.93
-    ],
-    [
-      288.98,
-      -376.4
-    ],
-    [
-      312.82,
-      -378.56
-    ]
-  ]
+  [887.23, 286.84], [908.66, 299.65], [927.31, 290.55], [950.0, 268.97],
+  [940.92, 248.58], [926.91, 238.8],  [907.83, 226.0],  [883.63, 210.14],
+  [854.28, 191.18], [826.07, 173.36], [802.25, 162.17], [777.23, 154.72],
+  [751.15, 150.81], [724.14, 150.28], [696.48, 152.9],  [670.1, 158.09],
+  [644.49, 165.61], [619.31, 175.36], [603.19, 183.64], [577.94, 198.65],
+  [551.14, 215.24], [527.35, 229.98], [502.13, 244.82], [481.69, 236.19],
+  [458.03, 233.02], [438.2, 248.12],  [430.73, 272.88], [413.45, 286.93],
+  [390.02, 305.14], [365.51, 324.19], [343.94, 340.22], [322.24, 356.13],
+  [299.03, 363.28], [274.71, 346.21], [252.14, 326.21], [236.19, 311.13],
+  [236.15, 286.91], [226.28, 263.01], [206.65, 239.02], [191.64, 220.84],
+  [169.83, 212.33], [148.97, 209.63], [142.45, 185.82], [139.68, 156.44],
+  [139.64, 128.86], [145.0, 104.32],  [156.41, 77.33],  [150.79, 53.72],
+  [128.35, 50.0],  [107.45, 62.52],  [82.31, 81.35],   [60.81, 97.79],
+  [50.0, 121.55],   [66.32, 140.08],  [73.5, 165.49],   [78.73, 190.93],
+  [87.92, 216.26],  [98.34, 239.86],  [109.62, 260.32], [125.29, 282.66],
+  [144.56, 306.15], [161.82, 325.24], [181.01, 344.98], [200.08, 363.6],
+  [219.48, 381.81], [239.78, 400.19], [259.88, 417.8],  [281.03, 436.74],
+  [304.02, 441.39], [323.5, 422.46],  [333.35, 415.43], [349.37, 405.29],
+  [371.22, 391.47], [397.06, 375.14], [425.05, 357.46], [453.36, 339.61],
+  [480.15, 322.75], [503.78, 308.17], [526.59, 296.98], [551.93, 284.93],
+  [574.87, 272.96], [597.24, 256.88], [620.69, 239.53], [644.73, 228.47],
+  [670.97, 228.33], [689.41, 242.92], [699.2, 265.93],  [701.66, 294.43],
+  [706.97, 320.37], [725.16, 337.23], [757.63, 345.6],  [793.73, 351.72],
+  [824.11, 356.89], [848.79, 361.1],  [867.75, 364.35], [886.35, 366.13],
+  [905.44, 354.25], [896.2, 328.55],  [879.06, 309.11], [867.86, 286.83],
+  [857.51, 260.06], [877.41, 270.83]
+]
 
-
-const TRACK_SCALE = 15
-const TRACK_WIDTH = 280
-const BUFFER      = 80
+const TRACK_SCALE = 3.5   // Angepasst an die echten Koordinaten
+const TRACK_WIDTH = 120   // Angenehme Breite für das Gameplay
+const BUFFER      = 40
 const INNER_LIMIT = TRACK_WIDTH / 2
 const OUTER_LIMIT = TRACK_WIDTH / 2 + BUFFER
 const GAME_W = 720
 const GAME_H = 500
 const CAR_SCREEN_X = GAME_W / 2
 const CAR_SCREEN_Y = GAME_H - 35
-const ZOOM = 0.62
+const ZOOM = 0.55
 
-const GHOST_KEY   = 'monacoTraining_mirrored_ghost'
-const PENDING_KEY = 'monacoTraining_mirrored_pendingScore'
+const GHOST_KEY   = 'monacoTraining_clean_ghost'
+const PENDING_KEY = 'monacoTraining_clean_pendingScore'
 
 function formatTime(ms) {
   if (ms === null || ms === undefined) return '--:--.---'
@@ -881,7 +106,7 @@ export default function MonacoTraining({ onClose }) {
       .from('game_highscores')
       .select('lap_time_ms, profiles(display_name, avatar_url)')
       .eq('game', 'monaco_training')
-      .eq('track', 'monaco_mirrored')
+      .eq('track', 'monaco')
       .order('lap_time_ms', { ascending: true })
       .limit(10)
     setLeaderboard(data ?? [])
@@ -911,13 +136,13 @@ export default function MonacoTraining({ onClose }) {
       .select('lap_time_ms')
       .eq('profile_id', profile.id)
       .eq('game', 'monaco_training')
-      .eq('track', 'monaco_mirrored')
+      .eq('track', 'monaco')
       .single()
     if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr
     if (!existing || lapTimeMs < existing.lap_time_ms) {
       const { error } = await supabase
         .from('game_highscores')
-        .upsert({ profile_id: profile.id, game: 'monaco_training', track: 'monaco_mirrored', lap_time_ms: lapTimeMs },
+        .upsert({ profile_id: profile.id, game: 'monaco_training', track: 'monaco', lap_time_ms: lapTimeMs },
           { onConflict: 'profile_id,game,track' })
       if (error) throw error
       return true
@@ -986,7 +211,9 @@ export default function MonacoTraining({ onClose }) {
 
     const TRK = RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
     const N = TRK.length
-    const START_SEG   = N - 8
+    
+    // Startlinie liegt am Anfang des Arrays (Zielkurve/Sartgerade Monaco)
+    const START_SEG   = N - 4
     const START_SPEED = 200
 
     function nearestPoint(x, y) {
@@ -1134,6 +361,7 @@ export default function MonacoTraining({ onClose }) {
       stroke('rgba(255,255,255,0.15)', 4)
       ctx.setLineDash([])
 
+      // Start-Ziel-Linie
       const sa=TRK[0],sb=TRK[1]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
@@ -1201,11 +429,11 @@ export default function MonacoTraining({ onClose }) {
       const mm=(p)=>[ox2+(p[0]-mnx)*sc2,oy2+(p[1]-mny)*sc2]
       ctx.strokeStyle='#4a4a5e'; ctx.lineWidth=4
       ctx.beginPath(); const p0=mm(RAW[0]); ctx.moveTo(p0[0],p0[1])
-      for (let i=1;i<N;i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
+      for (let i=1; i<N; i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
       ctx.closePath(); ctx.stroke()
       ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5
       ctx.beginPath(); ctx.moveTo(p0[0],p0[1])
-      for (let i=1;i<N;i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
+      for (let i=1; i<N; i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
       ctx.closePath(); ctx.stroke()
       const cp=mm([car.x/TRACK_SCALE,car.y/TRACK_SCALE])
       ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.arc(cp[0],cp[1],3,0,Math.PI*2); ctx.fill()
@@ -1221,7 +449,7 @@ export default function MonacoTraining({ onClose }) {
       ctx.save(); ctx.globalAlpha=0.7+0.3*Math.sin(Date.now()/120)
       ctx.fillStyle='rgba(255,100,20,0.18)'; ctx.fillRect(0,0,GAME_W,GAME_H)
       ctx.fillStyle='rgba(255,120,30,0.9)'; ctx.font='bold 15px monospace'; ctx.textAlign='center'
-      ctx.fillText('⚠ BUFFERZONE – 50% Speed',GAME_W/2,28)
+      ctx.fillText('⚠ MAUER / RASEN – 50% Speed',GAME_W/2,28)
       ctx.globalAlpha=1; ctx.restore()
     }
 
@@ -1345,7 +573,7 @@ export default function MonacoTraining({ onClose }) {
       <div className="arcade-game-wrap">
         <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
-        <div className="monaco-beta-badge">MIRRORED</div>
+        <div className="monaco-beta-badge">LIVE</div>
 
         {gameState==='countdown' && (
           <div className="arcade-overlay">
@@ -1395,9 +623,8 @@ export default function MonacoTraining({ onClose }) {
         {gameState==='idle' && (
           <div className="arcade-overlay">
             <div className="arcade-start-card monaco-start-card">
-              <div className="monaco-beta-inline">MIRRORED</div>
               <div className="arcade-start-title">🎓 Monaco Training</div>
-              <p className="arcade-start-sub">1 Runde · Fahre gegen deinen Ghost (Gespiegelt)</p>
+              <p className="arcade-start-sub">1 Runde · Fahre gegen deinen Ghost</p>
               {hasGhost && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
               {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
@@ -1454,7 +681,7 @@ export default function MonacoTraining({ onClose }) {
       </div>
 
       <div className="arcade-leaderboard card">
-        <div className="arcade-lb-title">🏆 Bestzeiten Monaco (Gespiegelt)</div>
+        <div className="arcade-lb-title">🏆 Bestzeiten Monaco Training</div>
         {leaderboard.length===0 ? (
           <p className="text-muted" style={{fontSize:'0.8rem'}}>Noch keine Zeiten. Sei der Erste!</p>
         ) : leaderboard.map((entry,i)=>(
