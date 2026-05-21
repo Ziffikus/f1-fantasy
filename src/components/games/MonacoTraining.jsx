@@ -255,14 +255,17 @@ export default function MonacoTraining({ onClose }) {
 
 // NEU: Erst die Rohpunkte weich interpolieren, dann skalieren!
 // subdivisions = 4 bedeutet: Aus deinen 102 Punkten werden 408 hochauflösende Punkte.
-const SMOOTH_RAW = subdivideTrack(RAW, 4); 
+// 1. Strecke weich interpolieren
+    const SMOOTH_RAW = subdivideTrack(RAW, 4); 
 
-const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE]);
-const N = TRK.length;
+    // 2. Skalieren
+    const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
+    const N = TRK.length
     
-    // Startlinie liegt am Anfang des Arrays (Zielkurve/Sartgerade Monaco)
-    const START_SEG   = N - 4
-    const START_SPEED = 200
+    // SICHERER STARTPUNKT: Etwas weiter hinter die Ziellinie setzen (ca. 93% der Strecke)
+    // Damit wird verhindert, dass das Spiel beim Spawn sofort "Runde beendet" triggert.
+    const START_SEG   = Math.floor(N * 0.93)
+    const START_SPEED = 0 // Startet im Stillstand, damit es auf das GO! wartet
 
     function nearestPoint(x, y) {
       let best = 1e9, bi = 0, px = x, py = y
@@ -277,14 +280,18 @@ const N = TRK.length;
       }
       return { seg: bi, dist: Math.sqrt(best), cx: px, cy: py }
     }
+
     function segAngle(i) {
       const a = TRK[i], b = TRK[(i + 1) % N]
       return Math.atan2(b[1] - a[1], b[0] - a[0])
     }
 
+    // Auto exakt auf dem sicheren Start-Segment platzieren
     const car = {
-      x: TRK[START_SEG][0], y: TRK[START_SEG][1],
-      angle: segAngle(START_SEG), speed: START_SPEED
+      x: TRK[START_SEG][0], 
+      y: TRK[START_SEG][1],
+      angle: segAngle(START_SEG), 
+      speed: START_SPEED
     }
     let camX = car.x, camY = car.y
 
