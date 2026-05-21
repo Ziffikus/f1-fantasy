@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase'
 import './DraftTicker.css'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const GEMINI_MODEL = "gemini-2.5-flash"
+const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash"
+const GEMINI_MODEL_FALLBACK = "gemini-1.5-flash"
 
-async function callGemini(prompt, retries = 2, maxTokens = 5000) {
+async function callGemini(prompt, retries = 2, maxTokens = 5000, model = GEMINI_MODEL_PRIMARY) {
   if (!API_KEY) return null
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -17,9 +18,16 @@ async function callGemini(prompt, retries = 2, maxTokens = 5000) {
         generationConfig: { maxOutputTokens: maxTokens, temperature: 1.4 }
       })
     })
-    if (res.status === 429 && retries > 0) {
-      await new Promise(resolve => setTimeout(resolve, 8000))
-      return callGemini(prompt, retries - 1, maxTokens)
+    if (res.status === 429) {
+      if (model === GEMINI_MODEL_PRIMARY) {
+        console.log('[DraftTicker] 2.5 Flash Rate Limit – Fallback auf 1.5 Flash')
+        return callGemini(prompt, retries, maxTokens, GEMINI_MODEL_FALLBACK)
+      }
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 8000))
+        return callGemini(prompt, retries - 1, maxTokens, model)
+      }
+      return null
     }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
