@@ -5,7 +5,6 @@ import './MonacoTraining.css'
 
 // ── Mathematische Kurvenglättung (Catmull-Rom-Spline) ────────────────────────
 
-// Berechnet einen weichen Zwischenpunkt zwischen p1 und p2
 function interpolateCatmullRom(p0, p1, p2, p3, t) {
   const t2 = t * t;
   const t3 = t2 * t;
@@ -27,7 +26,6 @@ function interpolateCatmullRom(p0, p1, p2, p3, t) {
   return [x, y];
 }
 
-// Vervielfacht die Punkte, um enge Kurven sauber abzurunden
 function subdivideTrack(rawPoints, subdivisions = 4) {
   const N = rawPoints.length;
   const smoothPoints = [];
@@ -252,15 +250,12 @@ export default function MonacoTraining({ onClose }) {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    // 1. Weich interpolieren (4x feinere Auflösung für Kurven)
     const SMOOTH_RAW = subdivideTrack(RAW, 4); 
-
-    // 2. Skalieren
     const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
     const N = TRK.length
     
-    // Auto startet kurz hinter der Ziellinie auf der Zielgeraden
-    const START_SEG   = 2
+    // Starte bei Index 4, damit es garantiert ein paar Meter Abstand zur Ziellinie (0) hat
+    const START_SEG   = 4
     const START_SPEED = 0
 
     function nearestPoint(x, y) {
@@ -469,7 +464,8 @@ export default function MonacoTraining({ onClose }) {
       ctx.save(); ctx.globalAlpha=0.88
       ctx.fillStyle='rgba(10,10,20,0.85)'; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.fill()
       ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.stroke()
-      const pad=8,xs=RAW.map(p=>p[0]),ys=RAW.map(p=>p[1])
+      const pad=8
+      const xs=RAW.map(p=>p[0]),ys=RAW.map(p=>p[1])
       const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys)
       const sc2=Math.min((mw-pad*2)/(mxx-mnx),(mh-pad*2)/(mxy-mny))
       const ox2=mx+pad+(mw-pad*2-(mxx-mnx)*sc2)/2, oy2=my+pad+(mh-pad*2-(mxy-mny)*sc2)/2
@@ -502,18 +498,22 @@ export default function MonacoTraining({ onClose }) {
 
     function loop(ts) {
       if (!lastTS) lastTS = ts
+      // Absolut sicheres 'dt': Unabhängig von Rundenstopps läuft das Spiel stabil weiter
       const dt = Math.min((ts-lastTS)/1000, 0.05)
       lastTS = ts
       camX = car.x; camY = car.y
 
+      // RADIKALE VEREINFACHUNG: Wenn racing aktiv ist, läuft die Uhr bedingungslos ab sofort mit!
       if (racing && startTimeMs === null) {
         startTimeMs = ts;
       }
 
+      // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
         const maxSpd=855, acc=665, steer=2.2
+        
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
@@ -556,8 +556,8 @@ export default function MonacoTraining({ onClose }) {
           lastSector = curSector
         }
 
-        const atStart  = seg <= 1 || seg >= N-2
-        const wasStart = prevSeg <= 1 || prevSeg >= N-2
+        const atStart  = seg <= 2 || seg >= N-4
+        const wasStart = prevSeg <= 2 || prevSeg >= N-4
 
         if (!wasStart && atStart) {
           if (!lapStarted) {
