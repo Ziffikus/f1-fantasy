@@ -46,8 +46,8 @@ function subdivideTrack(rawPoints, subdivisions = 4) {
 
 // ── Monaco-Ideallinie – je Punkt: [x, y] (x=rechts, y=unten) ────────────────
 const RAW = [
-  /* 00 */ [879.00, 216.39],
-  /* 01 */ [882.00, 195.39],
+  /* 00 */ [871.00, 219.39],
+  /* 01 */ [874.50, 191.39],
   /* 02 */ [900.00, 176.39],
   /* 03 */ [911.50, 161.39],
   /* 04 */ [916.00, 139.39],
@@ -86,7 +86,7 @@ const RAW = [
   /* 37 */ [200.08, 127.79],
   /* 38 */ [181.01, 146.41],
   /* 39 */ [161.82, 166.15],
-  /* 40 */ [144.56, 185.24],
+  /* 40 */ [144.56, 185.24], // ← START / ZIEL
   /* 41 */ [125.29, 208.73],
   /* 42 */ [109.62, 231.07],
   /* 43 */ [98.34, 251.53],
@@ -106,7 +106,7 @@ const RAW = [
   /* 57 */ [139.68, 334.95],
   /* 58 */ [142.45, 305.57],
   /* 59 */ [148.97, 281.76],
-  /* 60 */ [169.83, 279.06], // ← START / ZIEL
+  /* 60 */ [169.83, 279.06], 
   /* 61 */ [191.64, 270.55],
   /* 62 */ [206.65, 252.37],
   /* 63 */ [226.28, 228.38],
@@ -138,14 +138,14 @@ const RAW = [
   /* 89 */ [777.23, 336.67],
   /* 90 */ [802.25, 329.22],
   /* 91 */ [826.07, 319.53],
-  /* 92 */ [854.28, 304.21],
-  /* 93 */ [883.63, 284.75],
-  /* 94 */ [907.83, 267.89],
-  /* 95 */ [926.91, 252.59],
-  /* 96 */ [940.92, 239.81],
-  /* 97 */ [963.00, 209.39],
-  /* 98 */ [949.50, 190.89],
-  /* 99 */ [931.50, 190.39],
+  /* 92 */ [856.78, 304.21],
+  /* 93 */ [887.13, 287.25],
+  /* 94 */ [910.83, 269.89],
+  /* 95 */ [931.41, 252.59],
+  /* 96 */ [944.92, 239.81],
+  /* 97 */ [966.50, 209.39],
+  /* 98 */ [953.50, 190.89],
+  /* 99 */ [935.50, 190.39],
   /* 100 */ [899.23, 233.05],
 ]
 
@@ -329,8 +329,8 @@ export default function MonacoTraining({ onClose }) {
     const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
     const N = TRK.length
     
-    // Starte bei RAW-Punkt 60 (nach Subdivision = Segment 240)
-    const START_SEG   = 240
+    // Starte bei RAW-Punkt 40 (nach Subdivision = Segment 160)
+    const START_SEG   = 160
     const START_SPEED = 0
 
     function nearestPoint(x, y) {
@@ -479,7 +479,7 @@ export default function MonacoTraining({ onClose }) {
       stroke('rgba(255,255,255,0.15)', 4)
       ctx.setLineDash([])
 
-      const sa=TRK[240],sb=TRK[241]
+      const sa=TRK[160],sb=TRK[161]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
       ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(ddx/fl,-ddy/fl))
@@ -631,8 +631,8 @@ export default function MonacoTraining({ onClose }) {
           lastSector = curSector
         }
 
-        const atStart  = seg >= 238 && seg <= 242
-        const wasStart = prevSeg >= 238 && prevSeg <= 242
+        const atStart  = seg >= 158 && seg <= 162
+        const wasStart = prevSeg >= 158 && prevSeg <= 162
 
         if (!wasStart && atStart) {
           if (!lapStarted) {
@@ -699,7 +699,7 @@ export default function MonacoTraining({ onClose }) {
       <div className="arcade-game-wrap">
         <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
-        <div className="monaco-beta-badge">LIVE</div>
+        
 
         {gameState==='countdown' && (
           <div className="arcade-overlay">
