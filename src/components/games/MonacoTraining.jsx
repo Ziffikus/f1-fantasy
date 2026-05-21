@@ -3,6 +3,50 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import './MonacoTraining.css'
 
+// Berechnet einen weichen Zwischenpunkt mittels Catmull-Rom-Spline
+function interpolateCatmullRom(p0, p1, p2, p3, t) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  const x = 0.5 * (
+    (2 * p1[0]) +
+    (-p0[0] + p2[0]) * t +
+    (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+    (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
+  );
+
+  const y = 0.5 * (
+    (2 * p1[1]) +
+    (-p0[1] + p2[1]) * t +
+    (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+    (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
+  );
+
+  return [x, y];
+}
+
+// Generiert eine glattere Strecke, indem pro Segment 'subdivisions' Punkte eingefügt werden
+function subdivideTrack(rawPoints, subdivisions = 4) {
+  const N = rawPoints.length;
+  const smoothPoints = [];
+
+  for (let i = 0; i < N; i++) {
+    // Da es ein Rundkurs ist, holen wir die Nachbarn mit Modulo (%)
+    const p0 = rawPoints[(i - 1 + N) % N];
+    const p1 = rawPoints[i];
+    const p2 = rawPoints[(i + 1) % N];
+    const p3 = rawPoints[(i + 2) % N];
+
+    for (let j = 0; j < subdivisions; j++) {
+      const t = j / subdivisions;
+      smoothPoints.push(interpolateCatmullRom(p0, p1, p2, p3, t));
+    }
+  }
+  return smoothPoints;
+}
+
+
+
 // ── Exakte Monaco-Ideallinie (Punkte 0 bis 101 aus der JSON) ────────────────
 const RAW = [
   [887.23, 286.84], [908.66, 299.65], [927.31, 290.55], [950.0, 268.97],
@@ -33,7 +77,7 @@ const RAW = [
   [857.51, 260.06], [877.41, 270.83]
 ]
 
-const TRACK_SCALE = 25   // Angepasst an die echten Koordinaten
+const TRACK_SCALE = 20  // Angepasst an die echten Koordinaten
 const TRACK_WIDTH = 240   // Angenehme Breite für das Gameplay
 const BUFFER      = 80
 const INNER_LIMIT = TRACK_WIDTH / 2
@@ -209,8 +253,12 @@ export default function MonacoTraining({ onClose }) {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
 
-    const TRK = RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
-    const N = TRK.length
+// NEU: Erst die Rohpunkte weich interpolieren, dann skalieren!
+// subdivisions = 4 bedeutet: Aus deinen 102 Punkten werden 408 hochauflösende Punkte.
+const SMOOTH_RAW = subdivideTrack(RAW, 4); 
+
+const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE]);
+const N = TRK.length;
     
     // Startlinie liegt am Anfang des Arrays (Zielkurve/Sartgerade Monaco)
     const START_SEG   = N - 4
@@ -462,7 +510,7 @@ export default function MonacoTraining({ onClose }) {
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
-        const maxSpd=855, acc=665, steer=3
+        const maxSpd=855, acc=665, steer=2
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
