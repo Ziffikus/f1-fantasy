@@ -3,8 +3,59 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import './MonacoTraining.css'
 
-// ── Canada Track (same as ArcadeRacing) ──────────────────────────────────────
-const RAW = [[420.16,368.0],[427.57,365.31],[440.97,360.0],[460.22,352.13],[485.16,341.78],[515.64,329.02],[530.98,322.56],[552.69,313.42],[579.68,302.07],[604.94,291.48],[621.43,284.58],[635.76,276.11],[639.19,257.52],[651.13,252.16],[666.89,245.63],[687.67,236.74],[711.3,226.42],[735.66,215.63],[758.58,205.33],[777.92,196.47],[793.87,188.69],[811.38,177.57],[828.64,163.9],[844.41,149.84],[860.44,139.52],[877.73,141.81],[903.8,152.74],[927.55,155.85],[944.25,148.04],[950.0,129.03],[942.79,111.37],[926.02,97.75],[907.23,87.72],[887.5,78.1],[867.83,69.77],[849.18,62.53],[827.88,54.46],[806.65,50.0],[787.82,54.62],[768.03,62.59],[749.64,61.7],[727.29,54.57],[707.39,50.53],[687.25,50.2],[667.12,53.35],[647.26,59.71],[627.92,69.05],[609.37,81.12],[591.86,95.68],[572.62,106.56],[563.33,89.54],[551.03,70.72],[534.63,65.14],[513.19,73.26],[503.6,78.29],[485.62,88.53],[459.9,103.61],[440.0,115.42],[421.53,126.48],[402.93,137.63],[387.9,148.37],[367.62,165.17],[353.0,177.39],[334.32,192.75],[319.0,204.92],[302.14,222.37],[300.03,239.46],[298.87,262.34],[288.99,276.74],[283.52,282.03],[271.12,293.63],[253.8,309.72],[233.54,328.47],[212.32,348.06],[192.12,366.66],[174.94,382.44],[162.77,393.58],[148.72,402.1],[126.49,411.25],[106.92,419.21],[86.35,427.42],[67.91,435.26],[50.0,447.5],[52.79,466.55],[68.97,473.47],[90.62,467.54],[113.35,459.73],[133.79,452.36],[156.2,445.07],[168.6,442.44],[185.28,439.04],[211.37,433.39],[235.32,428.11],[257.5,423.23],[271.56,420.17],[283.26,416.56],[302.66,410.15],[326.98,401.87],[353.45,392.7],[379.31,383.57],[401.79,375.44],[418.12,369.26]]
+// ── Gespiegelte Monaco-Strecke (Start bei Punkt 60) ─────────────────────────
+const RAW = [
+  [144.56, 693.85], [161.82, 674.76], [181.01, 655.02], [200.08, 636.4],
+  [219.48, 618.19], [239.78, 599.81], [259.88, 582.2],  [281.03, 563.26],
+  [304.02, 558.61], [323.5, 577.54],  [333.35, 584.57], [349.37, 594.71],
+  [371.22, 608.53], [397.06, 624.86], [425.05, 634.95], [453.36, 660.39],
+  [480.15, 677.25], [503.78, 691.83], [526.59, 703.02], [551.93, 715.07],
+  [574.87, 727.04], [597.24, 743.12], [620.69, 760.47], [644.73, 771.53],
+  [670.97, 771.67], [689.41, 757.08], [699.2, 734.07],  [701.66, 705.57],
+  [706.97, 679.63], [725.16, 662.77], [757.63, 654.4],  [793.73, 648.28],
+  [824.11, 643.11], [848.79, 638.9],  [867.75, 635.65], [886.35, 633.87],
+  [905.44, 645.75], [896.2, 671.45],  [879.06, 690.89], [867.86, 713.17],
+  [857.51, 739.94], [877.41, 729.17], [339.39, 637.57], [361.37, 653.19],
+  [382.4, 669.18],  [409.1, 689.97],  [426.25, 703.21], [445.49, 720.86],
+  [452.72, 746.16], [474.56, 749.2],  [497.97, 737.5],  [519.8, 746.96],
+  [544.26, 762.04], [567.8, 776.67],  [597.46, 794.79], [617.99, 806.57],
+  [636.73, 814.86], [662.91, 823.69], [688.95, 829.83], [716.4, 833.46],
+  [743.76, 833.88], [770.06, 830.68], [795.16, 823.68], [818.9, 812.66],
+  [847.62, 794.5],  [876.81, 775.66], [900.63, 760.07], [919.07, 747.73],
+  [932.13, 738.63], [914.22, 719.45], [898.86, 724.81], [883.78, 746.05],
+  [859.08, 758.14], [842.23, 743.7],  [848.5, 716.48],  [861.01, 692.58],
+  [874.98, 671.72], [889.95, 650.17], [871.82, 650.85], [853.42, 653.98],
+  [829.35, 658.06], [799.6, 663.1],  [764.19, 669.1],  [730.33, 677.61],
+  [717.35, 697.27], [716.63, 725.76], [710.02, 751.76], [696.93, 772.68],
+  [676.46, 786.3],  [650.98, 788.6],  [623.4, 779.8],   [602.29, 766.57],
+  [577.63, 747.55], [556.52, 734.62], [532.63, 723.01], [508.16, 711.25],
+  [484.13, 697.84], [455.87, 680.07], [425.0, 660.62],  [393.95, 641.01],
+  [365.14, 622.8],  [341.0, 607.53],  [323.94, 596.73], [316.4, 591.96],
+  [307.75, 582.49], [288.35, 578.03], [267.25, 596.88], [247.19, 614.52],
+  [227.0, 632.84],  [207.71, 651.0],  [188.46, 670.01], [169.69, 689.63],
+  [152.14, 709.4],  [133.23, 733.27], [119.0, 754.93],  [108.57, 776.37],
+  [98.21, 800.73],  [91.0, 825.65],   [87.07, 852.38],  [73.63, 874.28],
+  [74.78, 893.06],  [98.11, 910.88],  [120.51, 927.34], [140.84, 934.59],
+  [133.67, 908.52], [126.04, 883.95], [123.85, 858.28], [125.19, 830.43],
+  [129.41, 800.97], [137.85, 778.63], [158.62, 766.24], [181.81, 766.9],
+  [197.19, 748.22], [215.77, 725.36], [218.0, 698.59],  [226.14, 676.73],
+  [241.8, 662.11],  [264.44, 642.07], [288.98, 623.6],  [312.82, 621.44],
+  [887.23, 713.16], [908.66, 700.35], [927.31, 709.45], [950.0, 731.03],
+  [940.92, 751.42], [926.91, 761.2],  [907.83, 774.0],  [883.63, 789.86],
+  [854.28, 808.82], [826.07, 826.64], [802.25, 837.83], [777.23, 845.28],
+  [751.15, 849.19], [724.14, 849.72], [696.48, 847.1],  [670.1, 841.91],
+  [644.49, 834.39], [619.31, 824.64], [603.19, 816.36], [577.94, 801.35],
+  [551.14, 784.76], [527.35, 770.02], [502.13, 755.18], [481.69, 763.81],
+  [458.03, 766.98], [438.2, 751.88],  [430.73, 727.12], [413.45, 713.07],
+  [390.02, 694.86], [365.51, 675.81], [343.94, 659.78], [322.24, 643.87],
+  [299.03, 636.72], [274.71, 653.79], [252.14, 673.79], [236.19, 688.87],
+  [236.15, 713.09], [226.28, 736.99], [206.65, 760.98], [191.64, 779.16],
+  [169.83, 787.67], [148.97, 790.37], [142.45, 814.18], [139.68, 843.56],
+  [139.64, 871.14], [145.0, 895.68],  [156.41, 922.67], [150.79, 946.28],
+  [128.35, 950.0],  [107.45, 937.48],  [82.31, 918.65],  [60.81, 902.21],
+  [50.0, 878.45],   [66.32, 861.92],  [73.5, 834.51],   [78.73, 809.07],
+  [87.92, 783.74],  [98.34, 760.14],  [109.62, 739.68], [125.29, 717.34]
+]
 
 const TRACK_SCALE = 15
 const TRACK_WIDTH = 280
@@ -17,8 +68,8 @@ const CAR_SCREEN_X = GAME_W / 2
 const CAR_SCREEN_Y = GAME_H - 35
 const ZOOM = 0.62
 
-const GHOST_KEY   = 'monacoTraining_canada_ghost'
-const PENDING_KEY = 'monacoTraining_canada_pendingScore'
+const GHOST_KEY   = 'monacoTraining_mirrored_ghost'
+const PENDING_KEY = 'monacoTraining_mirrored_pendingScore'
 
 function formatTime(ms) {
   if (ms === null || ms === undefined) return '--:--.---'
@@ -37,7 +88,6 @@ async function withRetry(fn, retries = 3, delayMs = 800) {
   return { ok: false }
 }
 
-// ── Sector calculation helpers ────────────────────────────────────────────────
 const N_SECTORS = 3
 
 function getSectorForSeg(seg, totalSegs) {
@@ -61,7 +111,7 @@ export default function MonacoTraining({ onClose }) {
   const [leaderboard,    setLeaderboard]    = useState([])
   const [hasGhost,       setHasGhost]       = useState(false)
   const [sectorTimes,    setSectorTimes]    = useState([null, null, null])
-  const [ghostDelta,     setGhostDelta]     = useState(null)  // ms: negative = faster than ghost
+  const [ghostDelta,     setGhostDelta]     = useState(null)
   const [finishedSectors, setFinishedSectors] = useState([null, null, null])
 
   const resetStateRef = useRef(null)
@@ -69,7 +119,6 @@ export default function MonacoTraining({ onClose }) {
   useEffect(() => {
     loadLeaderboard()
     trySyncPendingScore()
-    // Check if ghost exists
     try {
       const g = localStorage.getItem(GHOST_KEY)
       if (g) setHasGhost(true)
@@ -81,7 +130,7 @@ export default function MonacoTraining({ onClose }) {
       .from('game_highscores')
       .select('lap_time_ms, profiles(display_name, avatar_url)')
       .eq('game', 'monaco_training')
-      .eq('track', 'canada')
+      .eq('track', 'monaco_mirrored')
       .order('lap_time_ms', { ascending: true })
       .limit(10)
     setLeaderboard(data ?? [])
@@ -111,13 +160,13 @@ export default function MonacoTraining({ onClose }) {
       .select('lap_time_ms')
       .eq('profile_id', profile.id)
       .eq('game', 'monaco_training')
-      .eq('track', 'canada')
+      .eq('track', 'monaco_mirrored')
       .single()
     if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr
     if (!existing || lapTimeMs < existing.lap_time_ms) {
       const { error } = await supabase
         .from('game_highscores')
-        .upsert({ profile_id: profile.id, game: 'monaco_training', track: 'canada', lap_time_ms: lapTimeMs },
+        .upsert({ profile_id: profile.id, game: 'monaco_training', track: 'monaco_mirrored', lap_time_ms: lapTimeMs },
           { onConflict: 'profile_id,game,track' })
       if (error) throw error
       return true
@@ -213,13 +262,11 @@ export default function MonacoTraining({ onClose }) {
     }
     let camX = car.x, camY = car.y
 
-    // ── Ghost system ──────────────────────────────────────────────────────────
-    // Ghost frames: [{x,y,angle,speed}, ...] recorded at ~60fps
     let ghostFrames = []
     let ghostIdx    = 0
-    let ghostCar    = null  // {x,y,angle} displayed ghost
-    let recordFrames = []   // current run recording
-    let ghostSectorMs = [null, null, null]  // ghost sector timestamps
+    let ghostCar    = null
+    let currentRecording = []
+    let ghostSectorMs = [null, null, null]
 
     function loadGhost() {
       try {
@@ -245,7 +292,6 @@ export default function MonacoTraining({ onClose }) {
     let lapStarted = false, prevSeg = START_SEG, lastTS = null
     let inBuffer = false, racing = false, finishedRef = false
     let startTimeMs = null, bestLapSaved = null
-    let currentRecording = []
     let sectorStartMs = [null, null, null]
     let currentSectorMs = [null, null, null]
     let lastSector = -1
@@ -298,7 +344,6 @@ export default function MonacoTraining({ onClose }) {
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
 
-      // Sector color stripes on track
       const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
       const segPerSector = Math.floor(N / N_SECTORS)
       for (let s = 0; s < N_SECTORS; s++) {
@@ -310,7 +355,6 @@ export default function MonacoTraining({ onClose }) {
         ctx.stroke()
       }
 
-      // Buffer zones
       for (const side of [-1, 1]) {
         ctx.strokeStyle = 'rgba(230,150,30,0.7)'; ctx.lineWidth = BUFFER - 10; ctx.setLineDash([25, 20])
         ctx.beginPath()
@@ -323,7 +367,6 @@ export default function MonacoTraining({ onClose }) {
         ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
       }
 
-      // White lines
       for (const side of [-1, 1]) {
         ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=6
         ctx.beginPath()
@@ -336,12 +379,10 @@ export default function MonacoTraining({ onClose }) {
         ctx.closePath(); ctx.stroke()
       }
 
-      // Center dash
       ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
       stroke('rgba(255,255,255,0.15)', 4)
       ctx.setLineDash([])
 
-      // Start/finish line
       const sa=TRK[0],sb=TRK[1]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
@@ -349,7 +390,6 @@ export default function MonacoTraining({ onClose }) {
       for (let i=0;i<8;i++) { ctx.fillStyle=i%2===0?'#fff':'#4af'; ctx.fillRect(-hw+i*cw,-8,cw,16) }
       ctx.restore()
 
-      // Sector markers
       for (let s = 1; s < N_SECTORS; s++) {
         const idx = s * Math.floor(N / N_SECTORS)
         const a = TRK[idx], b = TRK[(idx+1)%N]
@@ -451,10 +491,8 @@ export default function MonacoTraining({ onClose }) {
         car.x += Math.cos(car.angle)*car.speed*dt
         car.y += Math.sin(car.angle)*car.speed*dt
 
-        // Record frame
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle })
 
-        // Advance ghost
         if (ghostFrames.length > 0 && ghostCar) {
           ghostIdx = Math.min(ghostIdx + 1, ghostFrames.length - 1)
           ghostCar = { ...ghostFrames[ghostIdx] }
@@ -471,11 +509,9 @@ export default function MonacoTraining({ onClose }) {
           car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=0.72
         } else { inBuffer=false }
 
-        // Sector detection
         const curSector = getSectorForSeg(seg, N)
         if (lapStarted && startTimeMs !== null) {
           if (curSector !== lastSector && curSector > lastSector && curSector > 0 && curSector <= N_SECTORS - 1) {
-            // Sector just crossed
             const elapsed = ts - startTimeMs
             const ghostElapsed = ghostSectorMs[curSector - 1]
             currentSectorMs[curSector - 1] = elapsed
@@ -500,7 +536,6 @@ export default function MonacoTraining({ onClose }) {
             const lapMs = Math.round(ts - startTimeMs)
             if (lapMs < bestLapMs) {
               bestLapMs = lapMs
-              // Save ghost for this run
               saveGhost(currentRecording, [...currentSectorMs, lapMs])
               setHasGhost(true)
             }
@@ -518,7 +553,6 @@ export default function MonacoTraining({ onClose }) {
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
           setCurrentLapTime(Math.round(lapTime * 1000))
-          // Live ghost delta
           if (ghostFrames.length > 0 && ghostIdx < ghostFrames.length) {
             const ghostElapsedRatio = ghostIdx / ghostFrames.length
             const ghostTotalMs = ghostSectorMs[3] ?? null
@@ -560,8 +594,7 @@ export default function MonacoTraining({ onClose }) {
       <div className="arcade-game-wrap">
         <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
-        {/* BETA badge */}
-        <div className="monaco-beta-badge">BETA</div>
+        <div className="monaco-beta-badge">MIRRORED</div>
 
         {gameState==='countdown' && (
           <div className="arcade-overlay">
@@ -584,7 +617,6 @@ export default function MonacoTraining({ onClose }) {
                 </div>
               )}
 
-              {/* Sector breakdown */}
               <div className="monaco-sector-breakdown">
                 {['S1','S2','S3'].map((label, i) => (
                   <div key={label} className="monaco-sector-item">
@@ -612,9 +644,9 @@ export default function MonacoTraining({ onClose }) {
         {gameState==='idle' && (
           <div className="arcade-overlay">
             <div className="arcade-start-card monaco-start-card">
-              <div className="monaco-beta-inline">BETA</div>
+              <div className="monaco-beta-inline">MIRRORED</div>
               <div className="arcade-start-title">🎓 Monaco Training</div>
-              <p className="arcade-start-sub">1 Runde · Fahre gegen deinen Ghost</p>
+              <p className="arcade-start-sub">1 Runde · Fahre gegen deinen Ghost (Gespiegelt)</p>
               {hasGhost && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
               {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
@@ -629,7 +661,6 @@ export default function MonacoTraining({ onClose }) {
         )}
       </div>
 
-      {/* HUD */}
       {(gameState==='racing' || gameState==='finished') && (
         <div className="arcade-hud-bar monaco-hud-bar">
           <div className="arcade-hud-bar-time">
@@ -653,7 +684,6 @@ export default function MonacoTraining({ onClose }) {
         </div>
       )}
 
-      {/* Touch controls */}
       <div className="arcade-touch-controls">
         <div className="arcade-touch-left">
           <button className="arcade-btn arcade-btn--turn"
@@ -672,9 +702,8 @@ export default function MonacoTraining({ onClose }) {
         </div>
       </div>
 
-      {/* Leaderboard */}
       <div className="arcade-leaderboard card">
-        <div className="arcade-lb-title">🏆 Bestzeiten Monaco Training</div>
+        <div className="arcade-lb-title">🏆 Bestzeiten Monaco (Gespiegelt)</div>
         {leaderboard.length===0 ? (
           <p className="text-muted" style={{fontSize:'0.8rem'}}>Noch keine Zeiten. Sei der Erste!</p>
         ) : leaderboard.map((entry,i)=>(
