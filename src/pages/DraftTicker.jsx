@@ -284,6 +284,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     }
   }, [isDraftComplete])
 
+  console.log('[DraftTicker] picks:', picks.length, 'entries:', entries.length, 'commentaryLoaded:', commentaryLoaded)
   if (entries.length === 0 && !introLoading) return null
 
   return (
