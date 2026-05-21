@@ -87,7 +87,7 @@ Regeln:
 - WICHTIG: Nur die Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
 `
-  return callGemini(prompt, 2, 80)
+  return callGemini(prompt, 2, 37)
 }
 
 async function generateOutro({ gpName, draftOrder, allPicks }) {
@@ -169,6 +169,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
   const [loading, setLoading] = useState({})
   const [introLoading, setIntroLoading] = useState(false)
   const [outroLoading, setOutroLoading] = useState(false)
+  const [commentaryLoaded, setCommentaryLoaded] = useState(false)
   const [newId, setNewId] = useState(null)
 
   // Spieler → Farbe (stabil nach Position in draftOrder)
@@ -191,6 +192,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     loadCommentary(raceWeekendId).then(data => {
       if (data?.intro) { setIntro(data.intro); introGeneratedRef.current = true }
       if (data?.outro) { setOutro(data.outro); outroGeneratedRef.current = true }
+      setCommentaryLoaded(true)
     })
   }, [raceWeekendId])
 
@@ -207,7 +209,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
 
   // Intro beim ersten Pick
   useEffect(() => {
-    if (entries.length > 0 && !introGeneratedRef.current && draftOrder.length > 0) {
+    if (entries.length > 0 && !introGeneratedRef.current && draftOrder.length > 0 && commentaryLoaded) {
       introGeneratedRef.current = true
       setIntroLoading(true)
 
@@ -249,8 +251,10 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
           ? `${newest.drivers?.first_name} ${newest.drivers?.last_name}`
           : newest.constructors?.short_name
 
+        console.log('[DraftTicker] generatePickComment für:', newest.playerName, pickName)
         generatePickComment({ playerName: newest.playerName, pickName, gpName })
           .then(text => {
+            console.log('[DraftTicker] Antwort:', text)
             if (text) {
               const trimmed = (() => {
                 if (text.length <= 300) return text
