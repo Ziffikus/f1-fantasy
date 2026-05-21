@@ -33,7 +33,7 @@ const RAW = [
   [857.51, 260.06], [877.41, 270.83]
 ]
 
-const TRACK_SCALE = 3.5   // Angepasst an die echten Koordinaten
+const TRACK_SCALE = 25   // Angepasst an die echten Koordinaten
 const TRACK_WIDTH = 120   // Angenehme Breite für das Gameplay
 const BUFFER      = 40
 const INNER_LIMIT = TRACK_WIDTH / 2
