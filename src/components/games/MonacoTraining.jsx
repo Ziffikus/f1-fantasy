@@ -74,8 +74,8 @@ const RAW = [
   [857.51, 260.06], [877.41, 270.83]
 ]
 
-const TRACK_SCALE = 15
-const TRACK_WIDTH = 240
+const TRACK_SCALE = 11
+const TRACK_WIDTH = 175
 const BUFFER      = 80
 const INNER_LIMIT = TRACK_WIDTH / 2
 const OUTER_LIMIT = TRACK_WIDTH / 2 + BUFFER
@@ -512,7 +512,7 @@ export default function MonacoTraining({ onClose }) {
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
-        const maxSpd=855, acc=665, steer=2.2
+        const maxSpd=855, acc=665, steer=2.6
         
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
