@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
 import ArcadeRacing from '../components/games/ArcadeRacing'
+import MonacoTraining from '../components/games/MonacoTraining'
 import { useRaceWeekends, useCountdown } from '../hooks/useRaceWeekends'
 import './GamingPage.css'
 
@@ -12,6 +13,16 @@ const GAMES = [
     emoji: '🏎️',
     description: 'Steuere einen F1-Boliden durch Canada. Schnellste Runde gewinnt die Krone!',
     component: ArcadeRacing,
+    beta: false,
+  },
+  {
+    id: 'monaco_training',
+    title: 'Monaco Training',
+    subtitle: 'Canada · Ghost Run',
+    emoji: '👻',
+    description: 'Fahre gegen deinen eigenen Ghost. Sektoren-Analyse & Live-Delta zeigen dir wo du Zeit verlierst.',
+    component: MonacoTraining,
+    beta: true,
   },
 ]
 
@@ -61,7 +72,10 @@ export default function GamingPage() {
           <button className="btn btn-secondary gaming-back" onClick={() => setActiveGame(null)}>
             <ArrowLeft size={14} /> Zurück
           </button>
-          <h1 className="gaming-title">{game.emoji} {game.title}</h1>
+          <h1 className="gaming-title">
+            {game.emoji} {game.title}
+            {game.beta && <span className="badge badge-beta" style={{marginLeft:'0.5rem',fontSize:'0.55rem',verticalAlign:'middle'}}>BETA</span>}
+          </h1>
         </div>
         <GameComponent onClose={() => setActiveGame(null)} />
       </div>
@@ -85,7 +99,22 @@ export default function GamingPage() {
           <div key={g.id} className="gaming-card card" onClick={() => setActiveGame(g.id)}>
             <div className="gaming-card-emoji">{g.emoji}</div>
             <div className="gaming-card-info">
-              <div className="gaming-card-title">{g.title}</div>
+              <div className="gaming-card-title">
+                {g.title}
+                {g.beta && (
+                  <span style={{
+                    marginLeft:'0.4rem',
+                    fontSize:'0.55rem',
+                    fontWeight:900,
+                    letterSpacing:'0.1em',
+                    background:'rgba(232,0,45,0.85)',
+                    color:'#fff',
+                    padding:'1px 5px',
+                    borderRadius:'3px',
+                    verticalAlign:'middle',
+                  }}>BETA</span>
+                )}
+              </div>
               <div className="gaming-card-sub">{g.subtitle}</div>
               <p className="gaming-card-desc">{g.description}</p>
             </div>
