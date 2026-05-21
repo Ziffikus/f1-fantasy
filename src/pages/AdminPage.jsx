@@ -1134,13 +1134,14 @@ function GamingRewardPanel() {
 
 
 // ── Ticker Admin ─────────────────────────────────────────────
-const GEMINI_MODEL_ADMIN = "gemini-2.5-flash"
+const GEMINI_MODEL_ADMIN_PRIMARY = "gemini-2.5-flash"
+const GEMINI_MODEL_ADMIN_FALLBACK = "gemini-1.5-flash"
 
-async function callGeminiAdmin(prompt) {
+async function callGeminiAdmin(prompt, model = GEMINI_MODEL_ADMIN_PRIMARY, retries = 2) {
   const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
   if (!API_KEY) return null
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_ADMIN}:generateContent?key=${API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1148,6 +1149,17 @@ async function callGeminiAdmin(prompt) {
         generationConfig: { maxOutputTokens: 5000, temperature: 1.4 }
       })
     })
+    if (res.status === 429) {
+      if (model === GEMINI_MODEL_ADMIN_PRIMARY) {
+        console.log('[Admin] 2.5 Flash Rate Limit – Fallback auf 1.5 Flash')
+        return callGeminiAdmin(prompt, GEMINI_MODEL_ADMIN_FALLBACK, retries)
+      }
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 8000))
+        return callGeminiAdmin(prompt, model, retries - 1)
+      }
+      return null
+    }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
