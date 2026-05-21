@@ -420,6 +420,12 @@ export default function MonacoTraining({ onClose }) {
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
+    const resetTouches = () => {
+      if (gameRef.current) { gameRef.current.touches.left = false; gameRef.current.touches.right = false }
+    }
+    window.addEventListener('touchend', resetTouches)
+    window.addEventListener('touchcancel', resetTouches)
+    window.addEventListener('blur', resetTouches)
 
     function drawWorld() {
       ctx.save()
@@ -611,7 +617,7 @@ export default function MonacoTraining({ onClose }) {
         } else if (dist>OUTER_LIMIT) {
           inBuffer=false
           const push=(dist-OUTER_LIMIT)/dist
-          car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=0.72
+          car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=Math.pow(0.72, dt*60)
         } else { inBuffer=false }
 
         const curSector = getSectorForSeg(seg, N)
@@ -681,6 +687,9 @@ export default function MonacoTraining({ onClose }) {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('keydown',onKey)
       window.removeEventListener('keyup',onKey)
+      window.removeEventListener('touchend', resetTouches)
+      window.removeEventListener('touchcancel', resetTouches)
+      window.removeEventListener('blur', resetTouches)
     }
   }, [])
 
@@ -791,8 +800,9 @@ export default function MonacoTraining({ onClose }) {
       <div className="arcade-touch-controls">
         <div className="arcade-touch-left">
           <button className="arcade-btn arcade-btn--turn"
-            onTouchStart={()=>touchStart('left')} onTouchEnd={()=>touchEnd('left')}
-            onMouseDown={()=>touchStart('left')} onMouseUp={()=>touchEnd('left')}>◀</button>
+            onTouchStart={(e)=>{e.preventDefault();touchStart('left')}} onTouchEnd={()=>touchEnd('left')}
+            onTouchCancel={()=>touchEnd('left')}
+            onMouseDown={()=>touchStart('left')} onMouseUp={()=>touchEnd('left')} onMouseLeave={()=>touchEnd('left')}>◀</button>
         </div>
         <button
           className="arcade-btn arcade-btn--reset"
@@ -801,8 +811,9 @@ export default function MonacoTraining({ onClose }) {
         >↺</button>
         <div className="arcade-touch-right">
           <button className="arcade-btn arcade-btn--turn"
-            onTouchStart={()=>touchStart('right')} onTouchEnd={()=>touchEnd('right')}
-            onMouseDown={()=>touchStart('right')} onMouseUp={()=>touchEnd('right')}>▶</button>
+            onTouchStart={(e)=>{e.preventDefault();touchStart('right')}} onTouchEnd={()=>touchEnd('right')}
+            onTouchCancel={()=>touchEnd('right')}
+            onMouseDown={()=>touchStart('right')} onMouseUp={()=>touchEnd('right')} onMouseLeave={()=>touchEnd('right')}>▶</button>
         </div>
       </div>
 
