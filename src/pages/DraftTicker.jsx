@@ -87,7 +87,7 @@ Regeln:
 - WICHTIG: Nur die Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
 `
-  return callGemini(prompt, 2, 37)
+  return callGemini(prompt, 2, 80)
 }
 
 async function generateOutro({ gpName, draftOrder, allPicks }) {
