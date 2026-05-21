@@ -69,8 +69,8 @@ const RAW = [
   [574.87, 272.96], [597.24, 256.88], [620.69, 239.53], [644.73, 228.47],
   [670.97, 228.33], [689.41, 242.92], [699.2, 265.93],  [701.66, 294.43],
   [706.97, 320.37], [725.16, 337.23], [757.63, 345.6],  [793.73, 351.72],
-  [824.11, 356.89], [848.79, 361.1],  [873.0, 366.0],  [898.0, 364.0],
-  [916.0, 352.0],  [920.0, 330.0],  [905.0, 315.0],  [882.0, 296.0],
+  [824.11, 356.89], [848.79, 361.1],  [855.0, 366.0],  [865.0, 364.0],
+  [870.0, 352.0],  [920.0, 330.0],  [905.0, 315.0],  [882.0, 296.0],
   [865.0, 275.0]
 ]
 
@@ -254,8 +254,8 @@ export default function MonacoTraining({ onClose }) {
     const TRK = SMOOTH_RAW.map(([x, y]) => [x * TRACK_SCALE, y * TRACK_SCALE])
     const N = TRK.length
     
-    // Starte bei Index 4, damit es garantiert ein paar Meter Abstand zur Ziellinie (0) hat
-    const START_SEG   = 4
+    // Starte bei RAW-Punkt 60 (nach Subdivision = Segment 240)
+    const START_SEG   = 240
     const START_SPEED = 0
 
     function nearestPoint(x, y) {
@@ -404,7 +404,7 @@ export default function MonacoTraining({ onClose }) {
       stroke('rgba(255,255,255,0.15)', 4)
       ctx.setLineDash([])
 
-      const sa=TRK[0],sb=TRK[1]
+      const sa=TRK[240],sb=TRK[241]
       const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
       ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(ddx/fl,-ddy/fl))
@@ -556,8 +556,8 @@ export default function MonacoTraining({ onClose }) {
           lastSector = curSector
         }
 
-        const atStart  = seg <= 2 || seg >= N-4
-        const wasStart = prevSeg <= 2 || prevSeg >= N-4
+        const atStart  = seg >= 238 && seg <= 242
+        const wasStart = prevSeg >= 238 && prevSeg <= 242
 
         if (!wasStart && atStart) {
           if (!lapStarted) {
