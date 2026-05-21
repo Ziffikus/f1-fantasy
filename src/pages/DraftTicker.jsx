@@ -43,7 +43,7 @@ async function generateIntro({ gpName, draftOrder, lastWeekPoints }) {
     : 'keine Vorwochendaten verfügbar'
 
   const prompt = `
-Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.
+Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei. Wir sind mitten in der F1-Saison 2026. Alle vier Spieler sind Männer.
 Schreib ein Intro (3-4 Sätze) für den Fantasy Draft zum GP von ${gpName}.
 
 Kontext:
@@ -51,7 +51,7 @@ Kontext:
 - Letzte Woche: ${pointsText}
 
 Spieler-Kontext:
-- Mandi: sportlich, beim Wetten zu konservativ, beschägtigt sich nicht so intensiv mit f1.
+- Mandi: Mann, sportlich, beim Wetten zu konservativ, beschäftigt sich nicht intensiv mit F1.
 - Alex: Analysiert alles dreimal, Familienvater, methodisch.
 - Andii: Entspannter Typ, sportlich, Gamer.
 - Ferk: Entscheidet aus dem Bauch, Paragleiter, ehrgeizig.
@@ -64,14 +64,14 @@ WICHTIG: Nur Fließtext, keine Überschriften, keine Anführungszeichen am Anfan
 
 async function generatePickComment({ playerName, pickName, gpName }) {
   const prompt = `
-Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht und insgeheim immer noch daran hängt.
+Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht und insgeheim immer noch daran hängt. Wir sind mitten in der F1-Saison 2026.
 Dein Stil: Trockener Witz, erschöpfte Präzision, Ironie mit leichter Verzögerungszündung.
 
-Spieler-Kontext (sparsam, ~8% der Kommentare):
-- Mandi: sportlich, beim Wetten zu konservativ, beschägtigt sich nicht so intensiv mit f1.
-- Alex: Analysiert alles dreimal, Familienvater, methodisch -  Picks kommen kurz vor Deadline.
-- Andii: Entspannter Typ, sportlich, Gamer. – behandelt F1-Fantasy wie ein Casual Game.
-- Ferk: Entscheidet aus dem Bauch, Paragleiter, ehrgeizig. – springt rein, hofft auf Aufwind.
+Spieler-Kontext (sparsam, ~8% der Kommentare; alle vier sind Männer):
+- Mandi: Mann, sportlich, beim Wetten zu konservativ, beschäftigt sich nicht intensiv mit F1.
+- Alex: Mann, analysiert alles dreimal, Familienvater, methodisch – Picks kommen kurz vor Deadline.
+- Andii: Mann, entspannter Typ, sportlich, Gamer – behandelt F1-Fantasy wie ein Casual Game.
+- Ferk: Mann, entscheidet aus dem Bauch, Paragleiter, ehrgeizig – springt rein, hofft auf Aufwind.
 
 Ereignis: ${playerName} pickt ${pickName} beim GP von ${gpName}.
 
@@ -87,7 +87,7 @@ Regeln:
 - WICHTIG: Nur die Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
 `
-  return callGemini(prompt, 2, 80)
+  return callGemini(prompt, 2, 40)
 }
 
 async function generateOutro({ gpName, draftOrder, allPicks }) {
@@ -106,14 +106,14 @@ async function generateOutro({ gpName, draftOrder, allPicks }) {
   }).join(' | ')
 
   const prompt = `
-Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.
+Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei. Wir sind mitten in der F1-Saison 2026. Alle vier Spieler sind Männer.
 Schreib ein Outro (3-5 Sätze) für den abgeschlossenen Fantasy Draft zum GP von ${gpName}.
 
 Alle Picks:
 ${playerSummaries}
 
 Spieler-Kontext:
-- Mandi: Sicherheitsdenker, sportlich, beim Wetten zu konservativ.
+- Mandi: Mann, Sicherheitsdenker, sportlich, beim Wetten zu konservativ.
 - Alex: Analysiert alles dreimal, Familienvater, methodisch.
 - Andii: Entspannter Typ, Eishockey-Fan, Zocker.
 - Ferk: Entscheidet aus dem Bauch, Paragleiter.
@@ -252,7 +252,12 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
         generatePickComment({ playerName: newest.playerName, pickName, gpName })
           .then(text => {
             if (text) {
-              const trimmed = text.length > 220 ? text.slice(0, 220).replace(/\s\S*$/, '…') : text
+              const trimmed = (() => {
+                if (text.length <= 300) return text
+                const cut = text.slice(0, 300)
+                const lastEnd = Math.max(cut.lastIndexOf('.'), cut.lastIndexOf('!'), cut.lastIndexOf('?'))
+                return lastEnd > 50 ? text.slice(0, lastEnd + 1) : cut.trimEnd()
+              })()
               setComments(prev => ({ ...prev, [newest.id]: trimmed }))
               supabase.from('picks').update({ ai_comment: trimmed }).eq('id', newest.id)
             }
