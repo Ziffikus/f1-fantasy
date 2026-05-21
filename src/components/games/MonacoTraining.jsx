@@ -34,15 +34,15 @@ const RAW = [
 ]
 
 const TRACK_SCALE = 25   // Angepasst an die echten Koordinaten
-const TRACK_WIDTH = 120   // Angenehme Breite für das Gameplay
-const BUFFER      = 40
+const TRACK_WIDTH = 240   // Angenehme Breite für das Gameplay
+const BUFFER      = 80
 const INNER_LIMIT = TRACK_WIDTH / 2
 const OUTER_LIMIT = TRACK_WIDTH / 2 + BUFFER
 const GAME_W = 720
 const GAME_H = 500
 const CAR_SCREEN_X = GAME_W / 2
 const CAR_SCREEN_Y = GAME_H - 35
-const ZOOM = 0.55
+const ZOOM = 0.62
 
 const GHOST_KEY   = 'monacoTraining_clean_ghost'
 const PENDING_KEY = 'monacoTraining_clean_pendingScore'
@@ -462,7 +462,7 @@ export default function MonacoTraining({ onClose }) {
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
-        const maxSpd=855, acc=665, steer=1.8
+        const maxSpd=855, acc=665, steer=3
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
