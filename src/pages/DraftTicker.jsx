@@ -6,7 +6,7 @@ import './DraftTicker.css'
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 const GEMINI_MODEL = "gemini-2.5-flash"
 
-async function callGemini(prompt, retries = 2) {
+async function callGemini(prompt, retries = 2, maxTokens = 5000) {
   if (!API_KEY) return null
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
@@ -14,12 +14,12 @@ async function callGemini(prompt, retries = 2) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 5000, temperature: 1.4 }
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 1.4 }
       })
     })
     if (res.status === 429 && retries > 0) {
       await new Promise(resolve => setTimeout(resolve, 8000))
-      return callGemini(prompt, retries - 1)
+      return callGemini(prompt, retries - 1, maxTokens)
     }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
@@ -81,15 +81,13 @@ KATEGORIE-WÜRFEL – wähle zufällig eine:
 [C] KIES' LEBEN – 15%: Alter silberne BMW - rostig, klappernde Türen, Rückenschmerzen, Mahnbescheide – aber mit kleinem Zugeständnis am Ende.
 
 Regeln:
-- 1-2 Sätze oder maximal 75 Zeichen.
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
 - Ironie darf eine halbe Sekunde brauchen.
 - Erschöpft, nicht verbittert.
-- WICHTIG: Nur die 2 Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
+- WICHTIG: Nur die Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
+- Zu lang = falsch. Kürzer ist besser.
 `
-  return callGemini(prompt)
-}
-
-async function generateOutro({ gpName, draftOrder, allPicks }) {
+  return callGemini(prompt, 2, 80)({ gpName, draftOrder, allPicks }) {
   const playerSummaries = draftOrder.map(o => {
     const name = o.profiles?.display_name
     const playerPicks = allPicks.filter(p => p.profile_id === o.profile_id)
@@ -251,8 +249,9 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
         generatePickComment({ playerName: newest.playerName, pickName, gpName })
           .then(text => {
             if (text) {
-              setComments(prev => ({ ...prev, [newest.id]: text }))
-              supabase.from('picks').update({ ai_comment: text }).eq('id', newest.id)
+              const trimmed = text.length > 220 ? text.slice(0, 220).replace(/\s\S*$/, '…') : text
+              setComments(prev => ({ ...prev, [newest.id]: trimmed }))
+              supabase.from('picks').update({ ai_comment: trimmed }).eq('id', newest.id)
             }
           })
           .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))
