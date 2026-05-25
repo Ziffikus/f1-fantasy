@@ -430,11 +430,6 @@ export default function MonacoTraining({ onClose }) {
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
-    const resetTouches = () => {
-      if (gameRef.current) { gameRef.current.touches.left = false; gameRef.current.touches.right = false }
-    }
-    window.addEventListener('touchend', resetTouches)
-    window.addEventListener('touchcancel', resetTouches)
     window.addEventListener('blur', resetAllKeys)
 
     function drawWorld() {
@@ -705,8 +700,6 @@ export default function MonacoTraining({ onClose }) {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('touchend', resetTouches)
-      window.removeEventListener('touchcancel', resetTouches)
       window.removeEventListener('blur', resetAllKeys)
     }
   }, [])
@@ -818,20 +811,22 @@ export default function MonacoTraining({ onClose }) {
       <div className="arcade-touch-controls">
         <div className="arcade-touch-left">
           <button className="arcade-btn arcade-btn--turn"
-            onTouchStart={(e)=>{e.preventDefault();touchStart('left')}} onTouchEnd={()=>touchEnd('left')}
-            onTouchCancel={()=>touchEnd('left')}
-            onMouseDown={()=>touchStart('left')} onMouseUp={()=>touchEnd('left')} onMouseLeave={()=>touchEnd('left')}>◀</button>
+            style={{touchAction:'none'}}
+            onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);touchStart('left')}}
+            onPointerUp={()=>touchEnd('left')}
+            onPointerCancel={()=>touchEnd('left')}>◀</button>
         </div>
         <button
           className="arcade-btn arcade-btn--reset"
-          onClick={resetGame}
-          onTouchStart={(e)=>{ e.preventDefault(); resetGame() }}
+          style={{touchAction:'none'}}
+          onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); resetGame()}}
         >↺</button>
         <div className="arcade-touch-right">
           <button className="arcade-btn arcade-btn--turn"
-            onTouchStart={(e)=>{e.preventDefault();touchStart('right')}} onTouchEnd={()=>touchEnd('right')}
-            onTouchCancel={()=>touchEnd('right')}
-            onMouseDown={()=>touchStart('right')} onMouseUp={()=>touchEnd('right')} onMouseLeave={()=>touchEnd('right')}>▶</button>
+            style={{touchAction:'none'}}
+            onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);touchStart('right')}}
+            onPointerUp={()=>touchEnd('right')}
+            onPointerCancel={()=>touchEnd('right')}>▶</button>
         </div>
       </div>
 
