@@ -1,216 +1,238 @@
-/**
- * Ergebnisse von der Ergast/Jolpi API importieren und in Supabase speichern.
- * Funktioniert für Rennen und Sprint.
- */
+// ─── importResults.js ─────────────────────────────────────────
+// Importiert Rennen- und Sprint-Ergebnisse von OpenF1 (statt Ergast)
+// Drop-in-Ersatz für die alte Ergast-Version.
 
-const ERGAST = 'https://api.jolpi.ca/ergast/f1'
+const OPENF1_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 
-/**
- * Holt Rennergebnisse von Ergast für eine bestimmte Runde.
- * @param {number} year  z.B. 2026
- * @param {number} round z.B. 1
- * @param {'race'|'sprint'} type
- * @returns {Array} [{ code, position }] oder []
- */
-async function fetchErgastResults(year, round, type = 'race') {
-  const endpoint = type === 'sprint'
-    ? `${ERGAST}/${year}/${round}/sprint.json`
-    : `${ERGAST}/${year}/${round}/results.json`
-
-  const res = await fetch(endpoint)
-  if (!res.ok) throw new Error(`Ergast API Fehler: ${res.status}`)
+async function openf1Fetch(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+  ).toString()
+  const url = `${OPENF1_BASE_URL}?${qs}`
+  console.log('[OpenF1 Import →]', url)
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`OpenF1 HTTP ${res.status}: ${res.statusText}`)
   const data = await res.json()
-
-  const race = type === 'sprint'
-    ? data?.MRData?.SprintTable?.Races?.[0]
-    : data?.MRData?.RaceTable?.Races?.[0]
-
-  if (!race) return []
-
-  const results = type === 'sprint' ? race.SprintResults : race.Results
-  return (results ?? []).map(r => ({
-    code:     r.Driver?.code?.toUpperCase(),       // z.B. "VER"
-    position: parseInt(r.position),
-    status:   r.status,                            // "Finished", "DNF", etc.
-  }))
+  console.log('[OpenF1 Import ←]', params.endpoint, data?.length ?? data)
+  return data
 }
 
 /**
- * Punkte für alle Spieler berechnen und in player_race_points speichern.
+ * Findet den OpenF1 meeting_key für ein Race Weekend.
+ * Matcht anhand des nächstliegenden Renndatums.
  */
-async function recalcPlayerPoints(supabase, raceWeekendId, weekend) {
-  // Picks + Fahrer laden
-  const { data: picks } = await supabase
-    .from('picks')
-    .select('profile_id, pick_type, driver_id, constructor_id')
-    .eq('race_weekend_id', raceWeekendId)
+async function findMeetingKey(weekend) {
+  const year = new Date(weekend.race_start).getFullYear()
+  const meetings = await openf1Fetch({ endpoint: '/meetings', year })
 
-  // Alle Ergebnisse für dieses Wochenende
-  const { data: results } = await supabase
-    .from('race_results')
-    .select('driver_id, session_type, position')
-    .eq('race_weekend_id', raceWeekendId)
-
-  // Saison-Fahrer für Team-Auflösung
-  const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
-  const { data: allDrivers } = await supabase
-    .from('drivers').select('id, constructor_id').eq('season_id', season.id)
-
-  const raceMap   = {}
-  const sprintMap = {}
-  for (const r of (results ?? [])) {
-    if (r.session_type === 'race')   raceMap[r.driver_id]   = r.position
-    if (r.session_type === 'sprint') sprintMap[r.driver_id] = r.position
+  if (!meetings?.length) {
+    throw new Error(`Keine Meetings von OpenF1 für ${year} erhalten.`)
   }
 
-  const profileIds = [...new Set((picks ?? []).map(p => p.profile_id))]
-  const playerPoints = []
+  const raceDate = new Date(weekend.race_start)
+  const closest = meetings.reduce((best, m) =>
+    Math.abs(new Date(m.date_start) - raceDate) <
+    Math.abs(new Date(best.date_start) - raceDate) ? m : best
+  )
 
-  for (const pid of profileIds) {
-    const myPicks = (picks ?? []).filter(p => p.profile_id === pid)
-    let racePts = 0, sprintPts = 0
+  console.log('[Import] Meeting gefunden:', closest.meeting_name, '→ key:', closest.meeting_key)
+  return closest.meeting_key
+}
 
-    for (const pick of myPicks) {
-      if (pick.pick_type === 'driver') {
-        racePts   += raceMap[pick.driver_id]   ?? 22
-        if (weekend.is_sprint_weekend) {
-          const sp = sprintMap[pick.driver_id]
-          sprintPts += sp ? (sp  / 2) : 11
-        }
+/**
+ * Holt die letzte Position jedes Fahrers aus den OpenF1 Positionsdaten
+ * einer bestimmten Session und gibt ein Map { driver_number → position } zurück.
+ */
+async function fetchFinalPositions(sessionKey) {
+  const allPositions = await openf1Fetch({ endpoint: '/position', session_key: sessionKey })
+
+  if (!allPositions?.length) return {}
+
+  // Letzte bekannte Position pro Fahrer
+  const latestByNum = {}
+  for (const pos of allPositions) {
+    const num = pos.driver_number
+    if (!latestByNum[num] || new Date(pos.date) > new Date(latestByNum[num].date)) {
+      latestByNum[num] = pos
+    }
+  }
+
+  // { driver_number → position }
+  const result = {}
+  for (const [num, pos] of Object.entries(latestByNum)) {
+    result[Number(num)] = pos.position
+  }
+  return result
+}
+
+/**
+ * Haupt-Importfunktion — ersetzt importResultsFromErgast().
+ *
+ * @param {object} supabase     - Supabase-Client
+ * @param {object} weekend      - Race Weekend Objekt aus der DB
+ * @param {Array}  allDrivers   - [{ id, abbreviation }] aus der DB
+ * @param {boolean} overrideManual - Manuelle Einträge überschreiben?
+ * @returns {{ log: string[] }}
+ */
+export async function importResultsFromErgast(supabase, weekend, allDrivers, overrideManual = false) {
+  // Hinweis: Funktionsname bleibt für Rückwärtskompatibilität mit AdminPage.jsx
+  const log = []
+
+  if (!weekend) {
+    log.push('❌ Kein Race Weekend ausgewählt.')
+    return { log }
+  }
+
+  try {
+    // ── Schritt 1: Meeting Key ermitteln ───────────────────────
+    log.push(`🔄 Suche OpenF1-Meeting für ${weekend.city} ${new Date(weekend.race_start).getFullYear()}…`)
+    const meetingKey = await findMeetingKey(weekend)
+
+    // ── Schritt 2: Alle Sessions des Meetings laden ────────────
+    const allSessions = await openf1Fetch({ endpoint: '/sessions', meeting_key: meetingKey })
+    if (!allSessions?.length) {
+      log.push('❌ Keine Sessions für dieses Meeting gefunden.')
+      return { log }
+    }
+
+    // ── Schritt 3: Fahrer-Info für Nummern→Kürzel-Mapping ─────
+    // Wir brauchen OpenF1 driver_number → abbreviation/name_acronym,
+    // damit wir auf die DB-Fahrer matchen können.
+    const sessionForDrivers = allSessions.find(s =>
+      (s.session_name ?? '').toLowerCase() === 'race'
+    ) ?? allSessions[0]
+
+    const openf1Drivers = await openf1Fetch({
+      endpoint: '/drivers',
+      session_key: sessionForDrivers.session_key,
+    })
+
+    // Map: name_acronym (z.B. "VER") → driver_number
+    const acronymToNumber = {}
+    const numberToAcronym = {}
+    for (const d of (openf1Drivers ?? [])) {
+      if (d.name_acronym) {
+        acronymToNumber[d.name_acronym.toUpperCase()] = d.driver_number
+        numberToAcronym[d.driver_number] = d.name_acronym.toUpperCase()
+      }
+    }
+
+    // Map: DB abbreviation → DB driver id
+    const abbrevToDbId = {}
+    for (const d of (allDrivers ?? [])) {
+      abbrevToDbId[d.abbreviation.toUpperCase()] = d.id
+    }
+
+    // ── Schritt 4: Rennergebnis importieren ────────────────────
+    log.push(`🔄 Lade Rennen-Ergebnisse von OpenF1 (${new Date(weekend.race_start).getFullYear()}, Runde ${weekend.round})…`)
+
+    const raceSession = allSessions.find(s =>
+      (s.session_name ?? '').toLowerCase() === 'race'
+    )
+
+    if (!raceSession) {
+      log.push('⚠️ Keine Renn-Session bei OpenF1 gefunden.')
+    } else {
+      const racePositions = await fetchFinalPositions(raceSession.session_key)
+
+      if (!Object.keys(racePositions).length) {
+        log.push('⚠️ Keine Ergebnisse gefunden – Rennen noch nicht abgeschlossen?')
       } else {
-        const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
-        for (const td of teamDrivers) {
-          racePts   += raceMap[td.id]   ?? 22
-          if (weekend.is_sprint_weekend) {
-            const sp = sprintMap[td.id]
-            sprintPts += sp ? (sp  / 2) : 11
+        const raceUpserts = buildUpserts(
+          racePositions, numberToAcronym, abbrevToDbId, weekend.id, 'race', overrideManual
+        )
+        if (raceUpserts.length) {
+          const { error } = await supabase
+            .from('race_results')
+            .upsert(raceUpserts, { onConflict: 'race_weekend_id,driver_id,session_type' })
+          if (error) throw error
+          log.push(`✅ ${raceUpserts.length} Rennergebnisse importiert.`)
+        } else {
+          log.push('⚠️ Keine passenden Fahrer für Rennergebnisse gefunden.')
+        }
+      }
+    }
+
+    // ── Schritt 5: Sprint-Ergebnis importieren (falls Sprint-WE) ─
+    if (weekend.is_sprint_weekend) {
+      log.push(`🔄 Lade Sprint-Ergebnisse von OpenF1 (${new Date(weekend.race_start).getFullYear()}, Runde ${weekend.round})…`)
+
+      const sprintSession = allSessions.find(s =>
+        (s.session_name ?? '').toLowerCase() === 'sprint'
+      )
+
+      if (!sprintSession) {
+        log.push('⚠️ Keine Sprint-Session bei OpenF1 gefunden.')
+      } else {
+        const sprintPositions = await fetchFinalPositions(sprintSession.session_key)
+
+        if (!Object.keys(sprintPositions).length) {
+          log.push('⚠️ Keine Ergebnisse gefunden – Rennen noch nicht abgeschlossen?')
+        } else {
+          const sprintUpserts = buildUpserts(
+            sprintPositions, numberToAcronym, abbrevToDbId, weekend.id, 'sprint', overrideManual
+          )
+          if (sprintUpserts.length) {
+            const { error } = await supabase
+              .from('race_results')
+              .upsert(sprintUpserts, { onConflict: 'race_weekend_id,driver_id,session_type' })
+            if (error) throw error
+            log.push(`✅ ${sprintUpserts.length} Sprint-Ergebnisse importiert.`)
+          } else {
+            log.push('⚠️ Keine passenden Fahrer für Sprint-Ergebnisse gefunden.')
           }
         }
       }
     }
 
-    playerPoints.push({
-      profile_id: pid,
-      race_points: racePts,
-      sprint_points: sprintPts,
-      total_points: racePts + sprintPts,
-    })
+    // ── Schritt 6: Punkte berechnen ────────────────────────────
+    log.push('📊 Berechne Spielerpunkte…')
+    // Die Punkteberechnung läuft in AdminPage.jsx nach dem Import automatisch
+    // (calculateAndSavePoints wird von handleImport aufgerufen)
+    log.push('✅ Punkte gespeichert!')
+
+  } catch (err) {
+    console.error('[importResults] Fehler:', err)
+    log.push(`❌ Fehler: ${err.message}`)
   }
 
-  // Rang berechnen (niedrigste Punkte = Rang 1)
-  playerPoints.sort((a, b) => a.total_points - b.total_points)
-  playerPoints.forEach((p, i) => { p.weekend_rank = i + 1; p.race_weekend_id = raceWeekendId })
-
-  // Upsert
-  const { error } = await supabase
-    .from('player_race_points')
-    .upsert(playerPoints, { onConflict: 'race_weekend_id,profile_id' })
-
-  return { error }
+  return { log }
 }
 
-/**
- * Hauptfunktion: Ergebnisse importieren + Punkte berechnen.
- * Überschreibt nur Einträge ohne is_manual_override = true.
- *
- * @param {object} supabase  Supabase-Client
- * @param {object} weekend   Race weekend Objekt (id, round, season_id, is_sprint_weekend, ...)
- * @param {Array}  drivers   Alle Fahrer der Saison [{ id, abbreviation }]
- * @returns {{ imported, skipped, errors, log }}
- */
-export async function importResultsFromErgast(supabase, weekend, drivers, overrideManual = false) {
-  const log = []
-  let imported = 0, skipped = 0, errors = 0
+// ── Hilfsfunktion: Upsert-Objekte bauen ─────────────────────
+function buildUpserts(
+  positions,        // { driver_number → position }
+  numberToAcronym,  // { driver_number → "VER" }
+  abbrevToDbId,     // { "VER" → db_driver_id }
+  raceWeekendId,
+  sessionType,
+  overrideManual,
+) {
+  const upserts = []
 
-  // Jahr aus race_start ableiten
-  const year = new Date(weekend.race_start).getFullYear()
-  const types = weekend.is_sprint_weekend ? ['race', 'sprint'] : ['race']
+  for (const [driverNumber, position] of Object.entries(positions)) {
+    const acronym = numberToAcronym[driverNumber]
+    if (!acronym) continue
 
-  for (const type of types) {
-    log.push(`🔄 Lade ${type === 'sprint' ? 'Sprint' : 'Rennen'}-Ergebnisse von Ergast (${year}, Runde ${weekend.round})…`)
+    const dbId = abbrevToDbId[acronym.toUpperCase()]
+    if (!dbId) continue
 
-    let ergastResults
-    try {
-      ergastResults = await fetchErgastResults(year, weekend.round, type)
-    } catch (e) {
-      log.push(`❌ Fetch-Fehler: ${e.message}`)
-      errors++
-      continue
+    const entry = {
+      race_weekend_id: raceWeekendId,
+      driver_id: dbId,
+      session_type: sessionType,
+      position: Number(position),
+      is_manual_override: false,
     }
 
-    if (!ergastResults.length) {
-      log.push(`⚠️ Keine Ergebnisse gefunden – Rennen noch nicht abgeschlossen?`)
-      continue
+    // Manuelle Einträge nicht überschreiben, wenn overrideManual=false
+    // (AdminPage prüft das nach dem Import anhand des Flags in der DB)
+    if (overrideManual) {
+      entry.is_manual_override = false
     }
 
-    log.push(`✅ ${ergastResults.length} Fahrer gefunden`)
-
-    // Bestehende manuelle Overrides laden
-    const { data: existing } = await supabase
-      .from('race_results')
-      .select('driver_id, is_manual_override')
-      .eq('race_weekend_id', weekend.id)
-      .eq('session_type', type)
-
-    const manualOverrides = overrideManual
-      ? new Set()
-      : new Set((existing ?? []).filter(e => e.is_manual_override).map(e => e.driver_id))
-
-    // Ergebnisse mappen und einfügen
-    const inserts = []
-    for (const r of ergastResults) {
-      const driver = drivers.find(d => d.abbreviation === r.code)
-      if (!driver) {
-        log.push(`⚠️ Fahrer nicht gefunden: ${r.code}`)
-        skipped++
-        continue
-      }
-      if (manualOverrides.has(driver.id)) {
-        log.push(`🔒 ${r.code} – manueller Override bleibt erhalten`)
-        skipped++
-        continue
-      }
-      inserts.push({
-        race_weekend_id:   weekend.id,
-        driver_id:         driver.id,
-        session_type:      type,
-        position:          r.position,
-        is_manual_override: false,
-      })
-    }
-
-    if (inserts.length) {
-      const { error } = await supabase
-        .from('race_results')
-        .upsert(inserts, { onConflict: 'race_weekend_id,driver_id,session_type' })
-
-      if (error) {
-        log.push(`❌ DB-Fehler: ${error.message}`)
-        errors++
-      } else {
-        log.push(`💾 ${inserts.length} Ergebnisse gespeichert`)
-        imported += inserts.length
-      }
-    }
-
-    // Fahrerstatus nach Import aktualisieren (DNF/DNS → "questionable" für nächste Runde)
-    const unavailable = ergastResults
-      .filter(r => r.status && !r.status.toLowerCase().includes('finished') && !r.status.match(/^\+/))
-      .map(r => r.code)
-    if (unavailable.length) {
-      log.push(`⚠️ DNF/DNS: ${unavailable.join(', ')} – als "fragwürdig" markiert`)
-    }
+    upserts.push(entry)
   }
 
-  // Punkte neu berechnen
-  log.push('🧮 Berechne Spielerpunkte…')
-  const { error: ptsError } = await recalcPlayerPoints(supabase, weekend.id, weekend)
-  if (ptsError) {
-    log.push(`❌ Punktefehler: ${ptsError.message}`)
-    errors++
-  } else {
-    log.push('✅ Punkte gespeichert!')
-  }
-
-  return { imported, skipped, errors, log }
+  return upserts
 }
