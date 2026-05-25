@@ -520,7 +520,7 @@ export default function MonacoTraining({ onClose }) {
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
       ctx.translate(ghostCar.x, ghostCar.y)
-      ctx.rotate(ghostCar.angle + Math.PI / 2)  // Weltwinkel + PI/2 Korrektur (wie drawCar)
+      ctx.rotate(ghostCar.angle + Math.PI)  // Weltwinkel + PI damit Ghost gleich wie Auto nach oben zeigt
       ctx.scale(1/ZOOM, 1/ZOOM)  // ZOOM-Skalierung aufheben damit Ghost gleich groß wie Auto
       ctx.globalAlpha = 0.45
       // Schatten
