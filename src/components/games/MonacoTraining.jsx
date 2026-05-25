@@ -221,6 +221,7 @@ export default function MonacoTraining({ onClose }) {
   const [selectedEntry,   setSelectedEntry]   = useState(0)
   const selectedEntryRef  = useRef(0)
   const [trainMode,       setTrainMode]       = useState('qualifying')
+  const trainModeRef      = useRef('qualifying')
 
   const resetStateRef = useRef(null)
 
@@ -401,12 +402,24 @@ export default function MonacoTraining({ onClose }) {
     loadGhost()
 
     let lapTime = 0, bestLapMs = Infinity
+    let ghostStartOffset = 0
     let lapStarted = true, prevSeg = START_SEG, lastTS = null
     let inBuffer = false, racing = false, finishedRef = false
     let startTimeMs = null, bestLapSaved = null
     let sectorStartMs = [null, null, null]
     let currentSectorMs = [null, null, null]
     let lastSector = 0
+
+    function findNearestGhostFrame(x, y) {
+      // Suche den Ghost-Frame der der Startposition am nächsten ist
+      let best = Infinity, bestIdx = 0
+      for (let i = 0; i < ghostFrames.length; i++) {
+        const f = ghostFrames[i]
+        const d = (f.x - x) ** 2 + (f.y - y) ** 2
+        if (d < best) { best = d; bestIdx = i }
+      }
+      return bestIdx
+    }
 
     function resetCar() {
       const entrySeg = ENTRY_POINTS[selectedEntryRef.current].rawIdx * 4
@@ -415,10 +428,14 @@ export default function MonacoTraining({ onClose }) {
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false
-      currentRecording = []; ghostIdx = 0; lastSector = 0
+      currentRecording = []; lastSector = 0
       sectorStartMs = [null, null, null]
       currentSectorMs = [null, null, null]
-      if (ghostFrames.length > 0) ghostCar = { ...ghostFrames[0] }
+      if (ghostFrames.length > 0) {
+        ghostIdx = findNearestGhostFrame(car.x, car.y)
+        ghostCar = { ...ghostFrames[ghostIdx] }
+        ghostStartOffset = ghostFrames[ghostIdx].t ?? ghostIdx * 16
+      }
     }
 
     gameRef.current = {
@@ -632,8 +649,7 @@ export default function MonacoTraining({ onClose }) {
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
 
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
-          const elapsed = ts - startTimeMs
-          // zeitbasiertes Replay: suche den Frame der am nächsten an elapsed liegt
+          const elapsed = ghostStartOffset + (ts - startTimeMs)
           while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
             ghostIdx++
           }
@@ -687,7 +703,7 @@ export default function MonacoTraining({ onClose }) {
             setGameState('finished')
             setFinishedSectors([...currentSectorMs])
             if (bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
-              bestLapSaved = bestLapMs; saveHighscore(bestLapMs)
+              bestLapSaved = bestLapMs; if (trainModeRef.current === 'qualifying') saveHighscore(bestLapMs)
             }
           }
         }
@@ -728,6 +744,7 @@ export default function MonacoTraining({ onClose }) {
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
   useEffect(() => { selectedEntryRef.current = selectedEntry }, [selectedEntry])
+  useEffect(() => { trainModeRef.current = trainMode }, [trainMode])
 
   function touchStart(action) { if (gameRef.current) gameRef.current.touches[action]=true }
   function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
