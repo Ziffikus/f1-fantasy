@@ -163,6 +163,18 @@ const ZOOM = 0.63
 const GHOST_KEY   = 'monacoTraining_clean_ghost'
 const PENDING_KEY = 'monacoTraining_clean_pendingScore'
 
+// RAW-Punkt → Subdivision-Segment = RAW-Index * 4
+const ENTRY_POINTS = [
+  { label: 'Start/Ziel',     rawIdx: 60,  emoji: '🏁' },
+  { label: 'Sainte Dévote', rawIdx: 0,   emoji: '①' },
+  { label: 'Massenet',       rawIdx: 25,  emoji: '②' },
+  { label: 'Casino',         rawIdx: 33,  emoji: '③' },
+  { label: 'Mirabeau',       rawIdx: 42,  emoji: '④' },
+  { label: 'Tunnel',         rawIdx: 54,  emoji: '⑤' },
+  { label: 'Chicane',        rawIdx: 83,  emoji: '⑥' },
+  { label: 'Rascasse',       rawIdx: 95,  emoji: '⑦' },
+]
+
 function formatTime(ms) {
   if (ms === null || ms === undefined) return '--:--.---'
   const mins   = Math.floor(ms / 60000)
@@ -207,6 +219,8 @@ export default function MonacoTraining({ onClose }) {
   const [finishedSectors, setFinishedSectors] = useState([null, null, null])
   const [showGhost,       setShowGhost]       = useState(true)
   const showGhostRef = useRef(true)
+  const [selectedEntry,   setSelectedEntry]   = useState(0)
+  const selectedEntryRef  = useRef(0)
 
   const resetStateRef = useRef(null)
 
@@ -395,10 +409,11 @@ export default function MonacoTraining({ onClose }) {
     let lastSector = 0
 
     function resetCar() {
-      car.x = TRK[START_SEG][0]; car.y = TRK[START_SEG][1]
-      car.angle = segAngle(START_SEG); car.speed = START_SPEED
+      const entrySeg = ENTRY_POINTS[selectedEntryRef.current].rawIdx * 4
+      car.x = TRK[entrySeg][0]; car.y = TRK[entrySeg][1]
+      car.angle = segAngle(entrySeg); car.speed = START_SPEED
       camX = car.x; camY = car.y
-      lapStarted = true; lapTime = 0; prevSeg = START_SEG
+      lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false
       currentRecording = []; ghostIdx = 0; lastSector = 0
       sectorStartMs = [null, null, null]
@@ -712,6 +727,7 @@ export default function MonacoTraining({ onClose }) {
   }, [gameState])
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
+  useEffect(() => { selectedEntryRef.current = selectedEntry }, [selectedEntry])
 
   function touchStart(action) { if (gameRef.current) gameRef.current.touches[action]=true }
   function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
@@ -784,7 +800,24 @@ export default function MonacoTraining({ onClose }) {
                 <span className="monaco-s2-dot">●</span> S2
                 <span className="monaco-s3-dot">●</span> S3
               </div>
-              <button className="btn btn-primary" onClick={startGame}>START</button>
+              <div style={{width:'100%',marginTop:'0.4rem'}}>
+                <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Einstiegspunkt</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem'}}>
+                  {ENTRY_POINTS.map((ep, i) => (
+                    <button key={i}
+                      className="btn"
+                      style={{
+                        fontSize:'0.7rem', padding:'0.25rem 0.4rem', textAlign:'left',
+                        background: selectedEntry===i ? 'rgba(100,181,246,0.25)' : 'transparent',
+                        border: selectedEntry===i ? '1px solid rgba(100,181,246,0.7)' : '1px solid var(--border)',
+                        color: selectedEntry===i ? '#64b5f6' : 'var(--text-secondary)',
+                      }}
+                      onClick={()=>setSelectedEntry(i)}
+                    >{ep.emoji} {ep.label}</button>
+                  ))}
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.5rem'}}>START</button>
             </div>
           </div>
         )}
