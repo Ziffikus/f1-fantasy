@@ -165,13 +165,13 @@ const PENDING_KEY = 'monacoTraining_clean_pendingScore'
 
 // RAW-Punkt → Subdivision-Segment = RAW-Index * 4
 const ENTRY_POINTS = [
-  { label: 'Abschnitt 1', rawIdx: 0,  emoji: '①' },
-  { label: 'Abschnitt 2', rawIdx: 14, emoji: '②' },
-  { label: 'Abschnitt 3', rawIdx: 29, emoji: '③' },
-  { label: 'Abschnitt 4', rawIdx: 43, emoji: '④' },
-  { label: 'Abschnitt 5', rawIdx: 58, emoji: '⑤' },
-  { label: 'Abschnitt 6', rawIdx: 72, emoji: '⑥' },
-  { label: 'Abschnitt 7', rawIdx: 87, emoji: '⑦' },
+  { label: 'Abschnitt 1', rawIdx: 60, emoji: '①' },
+  { label: 'Abschnitt 2', rawIdx: 74, emoji: '②' },
+  { label: 'Abschnitt 3', rawIdx: 89, emoji: '③' },
+  { label: 'Abschnitt 4', rawIdx: 2,  emoji: '④' },
+  { label: 'Abschnitt 5', rawIdx: 17, emoji: '⑤' },
+  { label: 'Abschnitt 6', rawIdx: 31, emoji: '⑥' },
+  { label: 'Abschnitt 7', rawIdx: 46, emoji: '⑦' },
 ]
 
 function formatTime(ms) {
@@ -220,6 +220,7 @@ export default function MonacoTraining({ onClose }) {
   const showGhostRef = useRef(true)
   const [selectedEntry,   setSelectedEntry]   = useState(0)
   const selectedEntryRef  = useRef(0)
+  const [trainMode,       setTrainMode]       = useState('qualifying')
 
   const resetStateRef = useRef(null)
 
@@ -790,32 +791,52 @@ export default function MonacoTraining({ onClose }) {
           <div className="arcade-overlay">
             <div className="arcade-start-card monaco-start-card">
               <div className="arcade-start-title">🎓 Monaco Training</div>
-              <p className="arcade-start-sub">1 Runde · Fahre gegen deinen Ghost</p>
               {hasGhost && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
               {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
-              <div className="monaco-sector-info">
-                <span className="monaco-s1-dot">●</span> S1
-                <span className="monaco-s2-dot">●</span> S2
-                <span className="monaco-s3-dot">●</span> S3
-              </div>
-              <div style={{width:'100%',marginTop:'0.4rem'}}>
-                <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Einstiegspunkt</div>
+
+              <div style={{width:'100%',marginTop:'0.5rem'}}>
+                <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Modus</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem'}}>
-                  {ENTRY_POINTS.map((ep, i) => (
-                    <button key={i}
-                      className="btn"
+                  {[['qualifying','🏆 Qualifying'],['section','🔧 Abschnitt']].map(([mode, label]) => (
+                    <button key={mode} className="btn"
                       style={{
-                        fontSize:'0.7rem', padding:'0.25rem 0.4rem', textAlign:'left',
-                        background: selectedEntry===i ? 'rgba(100,181,246,0.25)' : 'transparent',
-                        border: selectedEntry===i ? '1px solid rgba(100,181,246,0.7)' : '1px solid var(--border)',
-                        color: selectedEntry===i ? '#64b5f6' : 'var(--text-secondary)',
+                        fontSize:'0.75rem', padding:'0.3rem 0.4rem',
+                        background: trainMode===mode ? 'rgba(100,181,246,0.25)' : 'transparent',
+                        border: trainMode===mode ? '1px solid rgba(100,181,246,0.7)' : '1px solid var(--border)',
+                        color: trainMode===mode ? '#64b5f6' : 'var(--text-secondary)',
                       }}
-                      onClick={()=>setSelectedEntry(i)}
-                    >{ep.emoji} {ep.label}</button>
+                      onClick={()=>{ setTrainMode(mode); if(mode==='qualifying') setSelectedEntry(0) }}
+                    >{label}</button>
                   ))}
                 </div>
               </div>
+
+              {trainMode==='qualifying' && (
+                <p style={{fontSize:'0.72rem',color:'var(--text-muted)',margin:'0.35rem 0 0'}}>
+                  Start/Ziel bei Abschnitt ⑤ · vollständige Runde
+                </p>
+              )}
+
+              {trainMode==='section' && (
+                <div style={{width:'100%',marginTop:'0.4rem'}}>
+                  <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Einstiegspunkt</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem'}}>
+                    {ENTRY_POINTS.map((ep, i) => (
+                      <button key={i} className="btn"
+                        style={{
+                          fontSize:'0.7rem', padding:'0.25rem 0.4rem', textAlign:'left',
+                          background: selectedEntry===i ? 'rgba(232,196,64,0.2)' : 'transparent',
+                          border: selectedEntry===i ? '1px solid rgba(232,196,64,0.6)' : '1px solid var(--border)',
+                          color: selectedEntry===i ? '#e8c440' : 'var(--text-secondary)',
+                        }}
+                        onClick={()=>setSelectedEntry(i)}
+                      >{ep.emoji} {ep.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.5rem'}}>START</button>
             </div>
           </div>
