@@ -523,12 +523,15 @@ export default function MonacoTraining({ onClose }) {
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
       ctx.translate(ghostCar.x, ghostCar.y)
-      ctx.rotate(ghostCar.angle + Math.PI / 2)
-      ctx.globalAlpha = 0.38
+      ctx.rotate(ghostCar.angle - car.angle)  // relativ zur Kamera-Rotation
+      ctx.globalAlpha = 0.45
+      // Schatten
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(3,6,17,8,0,0,Math.PI*2); ctx.fill()
+      // Karosserie
       ctx.fillStyle = '#64b5f6'
-      ctx.beginPath(); ctx.ellipse(0,0,16,7,0,0,Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(0,0,18,8,0,0,Math.PI*2); ctx.fill()
       ctx.fillStyle = '#1a1a2e'
-      ctx.beginPath(); ctx.ellipse(2,0,6,4,0,0,Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(2,0,7,4.5,0,0,Math.PI*2); ctx.fill()
       ctx.fillStyle = '#2288cc'
       ctx.fillRect(13,-9,5,18); ctx.fillRect(-18,-9,4,18)
       ctx.fillStyle = '#111'
@@ -612,10 +615,15 @@ export default function MonacoTraining({ onClose }) {
         car.x += Math.cos(car.angle)*car.speed*dt
         car.y += Math.sin(car.angle)*car.speed*dt
 
-        currentRecording.push({ x: car.x, y: car.y, angle: car.angle })
+        const recT = startTimeMs !== null ? ts - startTimeMs : 0
+        currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
 
-        if (ghostFrames.length > 0 && ghostCar) {
-          ghostIdx = Math.min(ghostIdx + 1, ghostFrames.length - 1)
+        if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
+          const elapsed = ts - startTimeMs
+          // zeitbasiertes Replay: suche den Frame der am nächsten an elapsed liegt
+          while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
+            ghostIdx++
+          }
           ghostCar = { ...ghostFrames[ghostIdx] }
         }
 
