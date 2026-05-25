@@ -205,6 +205,8 @@ export default function MonacoTraining({ onClose }) {
   const [sectorTimes,    setSectorTimes]    = useState([null, null, null])
   const [ghostDelta,     setGhostDelta]     = useState(null)
   const [finishedSectors, setFinishedSectors] = useState([null, null, null])
+  const [showGhost,       setShowGhost]       = useState(true)
+  const showGhostRef = useRef(true)
 
   const resetStateRef = useRef(null)
 
@@ -518,15 +520,16 @@ export default function MonacoTraining({ onClose }) {
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
       ctx.translate(ghostCar.x, ghostCar.y)
-      ctx.rotate(ghostCar.angle - car.angle)  // relativ zur Kamera-Rotation
+      ctx.rotate(ghostCar.angle + Math.PI / 2)  // Weltwinkel + PI/2 Korrektur (wie drawCar)
+      ctx.scale(1/ZOOM, 1/ZOOM)  // ZOOM-Skalierung aufheben damit Ghost gleich groß wie Auto
       ctx.globalAlpha = 0.45
       // Schatten
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(3,6,17,8,0,0,Math.PI*2); ctx.fill()
       // Karosserie
       ctx.fillStyle = '#64b5f6'
-      ctx.beginPath(); ctx.ellipse(0,0,18,8,0,0,Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(0,0,16,7,0,0,Math.PI*2); ctx.fill()
       ctx.fillStyle = '#1a1a2e'
-      ctx.beginPath(); ctx.ellipse(2,0,7,4.5,0,0,Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(2,0,6,4,0,0,Math.PI*2); ctx.fill()
       ctx.fillStyle = '#2288cc'
       ctx.fillRect(13,-9,5,18); ctx.fillRect(-18,-9,4,18)
       ctx.fillStyle = '#111'
@@ -691,7 +694,7 @@ export default function MonacoTraining({ onClose }) {
       }
 
       ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
-      drawWorld(); drawGhost(); drawCar(); drawBufferWarning(); drawMinimap()
+      drawWorld(); if (showGhostRef.current) drawGhost(); drawCar(); drawBufferWarning(); drawMinimap()
       rafRef.current=requestAnimationFrame(loop)
     }
 
@@ -707,6 +710,8 @@ export default function MonacoTraining({ onClose }) {
   useEffect(() => {
     if (gameRef.current) gameRef.current.racing = gameState==='racing'
   }, [gameState])
+
+  useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
 
   function touchStart(action) { if (gameRef.current) gameRef.current.touches[action]=true }
   function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
@@ -799,11 +804,18 @@ export default function MonacoTraining({ onClose }) {
               <span className="arcade-hud-bar-value arcade-hud-bar-value--green">{formatTime(bestLap)}</span>
             </div>
           )}
-          {ghostDelta !== null && (
+          {ghostDelta !== null && showGhost && (
             <div className="monaco-ghost-delta">
               <span className="arcade-hud-bar-label">vs Ghost</span>
               <span className="arcade-hud-bar-value" style={{color: deltaColor, fontSize:'1rem'}}>{deltaText}</span>
             </div>
+          )}
+          {hasGhost && (
+            <button
+              className="arcade-btn"
+              style={{fontSize:'0.7rem', padding:'0.2rem 0.5rem', opacity: showGhost ? 1 : 0.45, touchAction:'none'}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowGhost(v=>!v)}}
+            >{showGhost ? '👻 AN' : '👻 AUS'}</button>
           )}
         </div>
       )}
