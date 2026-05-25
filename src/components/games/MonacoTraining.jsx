@@ -165,14 +165,13 @@ const PENDING_KEY = 'monacoTraining_clean_pendingScore'
 
 // RAW-Punkt → Subdivision-Segment = RAW-Index * 4
 const ENTRY_POINTS = [
-  { label: 'Start/Ziel',     rawIdx: 60,  emoji: '🏁' },
-  { label: 'Sainte Dévote', rawIdx: 0,   emoji: '①' },
-  { label: 'Massenet',       rawIdx: 25,  emoji: '②' },
-  { label: 'Casino',         rawIdx: 33,  emoji: '③' },
-  { label: 'Mirabeau',       rawIdx: 42,  emoji: '④' },
-  { label: 'Tunnel',         rawIdx: 54,  emoji: '⑤' },
-  { label: 'Chicane',        rawIdx: 83,  emoji: '⑥' },
-  { label: 'Rascasse',       rawIdx: 95,  emoji: '⑦' },
+  { label: 'Abschnitt 1', rawIdx: 0,  emoji: '①' },
+  { label: 'Abschnitt 2', rawIdx: 14, emoji: '②' },
+  { label: 'Abschnitt 3', rawIdx: 29, emoji: '③' },
+  { label: 'Abschnitt 4', rawIdx: 43, emoji: '④' },
+  { label: 'Abschnitt 5', rawIdx: 58, emoji: '⑤' },
+  { label: 'Abschnitt 6', rawIdx: 72, emoji: '⑥' },
+  { label: 'Abschnitt 7', rawIdx: 87, emoji: '⑦' },
 ]
 
 function formatTime(ms) {
