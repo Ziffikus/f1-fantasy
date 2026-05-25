@@ -412,20 +412,30 @@ export default function MonacoTraining({ onClose }) {
     }
 
     const keys = {}
-    const onKey = (e) => {
+    const onKeyDown = (e) => {
       if (e.key === ' ') { e.preventDefault(); resetStateRef.current?.(); return }
       if (['ArrowLeft','ArrowRight','a','d'].includes(e.key)) {
-        e.preventDefault(); keys[e.key] = e.type === 'keydown'
+        e.preventDefault(); keys[e.key] = true
       }
     }
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('keyup', onKey)
+    const onKeyUp = (e) => {
+      if (['ArrowLeft','ArrowRight','a','d'].includes(e.key)) {
+        e.preventDefault(); keys[e.key] = false
+      }
+    }
+    const resetAllKeys = () => {
+      keys['ArrowLeft'] = false; keys['ArrowRight'] = false
+      keys['a'] = false; keys['d'] = false
+      if (gameRef.current) { gameRef.current.touches.left = false; gameRef.current.touches.right = false }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
     const resetTouches = () => {
       if (gameRef.current) { gameRef.current.touches.left = false; gameRef.current.touches.right = false }
     }
     window.addEventListener('touchend', resetTouches)
     window.addEventListener('touchcancel', resetTouches)
-    window.addEventListener('blur', resetTouches)
+    window.addEventListener('blur', resetAllKeys)
 
     function drawWorld() {
       ctx.save()
@@ -685,11 +695,11 @@ export default function MonacoTraining({ onClose }) {
     rafRef.current=requestAnimationFrame(loop)
     return () => {
       cancelAnimationFrame(rafRef.current)
-      window.removeEventListener('keydown',onKey)
-      window.removeEventListener('keyup',onKey)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('touchend', resetTouches)
       window.removeEventListener('touchcancel', resetTouches)
-      window.removeEventListener('blur', resetTouches)
+      window.removeEventListener('blur', resetAllKeys)
     }
   }, [])
 
