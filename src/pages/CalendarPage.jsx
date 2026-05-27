@@ -162,7 +162,7 @@ function RaceSessionRow({ label, dateStr, sessionKey, onToggle, isOpen, results,
 }
 
 // ── Vergangenes Rennen: Picks & Punkte + Sessions ──────────────
-function PastRaceExpanded({ w }) {
+export function PastRaceExpanded({ w }) {
   const { profile } = useAuthStore()
   const [picks, setPicks] = useState([])
   const [results, setResults] = useState([])

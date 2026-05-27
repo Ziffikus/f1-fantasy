@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useStandings } from '../hooks/useStandings'
+import { PastRaceExpanded } from './CalendarPage'
 import Countdown from '../components/race/Countdown'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag } from 'lucide-react'
 import './DashboardPage.css'
@@ -13,6 +14,7 @@ export default function DashboardPage() {
 
   const completedRaces = weekends.filter(w => new Date(w.race_start) < new Date()).length
   const totalRaces = weekends.length
+  const lastRace = [...weekends].reverse().find(w => new Date(w.race_start) < new Date()) ?? null
 
   return (
     <div className="dashboard page-enter">
@@ -43,6 +45,17 @@ export default function DashboardPage() {
             <Countdown weekend={activeWeekend} />
           ) : (
             <div className="card"><p className="text-secondary">Saison beendet!</p></div>
+          )}
+
+          {!racesLoading && lastRace && (
+            <div className="card">
+              <div className="dashboard-section-header">
+                <Flag size={16} />
+                <span>{lastRace.flag_emoji} {lastRace.name}</span>
+                <span className="dashboard-last-race-round">R{lastRace.round}</span>
+              </div>
+              <PastRaceExpanded w={lastRace} />
+            </div>
           )}
 
           {!racesLoading && (
