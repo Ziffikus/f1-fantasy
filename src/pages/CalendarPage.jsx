@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
-import { useSessionResults } from '../hooks/useSessionResults'
-import { useDraft } from '../hooks/useDraft'
 import TrackMap from '../components/ui/TrackMap'
-import { MapPin, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { MapPin, Clock } from 'lucide-react'
 import './CalendarPage.css'
 
 function formatDate(dateStr) {
@@ -93,118 +92,6 @@ export default function CalendarPage() {
     </div>
   )
 
-  function PastRaceExpanded({ w }) {
-    const { fetchSession, results, loading: sLoading, error: sError, activeKey } = useSessionResults(w)
-    const { picks, draftOrder, loading: dLoading } = useDraft(w.id)
-
-    const sessions = w.is_sprint_weekend
-      ? ['fp1', 'sprint_quali', 'sprint', 'qualifying', 'race']
-      : ['fp1', 'fp2', 'fp3', 'qualifying', 'race']
-    const SESSION_LABELS = {
-      fp1: 'FP1', fp2: 'FP2', fp3: 'FP3',
-      sprint_quali: 'Sprint Qualifying', sprint: 'Sprint',
-      qualifying: 'Qualifying', race: 'Rennen 🏁',
-    }
-
-    // Picks & Punkte gruppiert nach Spieler
-    const playerData = draftOrder.map(order => {
-      const playerPicks = picks.filter(p => p.profile_id === order.profile_id)
-      const drivers = playerPicks.filter(p => p.pick_type === 'driver')
-      const constructors = playerPicks.filter(p => p.pick_type === 'constructor')
-      return { order, drivers, constructors }
-    })
-
-    return (
-      <div className="cal-sessions">
-        {/* ── Session-Ergebnisse ── */}
-        <div className="cal-sessions-inner">
-          <div className="cal-past-sessions-header">Session-Ergebnisse</div>
-          <div className="cal-session-tabs">
-            {sessions.map(key => {
-              const dateField = {
-                fp1: 'fp1_start', fp2: 'fp2_start', fp3: 'fp3_start',
-                sprint_quali: 'sprint_quali_start', qualifying: 'qualifying_start',
-                sprint: 'sprint_start', race: 'race_start',
-              }[key]
-              if (!w[dateField]) return null
-              return (
-                <button
-                  key={key}
-                  className={`cal-session-tab ${activeKey === key ? 'cal-session-tab--active' : ''}`}
-                  onClick={() => fetchSession(key)}
-                >
-                  {SESSION_LABELS[key]}
-                </button>
-              )
-            })}
-          </div>
-
-          {sLoading && <div className="cal-past-loading">Laden…</div>}
-          {sError && <div className="cal-past-error">{sError}</div>}
-          {!sLoading && !sError && results.length > 0 && (
-            <div className="cal-results-list">
-              {results.map(r => (
-                <div key={r.driver_number} className="cal-result-row">
-                  <span className="cal-result-pos">{r.position}</span>
-                  <span
-                    className="cal-result-dot"
-                    style={{ background: r.team_colour }}
-                  />
-                  <span className="cal-result-abbr">{r.abbreviation}</span>
-                  <span className="cal-result-team">{r.team_name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Picks & Punkte ── */}
-        {playerData.length > 0 && (
-          <div className="cal-past-picks">
-            <div className="cal-past-sessions-header">Picks</div>
-            {dLoading
-              ? <div className="cal-past-loading">Laden…</div>
-              : (
-                <div className="cal-picks-grid">
-                  {playerData.map(({ order, drivers, constructors }) => (
-                    <div key={order.profile_id} className="cal-pick-player">
-                      <div className="cal-pick-player-name">
-                        {order.profiles?.display_name ?? '–'}
-                      </div>
-                      <div className="cal-pick-items">
-                        {drivers.map(p => (
-                          <span key={p.id} className="cal-pick-chip cal-pick-chip--driver">
-                            {p.drivers?.abbreviation ?? '–'}
-                          </span>
-                        ))}
-                        {constructors.map(p => (
-                          <span key={p.id} className="cal-pick-chip cal-pick-chip--team"
-                            style={{ borderColor: p.constructors?.color ?? undefined }}>
-                            {p.constructors?.short_name ?? '–'}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-          </div>
-        )}
-
-        {/* ── Track + Circuit ── */}
-        <div className="cal-sessions-track">
-          <TrackMap round={w.round} size="md" />
-        </div>
-        <div className="cal-sessions-footer">
-          <span className="cal-circuit">
-            <Clock size={11} /> {w.circuit}
-          </span>
-        </div>
-      </div>
-    )
-  }
-
   function RaceCard({ w }) {
     const isExpanded = expanded === w.id
     const isPast     = new Date(w.race_start) < now
@@ -232,36 +119,35 @@ export default function CalendarPage() {
         </button>
 
         {isExpanded && (
-          isPast ? (
-            <PastRaceExpanded w={w} />
-          ) : (
-            <div className="cal-sessions">
-              <div className="cal-sessions-inner">
-                <SessionRow label="FP1" dateStr={w.fp1_start} />
-                {w.is_sprint_weekend ? (
-                  <>
-                    <SessionRow label="Sprint Qualifying" dateStr={w.sprint_quali_start} />
-                    <SessionRow label="Sprint"            dateStr={w.sprint_start} />
-                  </>
-                ) : (
-                  <>
-                    <SessionRow label="FP2" dateStr={w.fp2_start} />
-                    <SessionRow label="FP3" dateStr={w.fp3_start} />
-                  </>
-                )}
-                <SessionRow label="Qualifying" dateStr={w.qualifying_start} />
-                <SessionRow label="Rennen 🏁"  dateStr={w.race_start} />
-              </div>
-              <div className="cal-sessions-track">
-                <TrackMap round={w.round} size="md" />
-              </div>
-              <div className="cal-sessions-footer">
-                <span className="cal-circuit">
-                  <Clock size={11} /> {w.circuit}
-                </span>
-              </div>
+          <div className="cal-sessions">
+            <div className="cal-sessions-inner">
+              <SessionRow label="FP1" dateStr={w.fp1_start} />
+              {w.is_sprint_weekend ? (
+                <>
+                  <SessionRow label="Sprint Qualifying" dateStr={w.sprint_quali_start} />
+                  <SessionRow label="Sprint"            dateStr={w.sprint_start} />
+                </>
+              ) : (
+                <>
+                  <SessionRow label="FP2" dateStr={w.fp2_start} />
+                  <SessionRow label="FP3" dateStr={w.fp3_start} />
+                </>
+              )}
+              <SessionRow label="Qualifying" dateStr={w.qualifying_start} />
+              <SessionRow label="Rennen 🏁"  dateStr={w.race_start} />
             </div>
-          )
+            <div className="cal-sessions-track">
+              <TrackMap round={w.round} size="md" />
+            </div>
+            <div className="cal-sessions-footer">
+              <span className="cal-circuit">
+                <Clock size={11} /> {w.circuit}
+              </span>
+              <Link to={`/rennen/${w.id}`} className="btn btn-secondary btn-sm">
+                Details
+              </Link>
+            </div>
+          </div>
         )}
       </div>
     )
