@@ -367,3 +367,26 @@
   gap: 1rem;
   padding: 0.5rem 0;
 }
+
+/* ── Picks-Grid im Kalender: mobile fix ────────────────────── */
+.cal-sessions .race-picks-grid {
+  grid-template-columns: 1fr;
+}
+
+.cal-sessions .race-player-avatar {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 0.75rem;
+}
+
+.cal-sessions .race-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (min-width: 600px) {
+  .cal-sessions .race-picks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
