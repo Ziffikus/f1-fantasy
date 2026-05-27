@@ -750,3 +750,65 @@
   .race-pick-results { margin-left: auto; }
   .race-session-label { min-width: 90px; }
 }
+
+/* ── Countdown ──────────────────────────────────────────────── */
+.cal-countdown {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cal-countdown-label {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.cal-countdown-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cal-countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  min-width: 3rem;
+}
+
+.cal-countdown-value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.cal-countdown-unit-label {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cal-countdown-sep {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
