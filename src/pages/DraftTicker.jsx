@@ -38,6 +38,86 @@ async function callGemini(prompt, retries = 2, maxTokens = 5000, model = GEMINI_
   }
 }
 
+// ── Kategorie-Logik (JS, kein AI) ────────────────────────────
+function chooseCategory(categoryHistory, playerName, cUsedByPlayer) {
+  const totalPicks = categoryHistory.length
+
+  // C: max 1x pro Spieler, frühestens Pick 3, ~3-4x pro Draft
+  const cEligible = !cUsedByPlayer[playerName] && totalPicks >= 3
+  if (cEligible && Math.random() < 0.25) return 'C'
+
+  // B: alle 4 Picks, frühestens Pick 3, ~3-4x pro Draft
+  const bRecentlyUsed = categoryHistory.slice(-4).includes('B')
+  if (!bRecentlyUsed && totalPicks >= 3 && Math.random() < 0.4) return 'B'
+
+  return 'A'
+}
+
+// ── Prompts ───────────────────────────────────────────────────
+function buildPickPrompt(category, { playerName, pickName, gpName }) {
+  if (category === 'A') {
+    return `
+Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht und insgeheim immer noch daran hängt. Wir sind mitten in der F1-Saison 2026.
+Dein Stil: Trockener Witz, erschöpfte Präzision, Ironie mit leichter Verzögerungszündung.
+
+Pick: ${pickName}, GP von ${gpName}.
+
+Taktische Einschätzung, Streckenanalyse, Reifenstrategie, historischer Vergleich, Lobeshymne die sich nach Verriss anfühlt oder umgekehrt. KEIN Bezug auf den Spieler.
+
+Regeln:
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- Ironie darf eine halbe Sekunde brauchen.
+- Erschöpft, nicht verbittert.
+- Nur die Sätze, kein Präambel, keine Anführungszeichen.
+- Zu lang = falsch. Kürzer ist besser.
+`.trim()
+  }
+
+  if (category === 'B') {
+    return `
+Du bist Kies Bettmann – F1-Kommentator, 54. Alter silberner BMW, rostig, klappernde Türen, Rückenschmerzen, Mahnbescheide. Wir sind mitten in der F1-Saison 2026.
+Dein Stil: Trockener Witz, erschöpfte Präzision.
+
+Pick: ${pickName}, GP von ${gpName}.
+
+Beziehe den Pick auf dein persönliches Elend – mit kleinem F1-Zugeständnis am Ende. KEIN Bezug auf den Spieler.
+
+Regeln:
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- Erschöpft, nicht verbittert.
+- Nur die Sätze, kein Präambel, keine Anführungszeichen.
+- Zu lang = falsch. Kürzer ist besser.
+`.trim()
+  }
+
+  // category === 'C'
+  const playerContext = {
+    Mandi: 'Mandi: konservativ, wenig F1-Tiefe, beim Wetten zu vorsichtig, sportlich.',
+    Alex:  'Alex: methodisch, Familienvater, analysiert alles dreimal, Picks kurz vor Deadline.',
+    Andii: 'Andii: entspannt, Gamer, sportlich, casual.',
+    Ferk:  'Ferk: Bauchentscheider, Paragleiter, ehrgeizig.',
+  }
+  return `
+Du bist Kies Bettmann – F1-Kommentator, 54. Wir sind mitten in der F1-Saison 2026.
+Dein Stil: Trockener Witz, erschöpfte Präzision, Ironie mit leichter Verzögerungszündung.
+
+${playerName} hat ${pickName} gepickt beim GP von ${gpName}.
+
+${playerName}-Kontext:
+${playerContext[playerName] ?? `${playerName}: einer der vier Spieler.`}
+
+Kommentiere den Pick mit kurzem Bezug auf den Spieler.
+
+Regeln:
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- Ironie darf eine halbe Sekunde brauchen.
+- Erschöpft, nicht verbittert.
+- Nur die Sätze, kein Präambel, keine Anführungszeichen.
+- Zu lang = falsch. Kürzer ist besser.
+`.trim()
+}
+
+// ── Intro / Outro (unverändert) ───────────────────────────────
 async function generateIntro({ gpName, draftOrder, lastWeekPoints }) {
   const orderText = draftOrder.map((o, i) =>
     `${i + 1}. ${o.profiles?.display_name}`
@@ -66,36 +146,8 @@ Spieler-Kontext:
 
 Stil: Trockener Witz, erschöpfte Präzision. Begrüße zum Draft, erwähne wer als erster dran ist, kommentiere kurz die Vorwochenergebnisse mit Kies-typischer Ironie.
 WICHTIG: Nur Fließtext, keine Überschriften, keine Anführungszeichen am Anfang oder Ende.
-`
+`.trim()
   return callGemini(prompt)
-}
-
-async function generatePickComment({ playerName, pickName, gpName }) {
-  const prompt = `
-Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht und insgeheim immer noch daran hängt. Wir sind mitten in der F1-Saison 2026.
-Dein Stil: Trockener Witz, erschöpfte Präzision, Ironie mit leichter Verzögerungszündung.
-
-Pick: ${pickName}, GP von ${gpName}.
-
-Kommentiere ausschließlich den Pick selbst. Ignoriere wer ihn gemacht hat.
-Wähle EINE Kategorie – Kategorie A ist der klare Normalfall:
-
-[A] SPORT & F1: Taktische Einschätzung, Streckenanalyse, Reifenstrategie, historischer Vergleich, Lobeshymne die sich nach Verriss anfühlt oder umgekehrt. KEIN Bezug auf den Spieler.
-[B] KIES' LEBEN (nur alle 5-6 Picks einmal): Alter silberner BMW, rostig, klappernde Türen, Rückenschmerzen, Mahnbescheide – mit kleinem Zugeständnis am Ende. KEIN Bezug auf den Spieler.
-[C] SPIELER-BEZUG (maximal 1x pro Draft, nur wenn Kategorie A und B schon mehrfach dran waren): ${playerName} ist einer von vier Männern.
-- Mandi: konservativ, wenig F1-Tiefe.
-- Alex: methodisch, Familienvater, Picks kurz vor Deadline.
-- Andii: entspannt, Gamer, casual.
-- Ferk: Bauchentscheider, Paragleiter, ehrgeizig.
-
-Regeln:
-- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
-- Ironie darf eine halbe Sekunde brauchen.
-- Erschöpft, nicht verbittert.
-- WICHTIG: Nur die Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.
-- Zu lang = falsch. Kürzer ist besser.
-`
-  return callGemini(prompt, 2, 37)
 }
 
 async function generateOutro({ gpName, draftOrder, allPicks }) {
@@ -128,14 +180,15 @@ Spieler-Kontext:
 
 Stil: Erschöpfter Abschluss mit Wärme. Kurzer Kommentar zu interessanten Picks, Ausblick aufs Wochenende – Kies-typisch trocken aber nicht böse.
 WICHTIG: Nur Fließtext, keine Überschriften, keine Anführungszeichen am Anfang oder Ende.
-`
+`.trim()
   return callGemini(prompt)
 }
 
+// ── Supabase Helpers ──────────────────────────────────────────
 async function loadCommentary(raceWeekendId) {
   const { data } = await supabase
     .from('draft_commentary')
-    .select('intro, outro')
+    .select('intro, outro, category_history, c_used_by_player')
     .eq('race_weekend_id', raceWeekendId)
     .maybeSingle()
   return data
@@ -150,10 +203,10 @@ async function saveCommentary(raceWeekendId, field, value) {
 
 // ── Spielerfarben ─────────────────────────────────────────────
 const PLAYER_COLORS = [
-  '#e60000', // Rot   (accent)
-  '#3b82f6', // Blau
-  '#f59e0b', // Amber
-  '#10b981', // Grün
+  '#e60000',
+  '#3b82f6',
+  '#f59e0b',
+  '#10b981',
 ]
 
 // ── Hauptkomponente ───────────────────────────────────────────
@@ -180,7 +233,15 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
   const [commentaryLoaded, setCommentaryLoaded] = useState(false)
   const [newId, setNewId] = useState(null)
 
-  // Spieler → Farbe (stabil nach Position in draftOrder)
+  // Kategorie-Tracking
+  const [categoryHistory, setCategoryHistory] = useState([])
+  const [cUsedByPlayer, setCUsedByPlayer] = useState({
+    Mandi: false,
+    Alex: false,
+    Andii: false,
+    Ferk: false,
+  })
+
   const playerColorMap = Object.fromEntries(
     draftOrder.map((o, i) => [o.profile_id, PLAYER_COLORS[i % PLAYER_COLORS.length]])
   )
@@ -200,6 +261,8 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     loadCommentary(raceWeekendId).then(data => {
       if (data?.intro) { setIntro(data.intro); introGeneratedRef.current = true }
       if (data?.outro) { setOutro(data.outro); outroGeneratedRef.current = true }
+      if (data?.category_history?.length) setCategoryHistory(data.category_history)
+      if (data?.c_used_by_player) setCUsedByPlayer(prev => ({ ...prev, ...data.c_used_by_player }))
       setCommentaryLoaded(true)
     })
   }, [raceWeekendId])
@@ -254,13 +317,41 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
       setTimeout(() => setNewId(null), 3000)
 
       if (!comments[newest.id]) {
+        // JS wählt Kategorie – kein extra API-Call nötig
+        const category = chooseCategory(categoryHistory, newest.playerName, cUsedByPlayer)
+
+        // State aktualisieren
+        const newHistory = [...categoryHistory, category]
+        const newCUsed = category === 'C'
+          ? { ...cUsedByPlayer, [newest.playerName]: true }
+          : cUsedByPlayer
+
+        setCategoryHistory(newHistory)
+        if (category === 'C') setCUsedByPlayer(newCUsed)
+
+        // Kategorie-Tracking in Supabase persistieren
+        saveCommentary(raceWeekendId, 'category_history', newHistory)
+        saveCommentary(raceWeekendId, 'c_used_by_player', newCUsed)
+
+        console.log(`[DraftTicker] Pick #${entries.length} – Kategorie ${category} – ${newest.playerName}: `, 
+          newest.pick_type === 'driver'
+            ? `${newest.drivers?.first_name} ${newest.drivers?.last_name}`
+            : newest.constructors?.short_name
+        )
+
         setLoading(prev => ({ ...prev, [newest.id]: true }))
+
         const pickName = newest.pick_type === 'driver'
           ? `${newest.drivers?.first_name} ${newest.drivers?.last_name}`
           : newest.constructors?.short_name
 
-        console.log('[DraftTicker] generatePickComment für:', newest.playerName, pickName)
-        generatePickComment({ playerName: newest.playerName, pickName, gpName })
+        const prompt = buildPickPrompt(category, {
+          playerName: newest.playerName,
+          pickName,
+          gpName,
+        })
+
+        callGemini(prompt, 2, 37)
           .then(text => {
             console.log('[DraftTicker] Antwort:', text)
             if (text) {
