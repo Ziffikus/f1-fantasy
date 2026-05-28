@@ -32,6 +32,17 @@ export async function callGemini(prompt, retries = 2, maxTokens = 5000, model = 
       }
       return null
     }
+    if (res.status === 500 || res.status === 503) {
+      if (model === GEMINI_MODEL_PRIMARY) {
+        console.log(`[Gemini] ${res.status} – Fallback auf 1.5 Flash`)
+        return callGemini(prompt, retries, maxTokens, GEMINI_MODEL_FALLBACK)
+      }
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        return callGemini(prompt, retries - 1, maxTokens, model)
+      }
+      return null
+    }
     const data = await res.json()
     if (data.promptFeedback?.blockReason) return null
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
@@ -75,12 +86,12 @@ Pick: ${pickName}, GP von ${gpName}.
 Taktische Einschätzung, Streckenanalyse, Reifenstrategie, historischer Vergleich, Lobeshymne die sich nach Verriss anfühlt oder umgekehrt. KEIN Bezug auf den Spieler.
 
 Regeln:
-- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 275 Zeichen gesamt.
 - Ironie darf eine halbe Sekunde brauchen.
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
-- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
+- Antworte mit maximal 275 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
   }
 
@@ -94,11 +105,11 @@ Pick: ${pickName}, GP von ${gpName}.
 Beziehe den Pick auf dein persönliches Elend – mit kleinem F1-Zugeständnis am Ende. KEIN Bezug auf den Spieler.
 
 Regeln:
-- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 275 Zeichen gesamt.
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
-- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
+- Antworte mit maximal 275 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
   }
 
@@ -115,12 +126,12 @@ ${PLAYER_CONTEXT[playerName] ?? `${playerName}: einer der vier Spieler.`}
 Kommentiere den Pick mit kurzem Bezug auf den Spieler.
 
 Regeln:
-- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 200 Zeichen gesamt.
+- MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 275 Zeichen gesamt.
 - Ironie darf eine halbe Sekunde brauchen.
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
-- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
+- Antworte mit maximal 275 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
 }
 
