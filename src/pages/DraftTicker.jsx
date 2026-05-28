@@ -117,7 +117,7 @@ Regeln:
 `.trim()
 }
 
-// ── Intro / Outro (unverändert) ───────────────────────────────
+// ── Intro / Outro ─────────────────────────────────────────────
 async function generateIntro({ gpName, draftOrder, lastWeekPoints }) {
   const orderText = draftOrder.map((o, i) =>
     `${i + 1}. ${o.profiles?.display_name}`
@@ -218,6 +218,10 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
   const introGeneratedRef = useRef(false)
   const outroGeneratedRef = useRef(false)
 
+  // Kategorie-Tracking als Refs – immer aktuell in Effects
+  const categoryHistoryRef = useRef([])
+  const cUsedByPlayerRef = useRef({ Mandi: false, Alex: false, Andii: false, Ferk: false })
+
   const [intro, setIntro] = useState(null)
   const [outro, setOutro] = useState(null)
   const [comments, setComments] = useState(() => {
@@ -232,15 +236,6 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
   const [outroLoading, setOutroLoading] = useState(false)
   const [commentaryLoaded, setCommentaryLoaded] = useState(false)
   const [newId, setNewId] = useState(null)
-
-  // Kategorie-Tracking
-  const [categoryHistory, setCategoryHistory] = useState([])
-  const [cUsedByPlayer, setCUsedByPlayer] = useState({
-    Mandi: false,
-    Alex: false,
-    Andii: false,
-    Ferk: false,
-  })
 
   const playerColorMap = Object.fromEntries(
     draftOrder.map((o, i) => [o.profile_id, PLAYER_COLORS[i % PLAYER_COLORS.length]])
@@ -261,8 +256,8 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
     loadCommentary(raceWeekendId).then(data => {
       if (data?.intro) { setIntro(data.intro); introGeneratedRef.current = true }
       if (data?.outro) { setOutro(data.outro); outroGeneratedRef.current = true }
-      if (data?.category_history?.length) setCategoryHistory(data.category_history)
-      if (data?.c_used_by_player) setCUsedByPlayer(prev => ({ ...prev, ...data.c_used_by_player }))
+      if (data?.category_history?.length) categoryHistoryRef.current = data.category_history
+      if (data?.c_used_by_player) cUsedByPlayerRef.current = { ...cUsedByPlayerRef.current, ...data.c_used_by_player }
       setCommentaryLoaded(true)
     })
   }, [raceWeekendId])
@@ -317,23 +312,20 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
       setTimeout(() => setNewId(null), 3000)
 
       if (!comments[newest.id]) {
-        // JS wählt Kategorie – kein extra API-Call nötig
-        const category = chooseCategory(categoryHistory, newest.playerName, cUsedByPlayer)
+        // Kategorie wählen – Refs sind immer aktuell
+        const category = chooseCategory(categoryHistoryRef.current, newest.playerName, cUsedByPlayerRef.current)
 
-        // State aktualisieren
-        const newHistory = [...categoryHistory, category]
-        const newCUsed = category === 'C'
-          ? { ...cUsedByPlayer, [newest.playerName]: true }
-          : cUsedByPlayer
+        // Refs sofort aktualisieren
+        categoryHistoryRef.current = [...categoryHistoryRef.current, category]
+        if (category === 'C') {
+          cUsedByPlayerRef.current = { ...cUsedByPlayerRef.current, [newest.playerName]: true }
+        }
 
-        setCategoryHistory(newHistory)
-        if (category === 'C') setCUsedByPlayer(newCUsed)
+        // In Supabase persistieren
+        saveCommentary(raceWeekendId, 'category_history', categoryHistoryRef.current)
+        saveCommentary(raceWeekendId, 'c_used_by_player', cUsedByPlayerRef.current)
 
-        // Kategorie-Tracking in Supabase persistieren
-        saveCommentary(raceWeekendId, 'category_history', newHistory)
-        saveCommentary(raceWeekendId, 'c_used_by_player', newCUsed)
-
-        console.log(`[DraftTicker] Pick #${entries.length} – Kategorie ${category} – ${newest.playerName}: `, 
+        console.log(`[DraftTicker] Pick #${entries.length} – Kategorie ${category} – ${newest.playerName}:`,
           newest.pick_type === 'driver'
             ? `${newest.drivers?.first_name} ${newest.drivers?.last_name}`
             : newest.constructors?.short_name
@@ -345,11 +337,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
           ? `${newest.drivers?.first_name} ${newest.drivers?.last_name}`
           : newest.constructors?.short_name
 
-        const prompt = buildPickPrompt(category, {
-          playerName: newest.playerName,
-          pickName,
-          gpName,
-        })
+        const prompt = buildPickPrompt(category, { playerName: newest.playerName, pickName, gpName })
 
         callGemini(prompt, 2, 37)
           .then(text => {
