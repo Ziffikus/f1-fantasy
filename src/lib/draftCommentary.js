@@ -194,7 +194,7 @@ WICHTIG: Nur Fließtext, keine Überschriften, keine Anführungszeichen am Anfan
 // ── Pick-Kommentar generieren (inkl. Trim) ────────────────────
 export async function generatePickComment({ category, playerName, pickName, gpName }) {
   const prompt = buildPickPrompt(category, { playerName, pickName, gpName })
-  const text = await callGemini(prompt, 2, 37)
+  const text = await callGemini(prompt, 2, 300)
   if (!text) return null
   if (text.length <= 300) return text
   const cut = text.slice(0, 300)
