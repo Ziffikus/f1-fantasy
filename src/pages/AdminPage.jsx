@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
+import { callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment } from '../lib/draftCommentary'
 import './AdminPage.css'
 
 // ── Draft Reihenfolge ────────────────────────────────────────
@@ -1134,40 +1135,9 @@ function GamingRewardPanel() {
 
 
 // ── Ticker Admin ─────────────────────────────────────────────
-const GEMINI_MODEL_ADMIN_PRIMARY = "gemini-2.5-flash"
-const GEMINI_MODEL_ADMIN_FALLBACK = "gemini-1.5-flash"
-
-async function callGeminiAdmin(prompt, model = GEMINI_MODEL_ADMIN_PRIMARY, retries = 2) {
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-  if (!API_KEY) return null
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 5000, temperature: 1.4 }
-      })
-    })
-    if (res.status === 429) {
-      if (model === GEMINI_MODEL_ADMIN_PRIMARY) {
-        console.log('[Admin] 2.5 Flash Rate Limit – Fallback auf 1.5 Flash')
-        return callGeminiAdmin(prompt, GEMINI_MODEL_ADMIN_FALLBACK, retries)
-      }
-      if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 8000))
-        return callGeminiAdmin(prompt, model, retries - 1)
-      }
-      return null
-    }
-    const data = await res.json()
-    if (data.promptFeedback?.blockReason) return null
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
-  } catch (e) {
-    console.error('Gemini Fehler:', e)
-    return null
-  }
-}
+// callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment
+// kommen aus ../lib/draftCommentary
+const callGeminiAdmin = callGemini
 
 function TickerSection({ label, fieldKey, value, generating, saved, onRegen, onSave }) {
   const [editing, setEditing] = useState(false)
@@ -1257,27 +1227,14 @@ function TickerPanel({ raceWeekendId }) {
       const { data } = await supabase.from('player_race_points').select('profile_id, total_points, weekend_rank').eq('race_weekend_id', raceWeekendId - 1)
       if (data?.length) lastWeekPoints = data.map(p => ({ ...p, name: draftOrder.find(o => o.profile_id === p.profile_id)?.profiles?.display_name ?? '?' }))
     } catch (_) {}
-    const orderText = draftOrder.map((o, i) => `${i + 1}. ${o.profiles?.display_name}`).join(', ')
-    const pointsText = lastWeekPoints.length
-      ? lastWeekPoints.sort((a, b) => a.weekend_rank - b.weekend_rank).map(p => `${p.name}: ${p.total_points} Pkt (Platz ${p.weekend_rank})`).join(', ')
-      : 'keine Vorwochendaten'
-    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.\nSchreib ein Intro (3-5 Sätze) für den Fantasy Draft zum GP von ${gpName}.\nDraft-Reihenfolge: ${orderText}. Letzte Woche: ${pointsText}.\nSpieler: Mandi (konservativ), Alex (methodisch, Familienvater), Andii (Zocker, Eishockey), Ferk (Bauchentscheider, Paragleiter).\nStil: Trockener Witz, erschöpfte Präzision. Nur Fließtext, keine Überschriften, keine Anführungszeichen.`
-    const text = await callGeminiAdmin(prompt)
+    const text = await generateIntro({ gpName, draftOrder, lastWeekPoints })
     if (text) await saveField('intro', text)
     setGenerating(p => ({ ...p, intro: false }))
   }
 
   async function regenOutro() {
     setGenerating(p => ({ ...p, outro: true }))
-    const summaries = draftOrder.map(o => {
-      const name = o.profiles?.display_name
-      const pp = picks.filter(p => p.profile_id === o.profile_id)
-      const d = pp.filter(p => p.pick_type === 'driver').map(p => `${p.drivers?.first_name} ${p.drivers?.last_name}`).join(', ')
-      const t = pp.filter(p => p.pick_type === 'constructor').map(p => p.constructors?.short_name).join(', ')
-      return `${name}: ${d}${t ? ' + ' + t : ''}`
-    }).join(' | ')
-    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, erschöpft aber mit Herzblut dabei.\nSchreib ein Outro (3-5 Sätze) für den abgeschlossenen Fantasy Draft zum GP von ${gpName}.\nAlle Picks: ${summaries}.\nSpieler: Mandi (konservativ), Alex (methodisch), Andii (Zocker), Ferk (Bauchentscheider).\nStil: Erschöpfter Abschluss mit Wärme. Nur Fließtext, keine Anführungszeichen.`
-    const text = await callGeminiAdmin(prompt)
+    const text = await generateOutro({ gpName, draftOrder, allPicks: picks })
     if (text) await saveField('outro', text)
     setGenerating(p => ({ ...p, outro: false }))
   }
@@ -1289,8 +1246,11 @@ function TickerPanel({ raceWeekendId }) {
     const pickName = pick.pick_type === 'driver'
       ? `${pick.drivers?.first_name} ${pick.drivers?.last_name}`
       : pick.constructors?.short_name
-    const prompt = `Du bist Kies Bettmann – F1-Kommentator, 54, der diesen Job seit 19 Jahren macht.\nDein Stil: Trockener Witz, erschöpfte Präzision.\nSpieler: Mandi (konservativ), Alex (methodisch, Familienvater), Andii (Zocker, Eishockey), Ferk (Bauchentscheider).\nEreignis: ${playerName} pickt ${pickName} beim GP von ${gpName}.\nGenau 2 Sätze. Nur die 2 Sätze, keine Kategorienbezeichnung, kein Präambel, keine Anführungszeichen.`
-    const text = await callGeminiAdmin(prompt)
+
+    // Kategorie-Logik: beim Admin-Regen keine History verfügbar,
+    // daher neutrale Wahl ohne Kontext (A oder B, nie C erzwingen)
+    const category = chooseCategory([], playerName, { Mandi: true, Alex: true, Andii: true, Ferk: true })
+    const text = await generatePickComment({ category, playerName, pickName, gpName })
     if (text) await saveField(key, text)
     setGenerating(p => ({ ...p, [key]: false }))
   }
