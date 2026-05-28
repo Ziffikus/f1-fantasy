@@ -3,7 +3,7 @@
 // Kategorie-Wahl, Prompt-Builder, Intro/Outro-Generierung
 
 const GEMINI_MODEL_PRIMARY  = 'gemini-2.5-flash'
-const GEMINI_MODEL_FALLBACK = 'gemini-1.5-flash-latest'
+const GEMINI_MODEL_FALLBACK = 'gemini-2.0-flash-lite'
 
 // ── Gemini API ────────────────────────────────────────────────
 export async function callGemini(prompt, retries = 2, maxTokens = 5000, model = GEMINI_MODEL_PRIMARY) {
