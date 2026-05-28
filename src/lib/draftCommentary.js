@@ -80,6 +80,7 @@ Regeln:
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
+- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
   }
 
@@ -97,6 +98,7 @@ Regeln:
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
+- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
   }
 
@@ -118,6 +120,7 @@ Regeln:
 - Erschöpft, nicht verbittert.
 - Nur die Sätze, kein Präambel, keine Anführungszeichen.
 - Zu lang = falsch. Kürzer ist besser.
+- Antworte mit maximal 200 Zeichen. Brich nie mitten im Satz ab.
 `.trim()
 }
 
@@ -191,13 +194,9 @@ WICHTIG: Nur Fließtext, keine Überschriften, keine Anführungszeichen am Anfan
   return callGemini(prompt)
 }
 
-// ── Pick-Kommentar generieren (inkl. Trim) ────────────────────
+// ── Pick-Kommentar generieren ─────────────────────────────────
 export async function generatePickComment({ category, playerName, pickName, gpName }) {
   const prompt = buildPickPrompt(category, { playerName, pickName, gpName })
-  const text = await callGemini(prompt, 2, 300)
-  if (!text) return null
-  if (text.length <= 300) return text
-  const cut = text.slice(0, 300)
-  const lastEnd = Math.max(cut.lastIndexOf('.'), cut.lastIndexOf('!'), cut.lastIndexOf('?'))
-  return lastEnd > 50 ? text.slice(0, lastEnd + 1) : cut.trimEnd()
+  const text = await callGemini(prompt, 2, 2000)
+  return text || null
 }
