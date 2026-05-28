@@ -139,7 +139,7 @@
 }
 
 .live-lapgap--leader {
-  color: #a78bfa;   /* lila */
+  color: #a78bfa;
   font-weight: 700;
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -175,4 +175,105 @@
 .live-sector--green {
   background: color-mix(in srgb, #4ade80 15%, transparent);
   color: #4ade80;
+}
+
+/* ── Positions Card ──────────────────────────────────────────── */
+.live-standings-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.live-standings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.live-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.live-pos-row:last-child {
+  border-bottom: none;
+}
+
+.live-pos-row--leader {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 4px;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  margin: 0 -0.25rem;
+}
+
+.live-pos-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 1.5rem;
+  text-align: right;
+}
+
+.live-pos-color {
+  width: 3px;
+  height: 1.4rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.live-pos-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.live-pos-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-pos-team {
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-interval {
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* ── Tyre Badge ──────────────────────────────────────────────── */
+.live-tyre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.live-tyre-lap {
+  font-size: 0.6rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
