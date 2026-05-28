@@ -259,6 +259,54 @@
   margin-left: auto;
 }
 
+/* ── Race Control Card ───────────────────────────────────────── */
+.live-rc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.live-rc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.live-rc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0 0.5rem 0.6rem;
+  border-left: 2px solid var(--text-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  margin-bottom: 0.1rem;
+}
+
+.live-rc-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.live-rc-time {
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.live-rc-msg {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
 /* ── Tyre Badge ──────────────────────────────────────────────── */
 .live-tyre {
   display: inline-flex;
