@@ -31,6 +31,18 @@ export function getSessionCategory(sessionName) {
   return 'other'
 }
 
+// ── isLive-Erkennung ───────────────────────────────────────────
+// FIX: date_end fehlt oft während der Session → 4h-Fenster als Fallback
+function checkIsLive(sess) {
+  if (!sess?.date_start) return false
+  const now = new Date()
+  const start = new Date(sess.date_start)
+  const end = sess.date_end
+    ? new Date(sess.date_end)
+    : new Date(start.getTime() + 4 * 60 * 60 * 1000)
+  return now >= start && now <= end
+}
+
 export function useLiveSession() {
   const [session, setSession]         = useState(null)
   const [drivers, setDrivers]         = useState([])
@@ -40,7 +52,7 @@ export function useLiveSession() {
   const [raceControl, setRaceControl] = useState([])
   const [intervals, setIntervals]     = useState([])
   const [stints, setStints]           = useState([])
-  const [laps, setLaps]               = useState([])   // ← NEU: alle Runden
+  const [laps, setLaps]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [lastUpdate, setLastUpdate]   = useState(null)
   const [isLive, setIsLive]           = useState(false)
@@ -53,11 +65,8 @@ export function useLiveSession() {
 
       setSession(sess)
 
-      const now = new Date()
-      const start = new Date(sess.date_start)
-      const end   = new Date(sess.date_end)
-      const live  = now >= start && now <= end
-      setIsLive(live)
+      // FIX: isLive wird jetzt mit dem 4h-Fallback berechnet
+      setIsLive(checkIsLive(sess))
 
       const [pos, wx, lap, rc, iv, st, dr, lp] = await Promise.allSettled([
         getPositions(sess.session_key),
@@ -67,7 +76,7 @@ export function useLiveSession() {
         getIntervals(sess.session_key),
         getStints(sess.session_key),
         getDrivers(sess.session_key),
-        getLaps(sess.session_key),   // ← NEU
+        getLaps(sess.session_key),
       ])
 
       if (pos.status === 'fulfilled')  setPositions(pos.value ?? [])
@@ -112,7 +121,6 @@ export function useLiveSession() {
   }
 
   // ── Helfer: Beste Runde eines Fahrers ─────────────────────────
-  // Filtert Pit-Out-Laps und ungültige Zeiten heraus
   function getBestLap(driverNumber) {
     const driverLaps = laps
       .filter(l =>
@@ -140,8 +148,6 @@ export function useLiveSession() {
   }
 
   // ── Helfer: Alle Runden-Zeiten einer Session ranken ──────────
-  // Gibt sortierte Liste: [{ driver_number, bestLap, gap }]
-  // gap = Differenz zur schnellsten Zeit in der Session (in Sekunden)
   function getLapTimesRanked() {
     const driverNumbers = [...new Set(laps.map(l => l.driver_number))]
     const entries = driverNumbers
@@ -160,7 +166,6 @@ export function useLiveSession() {
   }
 
   // ── Helfer: Beste Sektorzeiten pro Fahrer ────────────────────
-  // Nützlich für Qualifying um violette/grüne Sektoren anzuzeigen
   function getBestSectors(driverNumber) {
     const driverLaps = laps.filter(
       l => l.driver_number === driverNumber && !l.is_pit_out_lap

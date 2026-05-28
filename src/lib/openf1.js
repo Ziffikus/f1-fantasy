@@ -7,7 +7,6 @@ const BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy
 // Generischer Fetch mit Error Handling
 async function openF1Fetch(endpoint, params = {}) {
   const url = new URL(BASE_URL)
-  // Endpoint als eigener Parameter, damit Supabase das Routing nicht verwirrt
   url.searchParams.set('endpoint', endpoint)
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
@@ -24,9 +23,34 @@ export async function getSessions(meetingKey) {
 }
 
 // ─── Aktuelle Session Key ermitteln ─────────────────────────
+// FIX: Sucht explizit nach der gerade laufenden Session,
+//      statt blind das letzte Element zu nehmen.
 export async function getLatestSession() {
   const sessions = await openF1Fetch('/sessions', { meeting_key: 'latest' })
-  return sessions[sessions.length - 1] ?? null
+  if (!sessions?.length) return null
+
+  const now = new Date()
+
+  // 1. Läuft gerade eine Session? → diese nehmen
+  const live = sessions.find(s => {
+    if (!s.date_start) return false
+    const start = new Date(s.date_start)
+    // date_end fehlt oft während der Session → 4h-Fenster als Fallback
+    const end = s.date_end
+      ? new Date(s.date_end)
+      : new Date(start.getTime() + 4 * 60 * 60 * 1000)
+    return now >= start && now <= end
+  })
+  if (live) return live
+
+  // 2. Letzte bereits gestartete Session (z.B. kurz nach dem Ende)
+  const started = sessions
+    .filter(s => s.date_start && new Date(s.date_start) <= now)
+    .sort((a, b) => new Date(b.date_start) - new Date(a.date_start))
+  if (started.length) return started[0]
+
+  // 3. Nächste zukünftige Session (z.B. vor dem Wochenende)
+  return sessions.sort((a, b) => new Date(a.date_start) - new Date(b.date_start))[0]
 }
 
 // ─── Fahrerpositionen (live während Session) ────────────────
@@ -62,9 +86,14 @@ export async function getMeeting(meetingKey) {
 }
 
 // ─── Prüfen ob Session gerade live ist ──────────────────────
+// FIX: date_end fehlt oft während der Session → 4h-Fenster als Fallback
 export function isSessionLive(sessionStart, sessionEnd) {
   const now = new Date()
-  return now >= new Date(sessionStart) && now <= new Date(sessionEnd)
+  const start = new Date(sessionStart)
+  const end = sessionEnd
+    ? new Date(sessionEnd)
+    : new Date(start.getTime() + 4 * 60 * 60 * 1000)
+  return now >= start && now <= end
 }
 
 // ─── Nächste relevante Session für Countdown ─────────────────
