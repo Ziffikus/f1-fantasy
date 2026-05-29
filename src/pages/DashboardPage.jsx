@@ -156,7 +156,8 @@ function DashboardLastRace({ w }) {
               )}
             </div>
 
-            {/* Zeile 1: Fahrer-Quadrate (exakt wie Draft) */}
+            {/* Picks – exakt wie Draft */}
+            <div className="draft-zone-picks">
             <div className="draft-picks-drivers">
               {[1,2,3,4].map(n => {
                 const pick = driverPicks.find(p => p.pick_number === n)
@@ -202,7 +203,7 @@ function DashboardLastRace({ w }) {
               })}
             </div>
 
-            {/* Zeile 2: Team-Rechtecke (exakt wie Draft) */}
+        {/* Zeile 2: Team-Rechtecke */}
             <div className="draft-picks-teams">
               {[1,2].map(n => {
                 const pick = teamPicks.find(p => p.pick_number === n)
@@ -261,6 +262,7 @@ function DashboardLastRace({ w }) {
                 )
               })}
             </div>
+            </div> {/* end draft-zone-picks */}
           </div>
         )
       })}
