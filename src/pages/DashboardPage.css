@@ -279,15 +279,16 @@
 
 .db-driver-chip-img {
   position: relative;
-  width: 2rem;
-  height: 2rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: var(--radius);
   border: 2px solid var(--border);
   background: var(--bg-card);
   overflow: hidden;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .db-driver-chip-img img {
   width: 100%;

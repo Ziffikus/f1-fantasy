@@ -176,6 +176,8 @@ function DashboardLastRace({ w }) {
                       <div className="db-driver-chip-img" style={{ borderColor: color }}>
                         {imgUrl
                           ? <img src={imgUrl} alt={pick.drivers?.abbreviation}
+                              width={36} height={36}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', display: 'block' }}
                               onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }} />
                           : null}
                         <div className="db-driver-chip-fallback" style={{ display: imgUrl ? 'none' : 'flex' }}>
