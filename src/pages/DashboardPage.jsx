@@ -130,7 +130,7 @@ function DashboardLastRace({ w }) {
                   {rank + 1}
                 </span>
               )}
-              <div className="race-player-avatar">
+              <div className="draft-player-avatar">
                 {player.avatar_url
                   ? <img src={player.avatar_url} alt={player.display_name} />
                   : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
