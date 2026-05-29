@@ -219,3 +219,167 @@
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
+
+/* ── DashboardLastRace ──────────────────────────────────────── */
+.db-lastrace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
+}
+
+.db-lastrace-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: border-color var(--transition);
+}
+.db-lastrace-card--me {
+  background: var(--accent-dim);
+  border-color: var(--border-accent);
+}
+.db-lastrace-card--leading {
+  border-color: rgba(255, 215, 0, 0.35);
+}
+
+.db-lastrace-player-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.db-lastrace-player-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Driver chips (Bild-Grid) ───────────────────────────────── */
+.db-lastrace-drivers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.db-driver-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.db-driver-chip-img {
+  position: relative;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.db-driver-chip-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+.db-driver-chip-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.db-driver-chip-abbr {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.db-driver-chip-pts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+/* ── Team chips ─────────────────────────────────────────────── */
+.db-lastrace-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.db-team-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+
+.db-team-chip-name {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  min-width: 3.5rem;
+}
+
+.db-team-chip-drivers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.db-team-driver-item {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.db-team-chip-total {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.db-team-pts {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .db-lastrace-grid {
+    grid-template-columns: 1fr;
+  }
+}
