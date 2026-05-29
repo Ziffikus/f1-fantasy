@@ -8,13 +8,6 @@ import { supabase } from '../lib/supabase'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap } from 'lucide-react'
 import './DashboardPage.css'
 
-// ── Fahrerfoto-URL aus Kürzel ─────────────────────────────────
-function driverImgUrl(abbreviation) {
-  if (!abbreviation) return null
-  const abbr = abbreviation.toUpperCase()
-  return `https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/${abbr[0]}/${abbr}01_${abbr[0].toLowerCase()}${abbr.slice(1).toLowerCase()}_${abbr[0].toLowerCase()}${abbr.slice(1).toLowerCase()}/driver.png.transform/2col/image.png`
-}
-
 function PositionBadge({ pos }) {
   if (pos === undefined || pos === null || pos === '') return <span className="race-pos-unknown">–</span>
   const p = Number(pos)
@@ -163,28 +156,18 @@ function DashboardLastRace({ w }) {
               )}
             </div>
 
-            {/* Driver Picks als Bild-Grid */}
+            {/* Driver Picks als Chip-Grid */}
             {driverPicks.length > 0 && (
               <div className="db-lastrace-drivers">
                 {driverPicks.map(pick => {
                   const pos   = raceResultMap[pick.driver_id]
                   const spos  = sprintResultMap[pick.driver_id]
                   const color = pick.drivers?.constructors?.color ?? '#888'
-                  const imgUrl = driverImgUrl(pick.drivers?.abbreviation)
                   return (
                     <div key={pick.id} className="db-driver-chip">
-                      <div className="db-driver-chip-img" style={{ borderColor: color }}>
-                        {imgUrl
-                          ? <img src={imgUrl} alt={pick.drivers?.abbreviation}
-                              width={36} height={36}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', display: 'block' }}
-                              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }} />
-                          : null}
-                        <div className="db-driver-chip-fallback" style={{ display: imgUrl ? 'none' : 'flex' }}>
-                          {pick.drivers?.abbreviation}
-                        </div>
+                      <div className="db-driver-chip-abbr-box" style={{ borderColor: color }}>
+                        <span style={{ color }}>{pick.drivers?.abbreviation}</span>
                       </div>
-                      <span className="db-driver-chip-abbr" style={{ color }}>{pick.drivers?.abbreviation}</span>
                       {hasResults && (
                         <div className="db-driver-chip-pts">
                           <PositionBadge pos={pos} />
