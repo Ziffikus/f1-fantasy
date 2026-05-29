@@ -156,76 +156,111 @@ function DashboardLastRace({ w }) {
               )}
             </div>
 
-            {/* Driver Picks als Chip-Grid */}
-            {driverPicks.length > 0 && (
-              <div className="db-lastrace-drivers">
-                {driverPicks.map(pick => {
-                  const pos   = raceResultMap[pick.driver_id]
-                  const spos  = sprintResultMap[pick.driver_id]
-                  const color = pick.drivers?.constructors?.color ?? '#888'
-                  return (
-                    <div key={pick.id} className="db-driver-chip">
-                      <div className="db-driver-chip-abbr-box" style={{ borderColor: color }}>
-                        <span style={{ color }}>{pick.drivers?.abbreviation}</span>
-                      </div>
-                      {hasResults && (
-                        <div className="db-driver-chip-pts">
-                          <PositionBadge pos={pos} />
-                          {w.is_sprint_weekend && spos && (
-                            <span className="race-sprint-pts"><Zap size={9} />{(spos / 2) % 1 === 0 ? (spos / 2) : (spos / 2).toFixed(1)}</span>
+            {/* Zeile 1: Fahrer-Quadrate (exakt wie Draft) */}
+            <div className="draft-picks-drivers">
+              {[1,2,3,4].map(n => {
+                const pick = driverPicks.find(p => p.pick_number === n)
+                const abbr = pick?.drivers?.abbreviation?.toLowerCase()
+                const firstName = pick?.drivers?.first_name
+                const lastName  = pick?.drivers?.last_name
+                const displayName = firstName && lastName ? `${firstName[0]}. ${lastName}` : abbr?.toUpperCase()
+                const teamColor = pick?.drivers?.constructors?.color
+                const pos  = pick ? raceResultMap[pick.driver_id] : null
+                const spos = pick ? sprintResultMap[pick.driver_id] : null
+                return (
+                  <div
+                    key={`d${n}`}
+                    className={`draft-pick-driver-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
+                    style={pick ? { '--slot-color': teamColor } : {}}
+                  >
+                    {pick ? (
+                      <>
+                        <img
+                          className="draft-pick-portrait"
+                          src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
+                          alt={abbr}
+                          onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
+                        />
+                        <div className="draft-pick-portrait-fallback">{displayName}</div>
+                        <div className="draft-pick-driver-label">
+                          <span>{displayName}</span>
+                          {hasResults && (
+                            <div className="db-pick-pts-overlay">
+                              <PositionBadge pos={pos} />
+                              {w.is_sprint_weekend && spos && (
+                                <span className="race-sprint-pts"><Zap size={9} />{(spos/2)%1===0?(spos/2):(spos/2).toFixed(1)}</span>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                      </>
+                    ) : (
+                      <span className="draft-pick-slot-num">F{n}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
 
-            {/* Team Picks */}
-            {teamPicks.length > 0 && (
-              <div className="db-lastrace-teams">
-                {teamPicks.map(pick => {
-                  const color = pick.constructors?.color ?? '#888'
-                  const teamDrivers     = allDrivers.filter(d => d.constructor_id === pick.constructor_id)
-                  const teamTotal       = teamDrivers.reduce((sum, td) => sum + (raceResultMap[td.id] ?? 0), 0)
-                  const teamSprintTotal = teamDrivers.reduce((sum, td) => {
-                    const spos = sprintResultMap[td.id]
-                    return sum + (spos ? (spos / 2) : 0)
-                  }, 0)
-                  return (
-                    <div key={pick.id} className="db-team-chip" style={{ borderColor: color }}>
-                      <span className="db-team-chip-name" style={{ color }}>{pick.constructors?.short_name}</span>
-                      {hasResults && teamDrivers.length > 0 && (
-                        <div className="db-team-chip-drivers">
-                          {teamDrivers.map(td => {
-                            const pos  = raceResultMap[td.id]
-                            const spos = sprintResultMap[td.id]
-                            return (
-                              <span key={td.id} className="db-team-driver-item">
-                                <span className="race-pick-abbr" style={{ color, fontSize: '0.65rem' }}>{td.abbreviation}</span>
-                                <PositionBadge pos={pos} />
-                                {w.is_sprint_weekend && spos && (
-                                  <span className="race-sprint-pts"><Zap size={9} />{(spos / 2)}</span>
-                                )}
-                              </span>
-                            )
-                          })}
+            {/* Zeile 2: Team-Rechtecke (exakt wie Draft) */}
+            <div className="draft-picks-teams">
+              {[1,2].map(n => {
+                const pick = teamPicks.find(p => p.pick_number === n)
+                const teamColor = pick?.constructors?.color
+                const teamShort = pick?.constructors?.short_name
+                const FILE_MAP = {
+                  'McLaren':'mcl','Mercedes':'mer','Red Bull':'rbr','Ferrari':'fer',
+                  'Williams':'wil','Racing Bulls':'rb','Aston Martin':'ast',
+                  'Haas':'haa','Audi':'aud','Alpine':'alp','Cadillac':'cad',
+                }
+                const fileKey = FILE_MAP[teamShort] ?? teamShort?.toLowerCase()
+                const LOGO_MAP = { mer: 'log_mer', wil: 'logo_will' }
+                const logoKey = LOGO_MAP[fileKey] ?? `logo_${fileKey}`
+                const teamDrivers     = allDrivers.filter(d => d.constructor_id === pick?.constructor_id)
+                const teamTotal       = teamDrivers.reduce((sum, td) => sum + (raceResultMap[td.id] ?? 0), 0)
+                const teamSprintTotal = teamDrivers.reduce((sum, td) => { const s = sprintResultMap[td.id]; return sum + (s ? s/2 : 0) }, 0)
+                return (
+                  <div
+                    key={`t${n}`}
+                    className={`draft-pick-team-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
+                    style={pick ? { '--slot-color': teamColor } : {}}
+                  >
+                    {pick ? (
+                      <>
+                        <img
+                          className="draft-pick-car"
+                          src={`${import.meta.env.BASE_URL}autos/${fileKey}.avif`}
+                          alt={teamShort}
+                          onError={e => { e.currentTarget.style.display = 'none' }}
+                        />
+                        <div className="draft-pick-team-overlay">
+                          <img
+                            className="draft-pick-team-logo"
+                            src={`${import.meta.env.BASE_URL}logos/${logoKey}.avif`}
+                            alt={teamShort}
+                            onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'block' }}
+                          />
+                          <span className="draft-pick-team-logo-fallback" style={{ color: teamColor }}>{teamShort?.toUpperCase()}</span>
                         </div>
-                      )}
-                      {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
-                        <div className="db-team-chip-total">
-                          <span className="db-team-pts">{teamTotal}<span className="text-muted" style={{fontSize:'0.6rem'}}> R</span></span>
-                          {w.is_sprint_weekend && teamSprintTotal > 0 && (
-                            <span className="race-sprint-pts"><Zap size={9} />{teamSprintTotal % 1 === 0 ? teamSprintTotal : teamSprintTotal.toFixed(1)}</span>
+                        <div className="draft-pick-driver-label">
+                          <span>{teamShort}</span>
+                          {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
+                            <div className="db-pick-pts-overlay">
+                              <span className="db-team-pts">{teamTotal}<span className="text-muted" style={{fontSize:'0.55rem'}}> R</span></span>
+                              {w.is_sprint_weekend && teamSprintTotal > 0 && (
+                                <span className="race-sprint-pts"><Zap size={9} />{teamSprintTotal%1===0?teamSprintTotal:teamSprintTotal.toFixed(1)}</span>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                      </>
+                    ) : (
+                      <span className="draft-pick-slot-num">T{n}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )
       })}
