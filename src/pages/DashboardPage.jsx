@@ -126,7 +126,7 @@ function DashboardLastRace({ w }) {
             {/* Player Header */}
             <div className="db-lastrace-player-header">
               {hasResults && (
-                <span className={`race-rank-badge ${rank === 0 ? 'race-rank-1' : rank === 1 ? 'race-rank-2' : rank === 2 ? 'race-rank-3' : ''}`}>
+                <span className={`db-lastrace-rank ${rank === 0 ? 'db-lastrace-rank--1' : rank === 1 ? 'db-lastrace-rank--2' : rank === 2 ? 'db-lastrace-rank--3' : ''}`}>
                   {rank + 1}
                 </span>
               )}
@@ -184,16 +184,16 @@ function DashboardLastRace({ w }) {
                         />
                         <div className="draft-pick-portrait-fallback">{displayName}</div>
                         <div className="draft-pick-driver-label">
-                          <span>{displayName}</span>
-                          {hasResults && (
-                            <div className="db-pick-pts-overlay">
-                              <PositionBadge pos={pos} />
-                              {w.is_sprint_weekend && spos && (
-                                <span className="race-sprint-pts"><Zap size={9} />{(spos/2)%1===0?(spos/2):(spos/2).toFixed(1)}</span>
-                              )}
-                            </div>
-                          )}
+                          {lastName ?? displayName}
                         </div>
+                        {hasResults && (
+                          <div className="db-pick-pts-overlay">
+                            <PositionBadge pos={pos} />
+                            {w.is_sprint_weekend && spos && (
+                              <span className="race-sprint-pts"><Zap size={9} />{(spos/2)%1===0?(spos/2):(spos/2).toFixed(1)}</span>
+                            )}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <span className="draft-pick-slot-num">F{n}</span>
@@ -228,6 +228,7 @@ function DashboardLastRace({ w }) {
                   >
                     {pick ? (
                       <>
+                        <div className="draft-pick-car-wrap">
                         <img
                           className="draft-pick-car"
                           src={`${import.meta.env.BASE_URL}autos/${fileKey}.avif`}
@@ -243,17 +244,18 @@ function DashboardLastRace({ w }) {
                           />
                           <span className="draft-pick-team-logo-fallback" style={{ color: teamColor }}>{teamShort?.toUpperCase()}</span>
                         </div>
-                        <div className="draft-pick-driver-label">
-                          <span>{teamShort}</span>
-                          {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
-                            <div className="db-pick-pts-overlay">
-                              <span className="db-team-pts">{teamTotal}<span className="text-muted" style={{fontSize:'0.55rem'}}> R</span></span>
-                              {w.is_sprint_weekend && teamSprintTotal > 0 && (
-                                <span className="race-sprint-pts"><Zap size={9} />{teamSprintTotal%1===0?teamSprintTotal:teamSprintTotal.toFixed(1)}</span>
-                              )}
-                            </div>
-                          )}
                         </div>
+                        <div className="draft-pick-team-label">
+                          {teamShort}
+                        </div>
+                        {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
+                          <div className="db-team-pts-row">
+                            <span className="db-team-pts">{teamTotal}<span className="text-muted" style={{fontSize:'0.55rem'}}> R</span></span>
+                            {w.is_sprint_weekend && teamSprintTotal > 0 && (
+                              <span className="race-sprint-pts"><Zap size={9} />{teamSprintTotal%1===0?teamSprintTotal:teamSprintTotal.toFixed(1)}</span>
+                            )}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <span className="draft-pick-slot-num">T{n}</span>
