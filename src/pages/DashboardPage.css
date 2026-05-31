@@ -367,7 +367,7 @@
 
 .draft-pick-driver-slot {
   position: relative;
-  aspect-ratio: 3 / 5;
+  aspect-ratio: 2 / 3;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -388,7 +388,10 @@
   flex: 1;
   min-height: 0;
   object-fit: cover;
-  object-position: top center;
+  /* zoom in: show only top 45% of image = head + neck */
+  object-position: center 5%;
+  transform: scale(1.25);
+  transform-origin: top center;
   display: block;
 }
 .draft-pick-portrait-fallback {
@@ -417,9 +420,10 @@
   line-height: 1.1;
   color: #fff;
   padding: 0.22rem 0.15rem 0.18rem;
-  white-space: nowrap;
+  /* allow wrap so long names like Verstappen/Colapinto show fully */
+  white-space: normal;
+  word-break: break-word;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Points row below driver label */
@@ -481,7 +485,7 @@
 
 .draft-pick-car-wrap {
   position: relative;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 3 / 1;
   flex-shrink: 0;
 }
 
@@ -600,25 +604,5 @@
   .draft-picks-drivers {
     grid-template-columns: repeat(4, 1fr);
     gap: 0.4rem;
-  }
-
-  /* Teams: 2 Slots nebeneinander */
-  .draft-picks-teams {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.4rem;
-  }
-
-  /* Fahrerbild etwas größer proportional */
-  .draft-pick-driver-slot {
-    aspect-ratio: 2 / 3;
-  }
-
-  .draft-pick-driver-label {
-    font-size: 0.65rem;
-    padding: 0.25rem 0.1rem;
-  }
-
-  .draft-pick-team-label {
-    font-size: 0.65rem;
   }
 }
