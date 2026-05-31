@@ -45,7 +45,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
 }
 
 // ── Dashboard-Karte für letztes Rennen ────────────────────────
-function DashboardLastRace({ w }) {
+function DashboardLastRace({ w, standings = [] }) {
   const { profile } = useAuthStore()
   const [picks, setPicks] = useState([])
   const [results, setResults] = useState([])
@@ -103,7 +103,12 @@ function DashboardLastRace({ w }) {
     const pts = calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })
-  if (hasResults) playerPoints.sort((a, b) => b.total - a.total)
+  if (hasResults) playerPoints.sort((a, b) => {
+    if (a.total !== b.total) return a.total - b.total
+    const aStanding = standings.find(s => s.profile_id === a.player.id)?.total_points ?? Infinity
+    const bStanding = standings.find(s => s.profile_id === b.player.id)?.total_points ?? Infinity
+    return aStanding - bStanding
+  })
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
@@ -143,15 +148,20 @@ function DashboardLastRace({ w }) {
                 <div className="race-player-total-wrap">
                   <span className="race-player-total">
                     {total % 1 === 0 ? total : total.toFixed(1)}
-                    <span className="text-muted" style={{ fontSize: '0.68rem', marginLeft: '0.2rem' }}>Pkt</span>
+                    <span className="race-player-total-unit">Pkt</span>
                   </span>
-                  {w.is_sprint_weekend && sprintPoints > 0 && (
-                    <div className="race-player-pts-breakdown">
-                      <span>🏁 {racePoints % 1 === 0 ? racePoints : racePoints.toFixed(1)}</span>
-                      <span className="race-player-pts-sep">·</span>
-                      <span>⚡ {sprintPoints % 1 === 0 ? sprintPoints : sprintPoints.toFixed(1)}</span>
-                    </div>
-                  )}
+                  <div className="race-player-pts-breakdown">
+                    <span className="race-pts-item">
+                      <Flag size={10} />
+                      {racePoints % 1 === 0 ? racePoints : racePoints.toFixed(1)}
+                    </span>
+                    {w.is_sprint_weekend && (
+                      <span className="race-pts-item race-pts-item--sprint">
+                        <Zap size={10} />
+                        {sprintPoints % 1 === 0 ? sprintPoints : sprintPoints.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -319,7 +329,7 @@ export default function DashboardPage() {
                 <span>{lastRace.flag_emoji} {lastRace.name}</span>
                 <span className="dashboard-last-race-round">R{lastRace.round}</span>
               </div>
-              <DashboardLastRace w={lastRace} />
+              <DashboardLastRace w={lastRace} standings={standings} />
             </div>
           )}
 
