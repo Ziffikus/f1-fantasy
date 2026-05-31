@@ -198,9 +198,15 @@ function DashboardLastRace({ w, standings = [] }) {
                         </div>
                         {hasResults && (
                           <div className="db-pick-pts-overlay">
-                            <PositionBadge pos={pos} />
-                            {w.is_sprint_weekend && spos && (
-                              <span className="race-sprint-pts"><Zap size={9} />{(spos/2)%1===0?(spos/2):(spos/2).toFixed(1)}</span>
+                            <span className="db-slot-pts">
+                              <Flag size={8} />
+                              {pos ?? '–'}
+                            </span>
+                            {w.is_sprint_weekend && (
+                              <span className="db-slot-pts db-slot-pts--sprint">
+                                <Zap size={8} />
+                                {spos ? ((spos/2)%1===0 ? spos/2 : (spos/2).toFixed(1)) : '–'}
+                              </span>
                             )}
                           </div>
                         )}
@@ -260,9 +266,15 @@ function DashboardLastRace({ w, standings = [] }) {
                         </div>
                         {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
                           <div className="db-team-pts-row">
-                            <span className="db-team-pts">{teamTotal}<span className="text-muted" style={{fontSize:'0.55rem'}}> R</span></span>
-                            {w.is_sprint_weekend && teamSprintTotal > 0 && (
-                              <span className="race-sprint-pts"><Zap size={9} />{teamSprintTotal%1===0?teamSprintTotal:teamSprintTotal.toFixed(1)}</span>
+                            <span className="db-team-pts">
+                              <Flag size={8} />
+                              {teamTotal}
+                            </span>
+                            {w.is_sprint_weekend && (
+                              <span className="db-team-pts db-team-pts--sprint">
+                                <Zap size={8} />
+                                {teamSprintTotal%1===0 ? teamSprintTotal : teamSprintTotal.toFixed(1)}
+                              </span>
                             )}
                           </div>
                         )}
