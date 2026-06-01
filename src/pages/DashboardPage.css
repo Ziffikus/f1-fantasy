@@ -265,8 +265,8 @@
   font-weight: 900;
   letter-spacing: 0;
   background: var(--bg-card);
-  color: var(--text-muted);
-  border: 2px solid var(--border);
+  color: #c8c8d8;
+  border: 2px solid rgba(200,200,216,0.3);
 }
 .db-lastrace-rank--1 {
   background: linear-gradient(135deg, #FFD700, #FFA500);
@@ -333,7 +333,7 @@
 .race-player-total-unit {
   font-size: 0.65rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #c8c8d8;
   letter-spacing: 0.05em;
 }
 .race-player-pts-breakdown {
@@ -369,7 +369,7 @@
 
 .draft-pick-driver-slot {
   position: relative;
-  aspect-ratio: 4 / 3.2;
+  aspect-ratio: 3 / 3.8;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-elevated);
