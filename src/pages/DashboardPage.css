@@ -291,6 +291,7 @@
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
+  margin-left: 0.25rem;
 }
 .db-lastrace-player-header .draft-player-avatar img {
   width: 100%;
@@ -301,13 +302,14 @@
 .db-lastrace-player-name {
   flex: 1;
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-left: 0.2rem;
 }
 
 /* Punkte-Block rechts oben */
@@ -367,7 +369,7 @@
 
 .draft-pick-driver-slot {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 4;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -450,11 +452,11 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;
-  color: var(--text-muted);
+  color: #c8c8d8;
 }
-.db-slot-pts svg { flex-shrink: 0; opacity: 0.7; }
+.db-slot-pts svg { flex-shrink: 0; opacity: 1; color: #c8c8d8; }
 .db-slot-pts--sprint { color: #f5c518; }
-.db-slot-pts--sprint svg { opacity: 1; }
+.db-slot-pts--sprint svg { color: #f5c518; }
 
 .draft-picks-teams {
   display: grid;
