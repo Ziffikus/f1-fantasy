@@ -349,10 +349,10 @@
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.03em;
-  color: var(--text-muted);
+  color: #c8c8d8;
   line-height: 1;
 }
-.race-pts-item svg { opacity: 0.7; }
+.race-pts-item svg { opacity: 1; color: #c8c8d8; }
 .race-pts-item--sprint {
   color: #f5c518;
 }
@@ -369,7 +369,7 @@
 
 .draft-pick-driver-slot {
   position: relative;
-  aspect-ratio: 4 / 4;
+  aspect-ratio: 4 / 3.2;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -553,15 +553,15 @@
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: var(--text-muted);
+  color: #c8c8d8;
   display: flex;
   align-items: center;
   gap: 0.15rem;
   line-height: 1;
 }
-.db-team-pts svg { opacity: 0.7; flex-shrink: 0; }
+.db-team-pts svg { opacity: 1; flex-shrink: 0; color: #c8c8d8; }
 .db-team-pts--sprint { color: #f5c518; }
-.db-team-pts--sprint svg { opacity: 1; }
+.db-team-pts--sprint svg { color: #f5c518; }
 
 .draft-pick-slot--empty { border-style: dashed; }
 .draft-pick-slot-num {
