@@ -217,13 +217,13 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: #c8c8d8;
 }
 
 /* ── DashboardLastRace ──────────────────────────────────────── */
 .db-lastrace-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.6rem;
 }
 
