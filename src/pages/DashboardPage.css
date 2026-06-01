@@ -392,6 +392,8 @@
   object-fit: cover;
   object-position: top center;
   display: block;
+  transform: scale(1.15);
+  transform-origin: top center;
 }
 .draft-pick-portrait-fallback {
   display: none;
