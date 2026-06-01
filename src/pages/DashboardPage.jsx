@@ -5,7 +5,7 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useStandings } from '../hooks/useStandings'
 import Countdown from '../components/race/Countdown'
 import { supabase } from '../lib/supabase'
-import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap } from 'lucide-react'
+import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap, Gamepad2 } from 'lucide-react'
 import './DashboardPage.css'
 
 function PositionBadge({ pos }) {
@@ -449,7 +449,7 @@ export default function DashboardPage() {
             <Link to="/draft" className="dashboard-quick-link"><Shuffle size={20} /><span>Draft</span></Link>
             <Link to="/kalender" className="dashboard-quick-link"><Calendar size={20} /><span>Kalender</span></Link>
             <Link to="/wertung" className="dashboard-quick-link"><Trophy size={20} /><span>Wertung</span></Link>
-            <Link to="/profil" className="dashboard-quick-link"><Flag size={20} /><span>Profil</span></Link>
+            <Link to="/gaming" className="dashboard-quick-link"><Gamepad2 size={20} /><span>Gaming</span></Link>
           </div>
         </div>
       </div>
