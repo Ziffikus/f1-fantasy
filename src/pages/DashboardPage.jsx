@@ -186,13 +186,15 @@ function DashboardLastRace({ w, standings = [] }) {
                   >
                     {pick ? (
                       <>
-                        <img
-                          className="draft-pick-portrait"
-                          src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
-                          alt={abbr}
-                          onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
-                        />
-                        <div className="draft-pick-portrait-fallback">{displayName}</div>
+                        <div className="draft-pick-portrait-wrap">
+                          <img
+                            className="draft-pick-portrait"
+                            src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
+                            alt={abbr}
+                            onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
+                          />
+                          <div className="draft-pick-portrait-fallback">{displayName}</div>
+                        </div>
                         <div className="draft-pick-driver-label">
                           {lastName ?? displayName}
                         </div>
