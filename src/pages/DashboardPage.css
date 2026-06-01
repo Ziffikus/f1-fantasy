@@ -367,7 +367,7 @@
 
 .draft-pick-driver-slot {
   position: relative;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 3 / 4;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -388,10 +388,7 @@
   flex: 1;
   min-height: 0;
   object-fit: cover;
-  /* zoom in: show only top 45% of image = head + neck */
-  object-position: center 5%;
-  transform: scale(1.25);
-  transform-origin: top center;
+  object-position: top center;
   display: block;
 }
 .draft-pick-portrait-fallback {
@@ -413,17 +410,16 @@
   border-top: 1px solid rgba(255,255,255,0.08);
   text-align: center;
   font-family: var(--font-display);
-  font-size: 0.58rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  line-height: 1.1;
+  line-height: 1.15;
   color: #fff;
-  padding: 0.22rem 0.15rem 0.18rem;
-  /* allow wrap so long names like Verstappen/Colapinto show fully */
-  white-space: normal;
-  word-break: break-word;
+  padding: 0.2rem 0.1rem 0.15rem;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Points row below driver label */
