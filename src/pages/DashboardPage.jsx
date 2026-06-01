@@ -305,6 +305,25 @@ export default function DashboardPage() {
   const totalRaces = weekends.length
   const lastRace = [...weekends].reverse().find(w => new Date(w.race_start) < new Date()) ?? null
 
+  // Prüfe ob Draft für activeWeekend abgeschlossen ist
+  const [activeDraftComplete, setActiveDraftComplete] = useState(false)
+  useEffect(() => {
+    if (!activeWeekend) return
+    async function checkDraft() {
+      const [{ data: order }, { data: picks }] = await Promise.all([
+        supabase.from('draft_orders').select('profile_id').eq('race_weekend_id', activeWeekend.id),
+        supabase.from('picks').select('id').eq('race_weekend_id', activeWeekend.id),
+      ])
+      const numPlayers = order?.length ?? 0
+      const totalExpected = numPlayers * 6
+      setActiveDraftComplete(numPlayers > 0 && (picks?.length ?? 0) >= totalExpected)
+    }
+    checkDraft()
+  }, [activeWeekend?.id])
+
+  // Zeige activeWeekend wenn dessen Draft fertig, sonst lastRace
+  const displayWeekend = activeDraftComplete ? activeWeekend : lastRace
+
   return (
     <div className="dashboard page-enter">
       <div className="dashboard-hero">
@@ -336,14 +355,14 @@ export default function DashboardPage() {
             <div className="card"><p className="text-secondary">Saison beendet!</p></div>
           )}
 
-          {!racesLoading && lastRace && (
+          {!racesLoading && displayWeekend && (
             <div className="card">
               <div className="dashboard-section-header">
                 <Flag size={16} />
-                <span>{lastRace.flag_emoji} {lastRace.name}</span>
-                <span className="dashboard-last-race-round">R{lastRace.round}</span>
+                <span>{displayWeekend.flag_emoji} {displayWeekend.name}</span>
+                <span className="dashboard-last-race-round">R{displayWeekend.round}</span>
               </div>
-              <DashboardLastRace w={lastRace} standings={standings} />
+              <DashboardLastRace w={displayWeekend} standings={standings} />
             </div>
           )}
 
