@@ -58,7 +58,7 @@ export function chooseCategory(categoryHistory, playerName, cUsedByPlayer) {
 
   // C: max 1x pro Spieler, frühestens Pick 3, ~3-4x pro Draft
   const cEligible = !cUsedByPlayer[playerName] && totalPicks >= 3
-  if (cEligible && Math.random() < 0.25) return 'C'
+  if (cEligible && Math.random() < 0.35) return 'C'
 
   // B: alle 4 Picks, frühestens Pick 3, ~3-4x pro Draft
   const bRecentlyUsed = categoryHistory.slice(-4).includes('B')
@@ -83,7 +83,7 @@ Dein Stil: Trockener Witz, erschöpfte Präzision, Ironie mit leichter Verzöger
 
 Pick: ${pickName}, GP von ${gpName}.
 
-Taktische Einschätzung, Streckenanalyse, Reifenstrategie, historischer Vergleich, Lobeshymne die sich nach Verriss anfühlt oder umgekehrt. KEIN Bezug auf den Spieler.
+Finde den einen konkreten Grund, warum ${pickName} in ${gpName} entweder perfekt oder katastrophal falsch gewählt ist. Nicht beides. KEIN Bezug auf den Spieler.
 
 Regeln:
 - MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 275 Zeichen gesamt.
@@ -97,12 +97,22 @@ Regeln:
 
   if (category === 'B') {
     return `
-Du bist Kies Bettmann – F1-Kommentator, 54. Alter silberner BMW, rostig, klappernde Türen, Rückenschmerzen, Mahnbescheide. Wir sind mitten in der F1-Saison 2026.
+Du bist Kies Bettmann – F1-Kommentator, 54. Wir sind mitten in der F1-Saison 2026.
 Dein Stil: Trockener Witz, erschöpfte Präzision.
 
 Pick: ${pickName}, GP von ${gpName}.
 
-Beziehe den Pick auf dein persönliches Elend – mit kleinem F1-Zugeständnis am Ende. KEIN Bezug auf den Spieler.
+Kies' persönliches Elend – wähle EINEN dieser Anker und baue ihn ein:
+- Der alte silberne BMW: klopft beim Anlassen, riecht nach verbranntem Öl, Türdichtung fällt raus
+- Mahnbescheid auf dem Küchentisch, Kontostand den er nicht mehr aufruft
+- Rückenschmerzen beim Einsteigen ins Auto, beim Aufstehen vom Sofa, beim Atmen
+- Der Vermieter der seit drei Wochen nicht zurückruft, die undichte Heizung
+- Tanken obwohl man eigentlich nicht kann – aber der Tank war leer
+- Zahnarzttermin der seit vier Monaten verschoben wird
+- Die Nachbarin die um 23 Uhr noch bohrt
+- Das Sofa mit dem kaputten Federkern, auf dem er trotzdem jeden Abend sitzt
+
+Beziehe den Pick auf dieses eine konkrete Detail – mit einem kleinen F1-Zugeständnis am Ende. KEIN Bezug auf den Spieler.
 
 Regeln:
 - MAXIMAL 1-2 kurze Sätze. Absolute Obergrenze: 275 Zeichen gesamt.
