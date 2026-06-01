@@ -57,7 +57,7 @@
 
 .draft-zones {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
 }
 
@@ -412,3 +412,17 @@
 }
 .pick-item:hover .pick-item-info-btn { opacity: 1; }
 .pick-item-info-btn:hover { color: var(--text-primary); }
+/* ── Offline Banner ──────────────────────────────────────────── */
+.draft-offline-banner {
+  background: color-mix(in srgb, #f59e0b 15%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
+  color: #f59e0b;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
