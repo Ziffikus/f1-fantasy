@@ -14,11 +14,81 @@ async function loadCommentary(raceWeekendId) {
   return data
 }
 
+// Retry mit exponentiellem Backoff
+async function withRetry(fn, { retries = 4, baseDelay = 800 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await fn()
+      if (result?.error) throw result.error
+      return result
+    } catch (err) {
+      if (attempt === retries) throw err
+      const delay = baseDelay * 2 ** attempt + Math.random() * 200
+      console.warn(`[DraftTicker] Save fehlgeschlagen (Versuch ${attempt + 1}), Retry in ${Math.round(delay)}ms`, err)
+      await new Promise(res => setTimeout(res, delay))
+    }
+  }
+}
+
+// Globale Pending-Queue für Offline-Pufferung
+const _pendingQueue = []
+let _flushScheduled = false
+
+function enqueueSave(fn) {
+  _pendingQueue.push(fn)
+  scheduleFlush()
+}
+
+async function flushQueue() {
+  _flushScheduled = false
+  while (_pendingQueue.length > 0) {
+    const fn = _pendingQueue[0]
+    try {
+      await withRetry(fn)
+      _pendingQueue.shift()
+    } catch (err) {
+      console.error('[DraftTicker] Queue-Eintrag endgültig fehlgeschlagen, bleibt in Queue:', err)
+      scheduleFlush(10_000) // nochmal in 10s probieren
+      return
+    }
+  }
+}
+
+function scheduleFlush(delay = 0) {
+  if (_flushScheduled) return
+  _flushScheduled = true
+  setTimeout(flushQueue, delay)
+}
+
+// Flush bei Reconnect / Tab-Fokus
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { console.log('[DraftTicker] Wieder online – Queue wird geleert'); scheduleFlush() })
+  window.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleFlush() })
+}
+
 async function saveCommentary(raceWeekendId, field, value) {
-  await supabase.from('draft_commentary').upsert(
-    { race_weekend_id: raceWeekendId, [field]: value },
-    { onConflict: 'race_weekend_id' }
-  )
+  const fn = () =>
+    supabase.from('draft_commentary').upsert(
+      { race_weekend_id: raceWeekendId, [field]: value },
+      { onConflict: 'race_weekend_id' }
+    )
+  try {
+    await withRetry(fn)
+  } catch (err) {
+    console.warn('[DraftTicker] saveCommentary in Queue verschoben:', field, err)
+    enqueueSave(fn)
+  }
+}
+
+async function savePickComment(pickId, text) {
+  const fn = () =>
+    supabase.from('picks').update({ ai_comment: text }).eq('id', pickId)
+  try {
+    await withRetry(fn)
+  } catch (err) {
+    console.warn('[DraftTicker] savePickComment in Queue verschoben:', pickId, err)
+    enqueueSave(fn)
+  }
 }
 
 // ── Spielerfarben ─────────────────────────────────────────────
@@ -157,7 +227,7 @@ export default function DraftTicker({ picks, draftOrder, isDraftComplete, weeken
           .then(text => {
             if (text) {
               setComments(prev => ({ ...prev, [newest.id]: text }))
-              supabase.from('picks').update({ ai_comment: text }).eq('id', newest.id)
+              savePickComment(newest.id, text)
             }
           })
           .finally(() => setLoading(prev => ({ ...prev, [newest.id]: false })))

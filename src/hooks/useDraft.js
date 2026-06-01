@@ -40,52 +40,95 @@ export function useDraft(raceWeekendId) {
     loadAll()
 
     let reloadTimer = null
-    const channel = supabase
-      .channel(`draft-${raceWeekendId}`)
-      .on('postgres_changes', {
-        event: 'INSERT', // ← nur bei neuen Picks, nicht bei ai_comment Updates
-        schema: 'public',
-        table: 'picks',
-        filter: `race_weekend_id=eq.${raceWeekendId}`
-      }, async () => {
-        console.log('📦 Realtime: Pick erkannt')
-        clearTimeout(reloadTimer)
-        reloadTimer = setTimeout(async () => {
-          await loadPicks()
-          console.log('📦 Lade Picks, sende Push...')
+    let channel = null
+    let reconnectTimer = null
+    let heartbeatTimer = null
 
-          try {
-            const { data: freshPicks } = await supabase
-              .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
-            const { data: order } = await supabase
-              .from('draft_orders')
-              .select('*, profiles(id, display_name)')
-              .eq('race_weekend_id', raceWeekendId)
-              .order('pick_order')
+    function subscribe() {
+      if (channel) supabase.removeChannel(channel)
 
-            if (order?.length) {
-              const numPlayers = order.length
-              const totalExpected = numPlayers * 6
-              if (freshPicks.length < totalExpected) {
-                const idx = freshPicks.length % numPlayers
-                const nextPlayer = order[idx]
-                if (nextPlayer?.profiles?.id) {
-                  await sendPushIfEnabled({
-                    profile_id: nextPlayer.profiles.id,
-                    title: '🏎️ Du bist dran!',
-                    body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
-                    url: '/f1-fantasy/draft',
-                    tag: 'draft-turn',
-                  })
+      channel = supabase
+        .channel(`draft-${raceWeekendId}-${Date.now()}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'picks',
+          filter: `race_weekend_id=eq.${raceWeekendId}`
+        }, async () => {
+          console.log('📦 Realtime: Pick erkannt')
+          clearTimeout(reloadTimer)
+          reloadTimer = setTimeout(async () => {
+            await loadPicks()
+            console.log('📦 Lade Picks, sende Push...')
+
+            try {
+              const { data: freshPicks } = await supabase
+                .from('picks').select('profile_id').eq('race_weekend_id', raceWeekendId)
+              const { data: order } = await supabase
+                .from('draft_orders')
+                .select('*, profiles(id, display_name)')
+                .eq('race_weekend_id', raceWeekendId)
+                .order('pick_order')
+
+              if (order?.length) {
+                const numPlayers = order.length
+                const totalExpected = numPlayers * 6
+                if (freshPicks.length < totalExpected) {
+                  const idx = freshPicks.length % numPlayers
+                  const nextPlayer = order[idx]
+                  if (nextPlayer?.profiles?.id) {
+                    await sendPushIfEnabled({
+                      profile_id: nextPlayer.profiles.id,
+                      title: '🏎️ Du bist dran!',
+                      body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+                      url: '/f1-fantasy/draft',
+                      tag: 'draft-turn',
+                    })
+                  }
                 }
               }
-            }
-          } catch (_) {}
-        }, 300)
-      })
-      .subscribe()
+            } catch (_) {}
+          }, 300)
+        })
+        .subscribe((status) => {
+          console.log(`[useDraft] Channel-Status: ${status}`)
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[useDraft] Channel verloren – Reconnect in 3s')
+            clearTimeout(reconnectTimer)
+            reconnectTimer = setTimeout(subscribe, 3000)
+          }
+        })
+    }
 
-    return () => supabase.removeChannel(channel)
+    subscribe()
+
+    // Heartbeat: alle 25s einen leichten DB-Ping machen damit der
+    // WebSocket nicht vom Browser/NAT als idle markiert wird
+    heartbeatTimer = setInterval(async () => {
+      try {
+        await supabase.from('picks').select('id').eq('race_weekend_id', raceWeekendId).limit(1)
+        console.log('[useDraft] Heartbeat OK')
+      } catch (_) {
+        console.warn('[useDraft] Heartbeat fehlgeschlagen')
+      }
+    }, 25_000)
+
+    // Reconnect wenn Tab wieder sichtbar wird
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        console.log('[useDraft] Tab aktiv – Picks neu laden')
+        loadPicks()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+      clearTimeout(reloadTimer)
+      clearTimeout(reconnectTimer)
+      clearInterval(heartbeatTimer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [raceWeekendId])
 
   async function loadAll() {
@@ -154,12 +197,17 @@ export function useDraft(raceWeekendId) {
   const pickedConstructorIds = picks.filter(p => p.pick_type === 'constructor').map(p => p.constructor_id)
 
   async function makePick(type, entityId) {
-    const { data: freshPicks } = await supabase
+    const { data: freshPicks, error: fetchError } = await supabase
       .from('picks')
       .select('profile_id, pick_type, driver_id, constructor_id')
       .eq('race_weekend_id', raceWeekendId)
 
-    const fresh = freshPicks ?? []
+    if (fetchError || freshPicks === null) {
+      console.error('[useDraft] makePick: Picks konnten nicht geladen werden', fetchError)
+      return { error: { message: 'Verbindungsfehler – bitte nochmal versuchen.' } }
+    }
+
+    const fresh = freshPicks
     const freshTotal = fresh.length
     const freshIdx = freshTotal % (draftOrder.length || 1)
     const freshTurn = draftOrder[freshIdx]

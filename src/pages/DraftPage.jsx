@@ -237,8 +237,21 @@ export default function DraftPage() {
   const [pendingPick, setPendingPick] = useState(null)
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
-  const [availability, setAvailability] = useState({}) // driver_id → { status, reason }
+  const [availability, setAvailability] = useState({})
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
   const dragItem = useRef(null)
+
+  // Online/Offline-Status tracken
+  useEffect(() => {
+    const onOnline  = () => setIsOnline(true)
+    const onOffline = () => setIsOnline(false)
+    window.addEventListener('online',  onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online',  onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (weekends.length && !selectedWeekendId) {
@@ -317,16 +330,44 @@ export default function DraftPage() {
 
   async function handleConfirm() {
     if (!pendingPick || submitting) return
+
+    if (!isOnline) {
+      alert('Keine Internetverbindung – bitte prüfe dein Netzwerk und versuch es nochmal.')
+      return
+    }
+
     setSubmitting(true)
     const safetyTimer = setTimeout(() => {
       setSubmitting(false)
       alert('Anfrage hat zu lange gedauert – bitte nochmal versuchen.')
     }, 12000)
+
     try {
+      // Session auffrischen bevor wir schreiben – verhindert Fehler nach langem Warten
+      const { error: sessionError } = await supabase.auth.refreshSession()
+      if (sessionError) console.warn('[DraftPage] Session-Refresh fehlgeschlagen:', sessionError)
+
       const { item, type } = pendingPick
-      const { error } = await makePick(type, item.id)
-      if (error) alert('Fehler: ' + (error.message ?? error))
-      else setPendingPick(null)
+      let { error } = await makePick(type, item.id)
+
+      // Einmal automatisch wiederholen falls die Session gerade neu war
+      if (error) {
+        console.warn('[DraftPage] makePick fehlgeschlagen, 1 Retry:', error)
+        await new Promise(r => setTimeout(r, 800))
+        ;({ error } = await makePick(type, item.id))
+      }
+
+      if (error) {
+        const msg = error.message ?? String(error)
+        if (msg.toLowerCase().includes('jwt') || msg.toLowerCase().includes('auth') || msg.toLowerCase().includes('session')) {
+          alert('Deine Sitzung ist abgelaufen. Seite wird neu geladen\u2026')
+          window.location.reload()
+        } else {
+          alert('Fehler beim Speichern: ' + msg)
+        }
+      } else {
+        setPendingPick(null)
+      }
     } finally {
       clearTimeout(safetyTimer)
       setSubmitting(false)
@@ -365,6 +406,12 @@ export default function DraftPage() {
           ))}
         </select>
       </div>
+
+      {!isOnline && (
+        <div className="draft-offline-banner">
+          ⚠️ Keine Internetverbindung – Picks können gerade nicht gespeichert werden.
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
