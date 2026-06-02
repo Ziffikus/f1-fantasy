@@ -32,6 +32,11 @@ function fmtPts(val) {
   return n % 1 === 0 ? n : n.toFixed(1)
 }
 
+// Gibt immer eine Dezimalstelle zurück, damit alle Werte gleich breit sind
+function fmtPtsPadded(val) {
+  return Number(val).toFixed(1)
+}
+
 // ── Palette for chart lines ───────────────────────────────────
 const CHART_COLORS = [
   '#FFD700', '#60a5fa', '#f472b6', '#34d399', '#fb923c',
@@ -399,6 +404,9 @@ export default function StandingsPage() {
         .sort((a, b) => a.live_total - b.live_total)
     : standings.map(p => ({ ...p, live_total: p.total_points }))
 
+  // Rechtsbündige Ausrichtung: true wenn irgendein Spieler einen Halbpunkt hat
+  const hasHalfPoints = liveStandings.some(p => Number(p.live_total) % 1 !== 0)
+
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
       <div className="spinner" />
@@ -408,9 +416,7 @@ export default function StandingsPage() {
   return (
     <div className="standings-page page-enter">
       <h1>Wertung</h1>
-      <p className="text-secondary" style={{ marginTop: '0.3rem', marginBottom: isLive ? '0.75rem' : '1.5rem' }}>
-        Saison 2026 · {completedWeekends.length} Rennen gewertet · Weniger Punkte = besser
-      </p>
+
 
       {/* Live-Banner */}
       {isLive && (
@@ -522,7 +528,9 @@ export default function StandingsPage() {
                     </div>
                   </td>
                   <td className="standings-pts-cell">
-                    {fmtPts(player.live_total)}
+                    <span style={{ fontVariantNumeric: 'tabular-nums', display: 'inline-block', textAlign: 'right', minWidth: hasHalfPoints ? '2.8rem' : 'auto' }}>
+                      {hasHalfPoints ? fmtPtsPadded(player.live_total) : fmtPts(player.live_total)}
+                    </span>
                     {isLive && player.live_total !== player.total_points && (
                       <span className="standings-pts-diff" style={{
                         color: player.live_total < player.total_points ? 'var(--color-success, #4ade80)' : 'var(--color-danger, #f87171)',
@@ -598,6 +606,9 @@ export default function StandingsPage() {
 
       <p className="standings-tiebreaker">
         Tiebreaker: Gleiche Punkte → Mehr Siege → Mehr 2. Plätze → Mehr 3. Plätze
+      </p>
+      <p className="standings-tiebreaker" style={{ marginTop: '0.4rem' }}>
+        Saison 2026 · {completedWeekends.length} Rennen gewertet
       </p>
     </div>
   )
