@@ -343,10 +343,6 @@ export default function DraftPage() {
     }, 12000)
 
     try {
-      // Session auffrischen bevor wir schreiben – verhindert Fehler nach langem Warten
-      const { error: sessionError } = await supabase.auth.refreshSession()
-      if (sessionError) console.warn('[DraftPage] Session-Refresh fehlgeschlagen:', sessionError)
-
       const { item, type } = pendingPick
       let { error } = await makePick(type, item.id)
 
