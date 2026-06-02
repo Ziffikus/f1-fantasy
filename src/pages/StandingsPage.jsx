@@ -519,12 +519,13 @@ export default function StandingsPage() {
                           ? <img src={player.avatar_url} alt={player.display_name} />
                           : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
                       </div>
-                      <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        {player.display_name}
-                        {gamingChamp === player.profile_id && <span title="Gaming Champion">🎮</span>}
-                        {player.profile_id === profile?.id && <span className="dashboard-you"> (du)</span>}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: 0 }}>
+                        <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
+                          {player.display_name}
+                          {gamingChamp === player.profile_id && <span title="Gaming Champion"> 🎮</span>}
+                        </span>
+                        {player.profile_id === profile?.id && <span className="dashboard-you" style={{ flexShrink: 0, fontSize: '0.7rem' }}>(du)</span>}
+                      </div>
                     </div>
                   </td>
                   <td className="standings-pts-cell">

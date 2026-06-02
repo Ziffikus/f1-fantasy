@@ -130,7 +130,7 @@
 }
 
 .standings-table th:first-child { width: 2.5rem; }
-.standings-table th:last-child { width: 2rem; }
+.standings-table th:last-child { width: 3rem; }
 
 .standings-row {
   border-bottom: 1px solid var(--border);
@@ -152,6 +152,8 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .standings-avatar {
@@ -181,7 +183,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 7rem;
+  min-width: 0;
 }
 
 .standings-pts-cell {
@@ -277,7 +279,7 @@
   .standings-table th:nth-child(6),
   .standings-table td:nth-child(6) { display: none; }
   .standings-table th:last-child,
-  .standings-table td:last-child { width: 2rem; }
+  .standings-table td:last-child { width: 3rem; }
   .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
   .standings-name { max-width: 5rem; }
   .standings-race-grid { grid-template-columns: repeat(3, minmax(3.2rem, 1fr)); }
