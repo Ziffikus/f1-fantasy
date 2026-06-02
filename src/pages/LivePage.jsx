@@ -46,7 +46,7 @@ export default function LivePage() {
     loading, lastUpdate, isLive,
     getDriver, getLapTimesRanked,
     getBestSectors, getSessionBestSectors,
-    getDriversRanked,
+    getDriversRanked, getEliminatedDrivers,
     refetch,
   } = useLiveSession()
 
@@ -73,6 +73,7 @@ export default function LivePage() {
   const raining = weather?.rainfall > 0
 
   const driversRanked = getDriversRanked()
+  const eliminatedDrivers = isQualifying ? getEliminatedDrivers() : []
   const lapTimesRanked = getLapTimesRanked()
   const sessionBestSectors = getSessionBestSectors()
 
@@ -216,6 +217,37 @@ export default function LivePage() {
                   </div>
                 )
               })}
+              {/* Qualifying: Eliminierte Fahrer als Trennblock am Ende */}
+              {isQualifying && eliminatedDrivers.length > 0 && (
+                <>
+                  <div className="live-eliminated-divider">
+                    <span>Ausgeschieden</span>
+                  </div>
+                  {eliminatedDrivers.map((entry) => {
+                    const driver = getDriver(entry.driver_number)
+                    const acronym = driver?.name_acronym ?? driver?.broadcast_name ?? `#${entry.driver_number}`
+                    const color = driver?.team_colour ? `#${driver.team_colour}` : '#888'
+                    return (
+                      <div key={`elim-${entry.driver_number}`} className="live-drivers-row live-drivers-row--eliminated">
+                        <span className="live-dc-pos">{entry.position ?? '–'}</span>
+                        <div className="live-dc-name">
+                          <div className="live-dc-stripe" style={{ background: color }} />
+                          <span className="live-dc-acronym live-dc-acronym--out">{acronym}</span>
+                        </div>
+                        <div className="live-dc-tyre">
+                          <span className="live-eliminated-seg">{entry.eliminatedIn ?? '–'}</span>
+                        </div>
+                        <span className="live-dc-time">
+                          {entry.bestTime != null
+                            ? (entry.bestTime === 0 ? 'P1' : `+${Number(entry.bestTime).toFixed(3)}`)
+                            : '–'}
+                        </span>
+                        <span className="live-dc-gap live-eliminated-out">OUT</span>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
             </div>
           ) : (
             <EmptyState label="Noch keine Daten verfügbar." />

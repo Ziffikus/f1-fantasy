@@ -291,6 +291,45 @@
   line-height: 1.4;
 }
 
+.live-drivers-row--eliminated {
+  opacity: 0.4;
+}
+
+.live-eliminated-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.live-eliminated-divider::before,
+.live-eliminated-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.live-eliminated-seg {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 3px;
+  padding: 0.05rem 0.25rem;
+}
+
+.live-eliminated-out {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted) !important;
+}
+
 /* ── Wetter – kompakte Zeile am Ende ────────────────────────── */
 .live-weather.card {
   padding-top: 0.5rem;
