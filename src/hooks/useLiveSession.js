@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   getLatestSession, getPositions, getWeather,
   getLatestLapNumber, getRaceControl, getIntervals,
-  getStints, getDrivers, getLaps, getPitStops
+  getStints, getDrivers, getLaps, getPitStops, getSessionResult
 } from '../lib/openf1'
 
 const REFRESH_INTERVAL = 15000 // 15 Sekunden
@@ -53,6 +53,7 @@ export function useLiveSession() {
   const [intervals, setIntervals]     = useState([])
   const [stints, setStints]           = useState([])
   const [pitStops, setPitStops]       = useState([])
+  const [sessionResult, setSessionResult] = useState([])
   const [laps, setLaps]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [lastUpdate, setLastUpdate]   = useState(null)
@@ -69,7 +70,7 @@ export function useLiveSession() {
       // FIX: isLive wird jetzt mit dem 4h-Fallback berechnet
       setIsLive(checkIsLive(sess))
 
-      const [pos, wx, lap, rc, iv, st, dr, lp, pt] = await Promise.allSettled([
+      const [pos, wx, lap, rc, iv, st, dr, lp, pt, sr] = await Promise.allSettled([
         getPositions(sess.session_key),
         getWeather(sess.session_key),
         getLatestLapNumber(sess.session_key),
@@ -79,6 +80,7 @@ export function useLiveSession() {
         getDrivers(sess.session_key),
         getLaps(sess.session_key),
         getPitStops(sess.session_key),
+        getSessionResult(sess.session_key),
       ])
 
       if (pos.status === 'fulfilled')  setPositions(pos.value ?? [])
@@ -90,6 +92,7 @@ export function useLiveSession() {
       if (dr.status === 'fulfilled')   setDrivers(dr.value ?? [])
       if (lp.status === 'fulfilled')   setLaps(lp.value ?? [])
       if (pt.status === 'fulfilled')   setPitStops(pt.value ?? [])
+      if (sr.status === 'fulfilled')   setSessionResult(sr.value ?? [])
 
       setLastUpdate(new Date())
     } catch (e) {
@@ -203,6 +206,29 @@ export function useLiveSession() {
     return pitStops.filter(p => p.driver_number === driverNumber).length
   }
 
+  // ── Helfer: DNF/DNS/DSQ Status pro Fahrer ────────────────────
+  // Priorität: session_result (explizit) → RC-Nachrichten (live)
+  const RC_RETIRED_PATTERNS = [/\bRETIRED\b/, /\bACCIDENT\b/, /\bMECHANICAL\b/, /\bCOLLISION DAMAGE\b/]
+
+  function getDriverStatus(driverNumber) {
+    // 1. session_result – nach der Session verfügbar
+    const result = sessionResult.find(r => r.driver_number === driverNumber)
+    if (result) {
+      if (result.dnf) return 'DNF'
+      if (result.dns) return 'DNS'
+      if (result.dsq) return 'DSQ'
+    }
+
+    // 2. RC-Nachrichten – live während des Rennens
+    const rcMatch = raceControl.find(msg => {
+      if (msg.driver_number !== driverNumber && !String(msg.message ?? '').includes(`CAR ${driverNumber}`)) return false
+      return RC_RETIRED_PATTERNS.some(p => p.test((msg.message ?? '').toUpperCase()))
+    })
+    if (rcMatch) return 'DNF'
+
+    return null
+  }
+
   // ── Helfer: Alle Fahrer nach Position sortiert, mit allen Infos ──
   function getDriversRanked() {
     if (!positions.length) return []
@@ -214,8 +240,9 @@ export function useLiveSession() {
       const lastLap       = getLastLap(p.driver_number)
       const bestSectors   = getBestSectors(p.driver_number)
       const pitCount      = getPitCount(p.driver_number)
+      const status        = getDriverStatus(p.driver_number)
       const lapsSinceTyre = tyre?.lap_start && currentLap ? currentLap - tyre.lap_start : null
-      return { ...p, driver, tyre, interval, bestLap, lastLap, bestSectors, pitCount, lapsSinceTyre }
+      return { ...p, driver, tyre, interval, bestLap, lastLap, bestSectors, pitCount, status, lapsSinceTyre }
     })
   }
 
@@ -225,7 +252,7 @@ export function useLiveSession() {
     getCurrentTyre, getInterval, getDriver,
     getBestLap, getLastLap, getLapTimesRanked,
     getBestSectors, getSessionBestSectors,
-    getPitCount, getDriversRanked,
+    getPitCount, getDriverStatus, getDriversRanked,
     refetch: fetchAll,
   }
 }

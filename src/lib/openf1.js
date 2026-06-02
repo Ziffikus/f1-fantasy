@@ -161,6 +161,11 @@ export async function getPitStops(sessionKey) {
   return openF1Fetch('/pit', { session_key: sessionKey })
 }
 
+// ─── Session Ergebnis (DNF/DNS/DSQ – nach der Session) ───────
+export async function getSessionResult(sessionKey) {
+  return openF1Fetch('/session_result', { session_key: sessionKey })
+}
+
 // ─── Sessions für aktuelles Meeting ──────────────────────────
 export async function getSessionsForMeeting(meetingKey) {
   return openF1Fetch('/sessions', { meeting_key: meetingKey })

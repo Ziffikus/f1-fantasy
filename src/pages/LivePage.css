@@ -71,6 +71,22 @@
   border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 
+.live-drivers-row--out {
+  opacity: 0.45;
+}
+
+.live-dc-acronym--out {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.live-dc-status {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.05em;
+}
+
 /* letztes Element (Row oder Sectors) ohne border */
 .live-drivers-list > div:last-child .live-drivers-row,
 .live-drivers-list > div:last-child .live-drivers-sectors,

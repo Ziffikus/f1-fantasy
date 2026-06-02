@@ -139,10 +139,13 @@ export default function LivePage() {
                 const color = driver?.team_colour ? `#${driver.team_colour}` : '#888'
                 const tyre = entry.tyre
                 const pitCount = entry.pitCount ?? 0
+                const status = entry.status  // 'DNF' | 'DNS' | 'DSQ' | null
 
-                const timeVal = isRace
-                  ? formatLapTime(entry.lastLap?.lap_duration)
-                  : formatLapTime(entry.bestLap?.lap_duration)
+                const timeVal = status
+                  ? null
+                  : isRace
+                    ? formatLapTime(entry.lastLap?.lap_duration)
+                    : formatLapTime(entry.bestLap?.lap_duration)
 
                 const gapVal = isQualifying
                   ? (entry.gap != null && entry.gap !== 0 ? `+${entry.gap.toFixed(3)}` : null)
@@ -157,30 +160,33 @@ export default function LivePage() {
 
                 return (
                   <div key={entry.driver_number}>
-                    <div className={`live-drivers-row${entry.rank === 1 ? ' live-drivers-row--leader' : ''}`}>
+                    <div className={`live-drivers-row${entry.rank === 1 ? ' live-drivers-row--leader' : ''}${status ? ' live-drivers-row--out' : ''}`}>
                       <span className="live-dc-pos">{entry.rank}</span>
 
                       <div className="live-dc-name">
                         <div className="live-dc-stripe" style={{ background: color }} />
-                        <span className="live-dc-acronym">{acronym}</span>
+                        <span className={`live-dc-acronym${status ? ' live-dc-acronym--out' : ''}`}>{acronym}</span>
                         {isRace && pitCount > 0 && (
                           <span className="live-dc-pits">{pitCount}×pit</span>
                         )}
                       </div>
 
                       <div className="live-dc-tyre">
-                        {tyre?.compound
+                        {!status && tyre?.compound
                           ? <TyreBadge compound={tyre.compound} lap={entry.lapsSinceTyre} />
                           : <span className="live-dc-no-tyre">–</span>
                         }
                       </div>
 
                       <span className="live-dc-time">
-                        {timeVal ?? '–'}
+                        {status
+                          ? <span className="live-dc-status">{status}</span>
+                          : (timeVal ?? '–')
+                        }
                       </span>
 
                       <span className="live-dc-gap">
-                        {entry.rank === 1
+                        {status ? '' : entry.rank === 1
                           ? <span className="live-lapgap--leader">P1</span>
                           : gapVal ?? '–'
                         }
