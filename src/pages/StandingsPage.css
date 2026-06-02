@@ -7,6 +7,7 @@
   justify-content: center;
   gap: 0;
   margin-bottom: 2rem;
+  margin-top: 1.5rem;
   height: 180px;
   padding-top: 2rem;
 }
@@ -200,8 +201,8 @@
 }
 
 .standings-race-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(3.5rem, 1fr));
   gap: 0.4rem;
 }
 
@@ -254,7 +255,7 @@
 }
 
 @media (max-width: 600px) {
-  .standings-podium { height: 150px; }
+  .standings-podium { height: 150px; margin-top: 1rem; }
   .podium-block-1 { height: 60px; }
   .podium-block-2 { height: 42px; }
   .podium-block-3 { height: 30px; }
@@ -262,6 +263,9 @@
   .standings-table td:nth-child(5),
   .standings-table th:nth-child(6),
   .standings-table td:nth-child(6) { display: none; }
+  .standings-table { table-layout: fixed; }
+  .standings-table th, .standings-table td { padding: 0.6rem 0.4rem; }
+  .standings-race-grid { grid-template-columns: repeat(3, minmax(3.2rem, 1fr)); }
 }
 
 /* ── Live Banner ─────────────────────────────────────────────── */
