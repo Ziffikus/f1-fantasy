@@ -7,7 +7,7 @@
   justify-content: center;
   gap: 0;
   margin-bottom: 2rem;
-  margin-top: 1.5rem;
+  margin-top: 2.5rem;
   height: 180px;
   padding-top: 2rem;
 }
@@ -119,7 +119,7 @@
 }
 
 .standings-table th {
-  padding: 0.7rem 0.75rem;
+  padding: 0.7rem 0.5rem;
   font-family: var(--font-display);
   font-size: 0.7rem;
   font-weight: 700;
@@ -129,8 +129,8 @@
   text-align: left;
 }
 
-.standings-table th:first-child { width: 3rem; }
-.standings-table th:last-child { width: 2.5rem; }
+.standings-table th:first-child { width: 2.5rem; }
+.standings-table th:last-child { width: 2rem; }
 
 .standings-row {
   border-bottom: 1px solid var(--border);
@@ -143,7 +143,7 @@
 .standings-row:last-child { border-bottom: none; }
 
 .standings-table td {
-  padding: 0.7rem 0.75rem;
+  padding: 0.7rem 0.5rem;
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
@@ -178,6 +178,10 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 7rem;
 }
 
 .standings-pts-cell {
@@ -185,6 +189,7 @@
   font-size: 1.1rem !important;
   font-weight: 800 !important;
   color: var(--text-primary) !important;
+  white-space: nowrap;
 }
 
 .standings-expand-btn {
@@ -255,16 +260,26 @@
 }
 
 @media (max-width: 600px) {
-  .standings-podium { height: 150px; margin-top: 1rem; }
+  .standings-podium { height: 150px; margin-top: 2rem; }
   .podium-block-1 { height: 60px; }
   .podium-block-2 { height: 42px; }
   .podium-block-3 { height: 30px; }
+  .standings-table { table-layout: fixed; width: 100%; }
+  .standings-table th:first-child,
+  .standings-table td:first-child { width: 2.2rem; }
+  .standings-table th:nth-child(2),
+  .standings-table td:nth-child(2) { width: auto; }
+  .standings-table th:nth-child(3),
+  .standings-table td:nth-child(3) { width: 4rem; }
+  /* Siege + 2. Plätze ausblenden, Rennen bleibt sichtbar */
   .standings-table th:nth-child(5),
   .standings-table td:nth-child(5),
   .standings-table th:nth-child(6),
   .standings-table td:nth-child(6) { display: none; }
-  .standings-table { table-layout: fixed; }
-  .standings-table th, .standings-table td { padding: 0.6rem 0.4rem; }
+  .standings-table th:last-child,
+  .standings-table td:last-child { width: 2rem; }
+  .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
+  .standings-name { max-width: 5rem; }
   .standings-race-grid { grid-template-columns: repeat(3, minmax(3.2rem, 1fr)); }
 }
 
