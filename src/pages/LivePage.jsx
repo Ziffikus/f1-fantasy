@@ -7,16 +7,11 @@ const TYRE_COLOR = {
   SOFT: '#E8002D', MEDIUM: '#FFF200', HARD: '#FFFFFF',
   INTERMEDIATE: '#39B54A', WET: '#0067FF',
 }
-const TYRE_SHORT = {
-  SOFT: 'S', MEDIUM: 'M', HARD: 'H', INTERMEDIATE: 'I', WET: 'W',
-}
+const TYRE_SHORT = { SOFT: 'S', MEDIUM: 'M', HARD: 'H', INTERMEDIATE: 'I', WET: 'W' }
+
 const RC_COLOR = {
-  'GREEN FLAG': '#4ade80',
-  'YELLOW FLAG': '#fbbf24',
-  'RED FLAG': '#ef4444',
-  'SAFETY CAR': '#f97316',
-  'VIRTUAL SAFETY CAR': '#f97316',
-  'CHEQUERED FLAG': '#fff',
+  'GREEN FLAG': '#4ade80', 'YELLOW FLAG': '#fbbf24', 'RED FLAG': '#ef4444',
+  'SAFETY CAR': '#f97316', 'VIRTUAL SAFETY CAR': '#f97316', 'CHEQUERED FLAG': '#fff',
 }
 
 function TyreBadge({ compound, lap }) {
@@ -26,7 +21,7 @@ function TyreBadge({ compound, lap }) {
   return (
     <span className="live-tyre" style={{ background: color, color: dark ? '#000' : '#fff' }}>
       {short}
-      {lap != null && <span className="live-tyre-lap">+{lap}</span>}
+      {lap != null && <span className="live-tyre-lap">{lap}L</span>}
     </span>
   )
 }
@@ -35,8 +30,6 @@ function EmptyState({ label }) {
   return <p className="live-empty-state">{label}</p>
 }
 
-// ── Sektor-Badge ──────────────────────────────────────────────
-// Lila = Session-Bestzeit, Grün = Persönliche Bestzeit, normal = keine Auszeichnung
 function SectorBadge({ time, isSessionBest, isPersonalBest }) {
   if (!time) return <span className="live-sector live-sector--empty">–</span>
   const cls = isSessionBest
@@ -49,11 +42,11 @@ function SectorBadge({ time, isSessionBest, isPersonalBest }) {
 
 export default function LivePage() {
   const {
-    session, positions, weather, currentLap, raceControl,
+    session, weather, currentLap, raceControl,
     loading, lastUpdate, isLive,
-    getCurrentTyre, getInterval, getDriver,
-    getBestLap, getLastLap, getLapTimesRanked,
+    getDriver, getLapTimesRanked,
     getBestSectors, getSessionBestSectors,
+    getDriversRanked,
     refetch,
   } = useLiveSession()
 
@@ -71,20 +64,27 @@ export default function LivePage() {
     'Sprint Qualifying': 'Sprint Qualifying', 'Race': 'Rennen',
   }[session?.session_name] ?? session?.session_name ?? null
 
-  // Kategorie bestimmt wie Lap-Daten angezeigt werden
   const sessionCategory = getSessionCategory(session?.session_name)
   const isQualifying = sessionCategory === 'qualifying' || sessionCategory === 'practice'
-  const isRace       = sessionCategory === 'race'
+  const isRace = sessionCategory === 'race'
 
-  const hasWeather    = !!weather
-  const hasPositions  = positions.length > 0
+  const hasWeather = !!weather
   const hasRaceControl = raceControl?.length > 0
-
-  // Lap-Daten aufbereiten
-  const lapTimesRanked    = getLapTimesRanked()
-  const hasLapTimes       = lapTimesRanked.length > 0
-  const sessionBestSectors = getSessionBestSectors()
   const raining = weather?.rainfall > 0
+
+  const driversRanked = getDriversRanked()
+  const lapTimesRanked = getLapTimesRanked()
+  const sessionBestSectors = getSessionBestSectors()
+
+  // Qualifying: nach Bestzeit sortiert; Race/andere: nach Position
+  const displayList = isQualifying && lapTimesRanked.length > 0
+    ? lapTimesRanked.map(({ driver_number, rank, bestLap, gap }) => {
+        const base = driversRanked.find(d => d.driver_number === driver_number) ?? {}
+        return { ...base, driver_number, rank, bestLap, gap }
+      })
+    : driversRanked.map((d, i) => ({ ...d, rank: d.position ?? i + 1 }))
+
+  const hasData = displayList.length > 0
 
   return (
     <div className="live-page-root">
@@ -163,149 +163,104 @@ export default function LivePage() {
           )}
         </div>
 
-        {/* ── Rundenzeiten ────────────────────────────────────────
-            Qualifying / Practice: Beste Runde + Sektoren + Gap
-            Race / Sprint:        Letzte Runde + Beste Runde
-        */}
-        <div className="live-laps card">
-          <div className="live-laps-title">
+        {/* ── Vereinte Fahrer-Card ─────────────────────────────────── */}
+        <div className="live-drivers card">
+          <div className="live-drivers-title">
             <Timer size={14} />
-            {isQualifying ? ' Qualifying-Zeiten' : isRace ? ' Rundenzeiten' : ' Rundenzeiten'}
+            {isQualifying ? ' Qualifying' : isRace ? ' Rennen' : ' Fahrer'}
           </div>
 
-          {hasLapTimes ? (
-            <div className="live-laps-list">
-              {/* Spaltenköpfe */}
-              <div className="live-laps-header">
-                <span className="live-laps-col-pos">#</span>
-                <span className="live-laps-col-name">Fahrer</span>
-                {isQualifying && (
-                  <>
-                    <span className="live-laps-col-time">Beste Zeit</span>
-                    <span className="live-laps-col-gap">Abstand</span>
-                    <span className="live-laps-col-sectors">Sektoren</span>
-                  </>
-                )}
-                {isRace && (
-                  <>
-                    <span className="live-laps-col-time">Letzte Runde</span>
-                    <span className="live-laps-col-best">Beste</span>
-                  </>
-                )}
-                {!isQualifying && !isRace && (
-                  <span className="live-laps-col-time">Beste Zeit</span>
-                )}
+          {hasData ? (
+            <div className="live-drivers-list">
+              {/* Header */}
+              <div className="live-drivers-header">
+                <span>#</span>
+                <span>Fahrer</span>
+                <span>Reifen</span>
+                <span className="col-right">{isRace ? 'Letzte' : 'Beste'}</span>
+                <span className="col-right">Gap</span>
               </div>
 
-              {lapTimesRanked.map(({ driver_number, rank, bestLap, gap }) => {
-                const driver     = getDriver(driver_number)
-                const name       = driver?.broadcast_name ?? driver?.full_name ?? `#${driver_number}`
-                const color      = driver?.team_colour ? `#${driver.team_colour}` : '#888'
-                const bestSectors = getBestSectors(driver_number)
-                const lastLap    = getLastLap(driver_number)
+              {displayList.map((entry) => {
+                const driver = entry.driver ?? getDriver(entry.driver_number)
+                const acronym = driver?.name_acronym ?? driver?.broadcast_name ?? `#${entry.driver_number}`
+                const color = driver?.team_colour ? `#${driver.team_colour}` : '#888'
+                const tyre = entry.tyre
+                const pitCount = entry.pitCount ?? 0
+
+                const timeVal = isRace
+                  ? formatLapTime(entry.lastLap?.lap_duration)
+                  : formatLapTime(entry.bestLap?.lap_duration)
+
+                const gapVal = isQualifying
+                  ? (entry.gap != null && entry.gap !== 0 ? `+${entry.gap.toFixed(3)}` : null)
+                  : entry.rank !== 1 && entry.interval?.gap_to_leader != null
+                    ? `+${typeof entry.interval.gap_to_leader === 'number'
+                        ? entry.interval.gap_to_leader.toFixed(1)
+                        : entry.interval.gap_to_leader}`
+                    : null
+
+                const bestSectors = entry.bestSectors ?? getBestSectors(entry.driver_number)
+                const hasSectors = isQualifying && (bestSectors.s1 || bestSectors.s2 || bestSectors.s3)
 
                 return (
-                  <div key={driver_number} className={`live-laps-row ${rank === 1 ? 'live-laps-row--leader' : ''}`}>
-                    <span className="live-laps-col-pos">{rank}</span>
+                  <div key={entry.driver_number}>
+                    <div className={`live-drivers-row${entry.rank === 1 ? ' live-drivers-row--leader' : ''}`}>
+                      <span className="live-dc-pos">{entry.rank}</span>
 
-                    <div className="live-laps-col-name">
-                      <div className="live-pos-color" style={{ background: color }} />
-                      <span className="live-pos-name">{name}</span>
+                      <div className="live-dc-name">
+                        <div className="live-dc-stripe" style={{ background: color }} />
+                        <span className="live-dc-acronym">{acronym}</span>
+                        {isRace && pitCount > 0 && (
+                          <span className="live-dc-pits">{pitCount}×pit</span>
+                        )}
+                      </div>
+
+                      <div className="live-dc-tyre">
+                        {tyre?.compound
+                          ? <TyreBadge compound={tyre.compound} lap={entry.lapsSinceTyre} />
+                          : <span className="live-dc-no-tyre">–</span>
+                        }
+                      </div>
+
+                      <span className="live-dc-time">
+                        {timeVal ?? '–'}
+                      </span>
+
+                      <span className="live-dc-gap">
+                        {entry.rank === 1
+                          ? <span className="live-lapgap--leader">P1</span>
+                          : gapVal ?? '–'
+                        }
+                      </span>
                     </div>
 
-                    {isQualifying && (
-                      <>
-                        <span className="live-laps-col-time live-laptime">
-                          {formatLapTime(bestLap.lap_duration) ?? '–'}
-                        </span>
-                        <span className="live-laps-col-gap live-lapgap">
-                          {gap === 0 ? <span className="live-lapgap--leader">P1</span> : `+${gap.toFixed(3)}`}
-                        </span>
-                        <span className="live-laps-col-sectors">
-                          <SectorBadge
-                            time={bestSectors.s1}
-                            isSessionBest={bestSectors.s1 != null && bestSectors.s1 === sessionBestSectors.s1}
-                            isPersonalBest={true}
-                          />
-                          <SectorBadge
-                            time={bestSectors.s2}
-                            isSessionBest={bestSectors.s2 != null && bestSectors.s2 === sessionBestSectors.s2}
-                            isPersonalBest={true}
-                          />
-                          <SectorBadge
-                            time={bestSectors.s3}
-                            isSessionBest={bestSectors.s3 != null && bestSectors.s3 === sessionBestSectors.s3}
-                            isPersonalBest={true}
-                          />
-                        </span>
-                      </>
-                    )}
-
-                    {isRace && (
-                      <>
-                        <span className="live-laps-col-time live-laptime">
-                          {formatLapTime(lastLap?.lap_duration) ?? '–'}
-                        </span>
-                        <span className="live-laps-col-best live-laptime live-laptime--best">
-                          {formatLapTime(bestLap.lap_duration) ?? '–'}
-                        </span>
-                      </>
-                    )}
-
-                    {!isQualifying && !isRace && (
-                      <span className="live-laps-col-time live-laptime">
-                        {formatLapTime(bestLap.lap_duration) ?? '–'}
-                      </span>
+                    {/* Sektoren nur Qualifying, als Sub-Zeile */}
+                    {hasSectors && (
+                      <div className="live-drivers-sectors">
+                        <SectorBadge
+                          time={bestSectors.s1}
+                          isSessionBest={bestSectors.s1 != null && bestSectors.s1 === sessionBestSectors.s1}
+                          isPersonalBest={true}
+                        />
+                        <SectorBadge
+                          time={bestSectors.s2}
+                          isSessionBest={bestSectors.s2 != null && bestSectors.s2 === sessionBestSectors.s2}
+                          isPersonalBest={true}
+                        />
+                        <SectorBadge
+                          time={bestSectors.s3}
+                          isSessionBest={bestSectors.s3 != null && bestSectors.s3 === sessionBestSectors.s3}
+                          isPersonalBest={true}
+                        />
+                      </div>
                     )}
                   </div>
                 )
               })}
             </div>
           ) : (
-            <EmptyState label="Noch keine Rundenzeiten verfügbar." />
-          )}
-        </div>
-
-        {/* Positionen */}
-        <div className="live-standings card">
-          <div className="live-standings-title">🏎️ Positionen</div>
-          {hasPositions ? (
-            <div className="live-standings-list">
-              {positions.map((p) => {
-                const driver = getDriver(p.driver_number)
-                const tyre   = getCurrentTyre(p.driver_number)
-                const interval = getInterval(p.driver_number)
-                const name   = driver?.full_name ?? driver?.broadcast_name ?? `#${p.driver_number}`
-                const team   = driver?.team_name ?? ''
-                const color  = driver?.team_colour ? `#${driver.team_colour}` : '#888'
-                const lapsSinceTyre = tyre?.lap_start && currentLap ? currentLap - tyre.lap_start : null
-
-                return (
-                  <div key={p.driver_number} className={`live-pos-row ${p.position === 1 ? 'live-pos-row--leader' : ''}`}>
-                    <span className="live-pos-num">{p.position}</span>
-                    <div className="live-pos-color" style={{ background: color }} />
-                    <div className="live-pos-info">
-                      <span className="live-pos-name">{name}</span>
-                      <span className="live-pos-team" style={{ color }}>{team}</span>
-                    </div>
-                    {tyre?.compound && (
-                      <TyreBadge compound={tyre.compound} lap={lapsSinceTyre} />
-                    )}
-                    {interval && p.position > 1 && (
-                      <span className="live-interval">
-                        {interval.gap_to_leader != null
-                          ? `+${typeof interval.gap_to_leader === 'number' ? interval.gap_to_leader.toFixed(3) : interval.gap_to_leader}`
-                          : interval.interval != null
-                            ? `+${typeof interval.interval === 'number' ? interval.interval.toFixed(3) : interval.interval}`
-                            : ''}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <EmptyState label="Noch keine Positionsdaten verfügbar." />
+            <EmptyState label="Noch keine Daten verfügbar." />
           )}
         </div>
 

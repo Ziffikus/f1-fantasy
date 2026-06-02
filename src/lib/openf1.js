@@ -156,6 +156,11 @@ export async function getStints(sessionKey) {
   return openF1Fetch('/stints', { session_key: sessionKey })
 }
 
+// ─── Pit Stops ───────────────────────────────────────────────
+export async function getPitStops(sessionKey) {
+  return openF1Fetch('/pit', { session_key: sessionKey })
+}
+
 // ─── Sessions für aktuelles Meeting ──────────────────────────
 export async function getSessionsForMeeting(meetingKey) {
   return openF1Fetch('/sessions', { meeting_key: meetingKey })

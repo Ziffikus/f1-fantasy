@@ -5,8 +5,8 @@
   padding: 0.25rem 0;
 }
 
-/* ── Lap Times Card ──────────────────────────────────────────── */
-.live-laps-title {
+/* ── Vereinte Fahrer-Card ────────────────────────────────────── */
+.live-drivers-title {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -18,120 +18,153 @@
   margin-bottom: 0.75rem;
 }
 
-.live-laps-list {
+.live-drivers-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
-/* Spaltenköpfe */
-.live-laps-header {
+/*
+  Grid: Pos | Name | Reifen | Zeit | Gap
+  Mobil-optimiert — Name kriegt den restlichen Platz
+*/
+.live-drivers-header,
+.live-drivers-row {
   display: grid;
-  grid-template-columns: 1.5rem 1fr auto auto auto;
-  gap: 0.5rem;
+  grid-template-columns: 1.4rem 1fr 3.4rem 5.2rem 3.8rem;
+  gap: 0.3rem;
   align-items: center;
+}
+
+.live-drivers-header {
   padding: 0 0 0.35rem 0;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 0.25rem;
-
-  font-size: 0.68rem;
+  margin-bottom: 0.1rem;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
-/* Race: 2 Zeitspalten statt 3 */
-.live-laps-header:has(.live-laps-col-best) {
-  grid-template-columns: 1.5rem 1fr auto auto;
+.live-drivers-header .col-right {
+  text-align: right;
 }
 
-/* Nur beste Zeit (Practice ohne Sektoren) */
-.live-laps-header:not(:has(.live-laps-col-gap)):not(:has(.live-laps-col-best)) {
-  grid-template-columns: 1.5rem 1fr auto;
+.live-drivers-row {
+  padding: 0.32rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 
-.live-laps-row {
-  display: grid;
-  grid-template-columns: 1.5rem 1fr auto auto auto;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-  transition: background 0.15s;
+.live-drivers-row--leader {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 4px;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+  margin: 0 -0.2rem;
 }
 
-.live-laps-row:last-child {
+/* Sektor-Sub-Zeile im Qualifying */
+.live-drivers-sectors {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.1rem 0 0.3rem 1.7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+/* letztes Element (Row oder Sectors) ohne border */
+.live-drivers-list > div:last-child .live-drivers-row,
+.live-drivers-list > div:last-child .live-drivers-sectors,
+.live-drivers-list > .live-drivers-row:last-child {
   border-bottom: none;
 }
 
-.live-laps-row--leader {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border-radius: 4px;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-  margin: 0 -0.25rem;
-}
-
-/* Race-Layout */
-.live-laps-row:has(.live-laps-col-best) {
-  grid-template-columns: 1.5rem 1fr auto auto;
-}
-
-/* Nur beste Zeit */
-.live-laps-row:not(:has(.live-laps-col-gap)):not(:has(.live-laps-col-best)) {
-  grid-template-columns: 1.5rem 1fr auto;
-}
-
 /* Spalten */
-.live-laps-col-pos {
-  font-size: 0.75rem;
+.live-dc-pos {
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-muted);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.live-laps-col-name {
+.live-dc-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   min-width: 0;
+  overflow: hidden;
 }
 
-.live-laps-col-time,
-.live-laps-col-best {
+.live-dc-stripe {
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.live-dc-acronym {
   font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.live-dc-pits {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 3px;
+  padding: 0.05rem 0.2rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.live-dc-tyre {
+  display: flex;
+  align-items: center;
+}
+
+.live-dc-no-tyre {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.live-dc-time {
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
   text-align: right;
+  letter-spacing: -0.01em;
 }
 
-.live-laps-col-gap {
-  font-size: 0.75rem;
+.live-dc-gap {
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   white-space: nowrap;
   text-align: right;
-  min-width: 3.5rem;
 }
 
-.live-laps-col-sectors {
-  display: flex;
-  gap: 0.2rem;
-  justify-content: flex-end;
+/* Tyre Badge in dieser Card etwas kompakter */
+.live-drivers-list .live-tyre {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.25rem;
+  gap: 0.15rem;
+}
+.live-drivers-list .live-tyre-lap {
+  font-size: 0.58rem;
+  opacity: 0.85;
 }
 
-/* Zeitwerte */
+/* ── Zeitwerte (gemeinsam genutzt) ───────────────────────────── */
 .live-laptime {
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-}
-
-.live-laptime--best {
-  color: var(--text-secondary);
-  font-weight: 400;
-  font-size: 0.73rem;
 }
 
 .live-lapgap {
@@ -141,22 +174,22 @@
 .live-lapgap--leader {
   color: #a78bfa;
   font-weight: 700;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
 }
 
 /* ── Sektor-Badges ───────────────────────────────────────────── */
 .live-sector {
   display: inline-block;
-  font-size: 0.65rem;
+  font-size: 0.63rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  padding: 0.1rem 0.3rem;
+  padding: 0.1rem 0.28rem;
   border-radius: 3px;
   background: color-mix(in srgb, var(--border) 80%, transparent);
   color: var(--text-secondary);
   white-space: nowrap;
-  min-width: 2.8rem;
+  min-width: 2.6rem;
   text-align: center;
 }
 
@@ -165,98 +198,33 @@
   background: transparent;
 }
 
-/* Lila = Session-Bestzeit */
 .live-sector--purple {
   background: color-mix(in srgb, #a78bfa 20%, transparent);
   color: #a78bfa;
 }
 
-/* Grün = Persönliche Bestzeit */
 .live-sector--green {
   background: color-mix(in srgb, #4ade80 15%, transparent);
   color: #4ade80;
 }
 
-/* ── Positions Card ──────────────────────────────────────────── */
-.live-standings-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
-}
-
-.live-standings-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.live-pos-row {
-  display: flex;
+/* ── Tyre Badge (global) ─────────────────────────────────────── */
+.live-tyre {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-}
-
-.live-pos-row:last-child {
-  border-bottom: none;
-}
-
-.live-pos-row--leader {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border-radius: 4px;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-  margin: 0 -0.25rem;
-}
-
-.live-pos-num {
-  font-size: 0.75rem;
+  gap: 0.2rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  color: var(--text-muted);
-  min-width: 1.5rem;
-  text-align: right;
-}
-
-.live-pos-color {
-  width: 3px;
-  height: 1.4rem;
-  border-radius: 2px;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  line-height: 1;
   flex-shrink: 0;
 }
 
-.live-pos-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.live-pos-name {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.live-pos-team {
-  font-size: 0.68rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.live-interval {
-  font-size: 0.73rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  margin-left: auto;
+.live-tyre-lap {
+  font-size: 0.6rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 /* ── Race Control Card ───────────────────────────────────────── */
@@ -305,23 +273,4 @@
   font-size: 0.78rem;
   color: var(--text-primary);
   line-height: 1.4;
-}
-
-/* ── Tyre Badge ──────────────────────────────────────────────── */
-.live-tyre {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.15rem 0.35rem;
-  border-radius: 4px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.live-tyre-lap {
-  font-size: 0.6rem;
-  font-weight: 400;
-  opacity: 0.8;
 }

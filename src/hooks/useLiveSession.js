@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   getLatestSession, getPositions, getWeather,
   getLatestLapNumber, getRaceControl, getIntervals,
-  getStints, getDrivers, getLaps
+  getStints, getDrivers, getLaps, getPitStops
 } from '../lib/openf1'
 
 const REFRESH_INTERVAL = 15000 // 15 Sekunden
@@ -52,6 +52,7 @@ export function useLiveSession() {
   const [raceControl, setRaceControl] = useState([])
   const [intervals, setIntervals]     = useState([])
   const [stints, setStints]           = useState([])
+  const [pitStops, setPitStops]       = useState([])
   const [laps, setLaps]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [lastUpdate, setLastUpdate]   = useState(null)
@@ -68,7 +69,7 @@ export function useLiveSession() {
       // FIX: isLive wird jetzt mit dem 4h-Fallback berechnet
       setIsLive(checkIsLive(sess))
 
-      const [pos, wx, lap, rc, iv, st, dr, lp] = await Promise.allSettled([
+      const [pos, wx, lap, rc, iv, st, dr, lp, pt] = await Promise.allSettled([
         getPositions(sess.session_key),
         getWeather(sess.session_key),
         getLatestLapNumber(sess.session_key),
@@ -77,6 +78,7 @@ export function useLiveSession() {
         getStints(sess.session_key),
         getDrivers(sess.session_key),
         getLaps(sess.session_key),
+        getPitStops(sess.session_key),
       ])
 
       if (pos.status === 'fulfilled')  setPositions(pos.value ?? [])
@@ -87,6 +89,7 @@ export function useLiveSession() {
       if (st.status === 'fulfilled')   setStints(st.value ?? [])
       if (dr.status === 'fulfilled')   setDrivers(dr.value ?? [])
       if (lp.status === 'fulfilled')   setLaps(lp.value ?? [])
+      if (pt.status === 'fulfilled')   setPitStops(pt.value ?? [])
 
       setLastUpdate(new Date())
     } catch (e) {
@@ -195,12 +198,34 @@ export function useLiveSession() {
     return { s1: bestS1, s2: bestS2, s3: bestS3 }
   }
 
+  // ── Helfer: Anzahl Pit Stops pro Fahrer ──────────────────────
+  function getPitCount(driverNumber) {
+    return pitStops.filter(p => p.driver_number === driverNumber).length
+  }
+
+  // ── Helfer: Alle Fahrer nach Position sortiert, mit allen Infos ──
+  function getDriversRanked() {
+    if (!positions.length) return []
+    return positions.map(p => {
+      const driver        = getDriver(p.driver_number)
+      const tyre          = getCurrentTyre(p.driver_number)
+      const interval      = getInterval(p.driver_number)
+      const bestLap       = getBestLap(p.driver_number)
+      const lastLap       = getLastLap(p.driver_number)
+      const bestSectors   = getBestSectors(p.driver_number)
+      const pitCount      = getPitCount(p.driver_number)
+      const lapsSinceTyre = tyre?.lap_start && currentLap ? currentLap - tyre.lap_start : null
+      return { ...p, driver, tyre, interval, bestLap, lastLap, bestSectors, pitCount, lapsSinceTyre }
+    })
+  }
+
   return {
     session, positions, weather, currentLap, raceControl, laps,
     loading, lastUpdate, isLive,
     getCurrentTyre, getInterval, getDriver,
     getBestLap, getLastLap, getLapTimesRanked,
     getBestSectors, getSessionBestSectors,
+    getPitCount, getDriversRanked,
     refetch: fetchAll,
   }
 }
