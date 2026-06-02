@@ -115,54 +115,6 @@ export default function LivePage() {
 
       <div className="live-page-content">
 
-        {/* Wetter */}
-        <div className="live-weather card">
-          <div className="live-weather-title">🌤 Wetter</div>
-          {hasWeather ? (
-            <div className="live-weather-grid">
-              <div className="live-weather-item">
-                <Thermometer size={13} />
-                <div>
-                  <span className="live-weather-val">{weather.air_temperature?.toFixed(1)}°</span>
-                  <span className="live-weather-label">Luft</span>
-                </div>
-              </div>
-              <div className="live-weather-item">
-                <Thermometer size={13} style={{ color: '#f97316' }} />
-                <div>
-                  <span className="live-weather-val">{weather.track_temperature?.toFixed(1)}°</span>
-                  <span className="live-weather-label">Strecke</span>
-                </div>
-              </div>
-              <div className="live-weather-item">
-                <Droplets size={13} />
-                <div>
-                  <span className="live-weather-val">{weather.humidity}%</span>
-                  <span className="live-weather-label">Luftfeuchte</span>
-                </div>
-              </div>
-              <div className="live-weather-item">
-                <Wind size={13} />
-                <div>
-                  <span className="live-weather-val">{weather.wind_speed?.toFixed(1)} m/s</span>
-                  <span className="live-weather-label">Wind</span>
-                </div>
-              </div>
-              {raining && (
-                <div className="live-weather-item live-weather-item--rain">
-                  <CloudRain size={13} />
-                  <div>
-                    <span className="live-weather-val">REGEN</span>
-                    <span className="live-weather-label">{weather.rainfall} mm</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <EmptyState label="Keine Wetterdaten verfügbar." />
-          )}
-        </div>
-
         {/* ── Vereinte Fahrer-Card ─────────────────────────────────── */}
         <div className="live-drivers card">
           <div className="live-drivers-title">
@@ -283,6 +235,38 @@ export default function LivePage() {
             </div>
           ) : (
             <EmptyState label="Keine Meldungen verfügbar." />
+          )}
+        </div>
+
+        {/* Wetter – kompakt am Ende */}
+        <div className="live-weather card">
+          {hasWeather ? (
+            <div className="live-weather-row">
+              <span className="live-weather-chip">
+                <Thermometer size={11} />
+                {weather.air_temperature?.toFixed(1)}° Luft
+              </span>
+              <span className="live-weather-chip">
+                <Thermometer size={11} style={{ color: '#f97316' }} />
+                {weather.track_temperature?.toFixed(1)}° Strecke
+              </span>
+              <span className="live-weather-chip">
+                <Droplets size={11} />
+                {weather.humidity}%
+              </span>
+              <span className="live-weather-chip">
+                <Wind size={11} />
+                {weather.wind_speed?.toFixed(1)} m/s
+              </span>
+              {raining && (
+                <span className="live-weather-chip live-weather-chip--rain">
+                  <CloudRain size={11} />
+                  {weather.rainfall} mm
+                </span>
+              )}
+            </div>
+          ) : (
+            <EmptyState label="Keine Wetterdaten." />
           )}
         </div>
 

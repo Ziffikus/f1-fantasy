@@ -274,3 +274,34 @@
   color: var(--text-primary);
   line-height: 1.4;
 }
+
+/* ── Wetter – kompakte Zeile am Ende ────────────────────────── */
+.live-weather.card {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.live-weather-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.live-weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  white-space: nowrap;
+}
+
+.live-weather-chip--rain {
+  color: #60a5fa;
+  background: color-mix(in srgb, #60a5fa 15%, transparent);
+}
