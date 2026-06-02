@@ -130,7 +130,7 @@
 }
 
 .standings-table th:first-child { width: 2.5rem; }
-.standings-table th:last-child { width: 3rem; }
+.standings-table th:last-child { width: 2rem; }
 
 .standings-row {
   border-bottom: 1px solid var(--border);
@@ -273,16 +273,13 @@
   .standings-table td:nth-child(2) { width: auto; }
   .standings-table th:nth-child(3),
   .standings-table td:nth-child(3) { width: 4rem; }
-  /* Siege + 2. Plätze ausblenden, Rennen bleibt sichtbar */
   .standings-table th:nth-child(5),
   .standings-table td:nth-child(5),
   .standings-table th:nth-child(6),
   .standings-table td:nth-child(6) { display: none; }
-  .standings-table th:last-child,
-  .standings-table td:last-child { width: 3rem; }
   .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
   .standings-name { max-width: 5rem; }
-  .standings-race-grid { grid-template-columns: repeat(3, minmax(3.2rem, 1fr)); }
+  .standings-race-grid { grid-template-columns: repeat(5, minmax(3rem, 1fr)); }
 }
 
 /* ── Live Banner ─────────────────────────────────────────────── */

@@ -490,12 +490,11 @@ export default function StandingsPage() {
             <tr>
               <th>#</th>
               <th>Spieler</th>
-              <th title="Gesamtpunkte">Pkt</th>
+              <th title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</th>
               {isLive && <th title="Aktuelle Runde" className="standings-live-col">Runde</th>}
-              <th title="Siege"><Trophy size={13} /></th>
-              <th title="2. Plätze"><Medal size={13} /></th>
-              <th title="3. Plätze"><Flag size={13} /></th>
-              <th>Rennen</th>
+              <th title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
+              <th title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></th>
+              <th title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></th>
             </tr>
           </thead>
           <tbody>
@@ -528,8 +527,8 @@ export default function StandingsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="standings-pts-cell">
-                    <span style={{ fontVariantNumeric: 'tabular-nums', display: 'inline-block', textAlign: 'right', minWidth: hasHalfPoints ? '2.8rem' : 'auto' }}>
+                  <td className="standings-pts-cell" style={{ textAlign: 'right' }}>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {hasHalfPoints ? fmtPtsPadded(player.live_total) : fmtPts(player.live_total)}
                     </span>
                     {isLive && player.live_total !== player.total_points && (
@@ -547,20 +546,15 @@ export default function StandingsPage() {
                       {getLiveRoundPoints(player.profile_id) ?? '…'}
                     </td>
                   )}
-                  <td>{player.wins}</td>
-                  <td>{player.second_places}</td>
-                  <td>{player.third_places}</td>
-                  <td>
-                    <span className="standings-expand-btn">
-                      {expanded === player.profile_id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </span>
-                  </td>
+                  <td style={{ textAlign: 'right' }}>{player.wins}</td>
+                  <td style={{ textAlign: 'right' }}>{player.second_places}</td>
+                  <td style={{ textAlign: 'right' }}>{player.third_places}</td>
                 </tr>
 
                 {/* Aufgeklappte Renn-Details */}
                 {expanded === player.profile_id && (
                   <tr key={`${player.profile_id}-detail`} className="standings-detail-row">
-                    <td colSpan={isLive ? 8 : 7}>
+                    <td colSpan={isLive ? 7 : 6}>
                       <div className="standings-race-grid">
                         {completedWeekends.map(w => {
                           const rp = matrix[player.profile_id]?.[w.round]
