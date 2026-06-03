@@ -55,7 +55,7 @@ export default function Layout() {
         <div className="sidebar-logo">
           <Flag size={18} className="sidebar-logo-icon" />
           <span className="sidebar-logo-text">
-            <span className="text-accent">F1</span> TBE
+            <span className="text-accent">F1</span> Fantasy League
           </span>
           <span className="sidebar-logo-year">2026</span>
         </div>
@@ -143,7 +143,7 @@ export default function Layout() {
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <span className="layout-mobile-logo">
-            <span className="text-accent">F1</span> TBE
+            <span className="text-accent">F1</span> Fantasy League
           </span>
           <button
             className="mobile-theme-btn"
