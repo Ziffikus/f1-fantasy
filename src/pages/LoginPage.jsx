@@ -40,7 +40,7 @@ export default function LoginPage() {
           <div className="login-logo">
             <span className="login-logo-f1">F1</span>
             <span className="login-logo-sep" />
-            <span className="login-logo-tbe">TBE</span>
+            <span className="login-logo-tbe">Fantasy League</span>
           </div>
           <div className="login-season">FANTASY LIGA · SAISON 2026</div>
         </div>
