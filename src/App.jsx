@@ -67,13 +67,13 @@ function LoadingFallback() {
 }
 
 export default function App() {
-  const { init: initAuth } = useAuthStore()
-  const { init: initTheme } = useThemeStore()
+ const { user, init: initAuth } = useAuthStore()
+const { init: initTheme } = useThemeStore()
 
-  useEffect(() => {
-    initTheme()
-    initAuth()
-  }, [])
+useEffect(() => {
+  initTheme(user?.id)
+  initAuth()
+}, [])
 
   return (
     <BrowserRouter basename="/f1-fantasy">

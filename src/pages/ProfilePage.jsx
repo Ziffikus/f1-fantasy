@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import './ProfilePage.css'
 import { subscribeToPush, unsubscribeFromPush, getPushStatus } from '../lib/pushNotifications'
+import ThemeBuilder from '../components/ui/ThemeBuilder'
 
 function useFavourites(profileId) {
   const [drivers, setDrivers] = useState([])
@@ -292,6 +293,10 @@ export default function ProfilePage() {
             <StatusMsg {...(pushMsg ?? {})} />
           </div>
         )}
+      </Section>
+
+      <Section title="Design & Theme">
+        <ThemeBuilder />
       </Section>
 
       <Section title="Meine Lieblingspicks">
