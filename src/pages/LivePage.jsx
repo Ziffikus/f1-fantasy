@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, Thermometer, Droplets, Wind, CloudRain, Flag, Timer } from 'lucide-react'
 import { useLiveSession, formatLapTime, formatSector, getSessionCategory } from '../hooks/useLiveSession'
 import './LivePage.css'
@@ -38,6 +38,129 @@ function SectorBadge({ time, isSessionBest, isPersonalBest }) {
       ? 'live-sector live-sector--green'
       : 'live-sector'
   return <span className={cls}>{formatSector(time)}</span>
+}
+
+// ─── Diagnose Panel ─────────────────────────────────────────
+function DiagPanel({ session, isLive }) {
+  const [open, setOpen] = useState(false)
+  const [rawSessions, setRawSessions] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [fetchedAt, setFetchedAt] = useState(null)
+
+  async function fetchRaw() {
+    setLoading(true)
+    try {
+      const now = new Date()
+      const [resLatest, resLatestKey] = await Promise.all([
+        fetch('https://api.openf1.org/v1/sessions?meeting_key=latest'),
+        fetch('https://api.openf1.org/v1/sessions?session_key=latest'),
+      ])
+      const [latest, latestKey] = await Promise.all([resLatest.json(), resLatestKey.json()])
+      setRawSessions({ meeting_key_latest: latest, session_key_latest: latestKey, checkedAt: now.toISOString() })
+      setFetchedAt(now)
+    } catch (e) {
+      setRawSessions({ error: e.message })
+    }
+    setLoading(false)
+  }
+
+  const now = new Date()
+
+  return (
+    <div style={{ margin: '8px 0', fontFamily: 'monospace', fontSize: 11 }}>
+      <button
+        onClick={() => { setOpen(o => !o); if (!open && !rawSessions) fetchRaw() }}
+        style={{
+          background: '#1a1a2e', color: '#f97316', border: '1px solid #f97316',
+          borderRadius: 4, padding: '3px 10px', cursor: 'pointer', fontSize: 11
+        }}
+      >
+        🔍 Diagnose {open ? '▲' : '▼'}
+      </button>
+
+      {open && (
+        <div style={{
+          marginTop: 6, background: '#0d0d1a', border: '1px solid #333',
+          borderRadius: 6, padding: 10, overflowX: 'auto'
+        }}>
+          <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={fetchRaw} disabled={loading}
+              style={{ background: '#222', color: '#fff', border: '1px solid #555', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11 }}>
+              {loading ? '⏳ Lädt...' : '🔄 Neu laden'}
+            </button>
+            {fetchedAt && <span style={{ color: '#666' }}>Stand: {fetchedAt.toLocaleTimeString('de-AT')}</span>}
+          </div>
+
+          {/* Aktueller Hook-Stand */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ color: '#f97316', marginBottom: 4 }}>📌 Hook-State (was der Hook aktuell liefert)</div>
+            <div style={{ color: '#aaa' }}>session_key: <span style={{ color: '#fff' }}>{session?.session_key ?? 'null'}</span></div>
+            <div style={{ color: '#aaa' }}>session_name: <span style={{ color: '#fff' }}>{session?.session_name ?? 'null'}</span></div>
+            <div style={{ color: '#aaa' }}>date_start: <span style={{ color: '#fff' }}>{session?.date_start ?? 'null'}</span></div>
+            <div style={{ color: '#aaa' }}>date_end: <span style={{ color: '#fff' }}>{session?.date_end ?? 'null'}</span></div>
+            <div style={{ color: '#aaa' }}>isLive (Hook): <span style={{ color: isLive ? '#4ade80' : '#ef4444' }}>{String(isLive)}</span></div>
+            <div style={{ color: '#aaa' }}>Jetzt (local): <span style={{ color: '#fff' }}>{now.toISOString()}</span></div>
+            {session?.date_start && session?.date_end && (
+              <div style={{ color: '#aaa' }}>
+                Berechnet live:{' '}
+                <span style={{ color: now >= new Date(session.date_start) && now <= new Date(session.date_end) ? '#4ade80' : '#ef4444' }}>
+                  {String(now >= new Date(session.date_start) && now <= new Date(session.date_end))}
+                </span>
+                {' '}(start≤now: {String(now >= new Date(session.date_start))}, now≤end: {String(now <= new Date(session.date_end))})
+              </div>
+            )}
+          </div>
+
+          {/* Raw API Response */}
+          {rawSessions && (
+            <>
+              <div style={{ color: '#f97316', marginBottom: 4 }}>
+                🌐 API: /sessions?meeting_key=latest ({rawSessions.meeting_key_latest?.length ?? 0} Sessions)
+              </div>
+              {rawSessions.meeting_key_latest?.map((s, i) => (
+                <div key={i} style={{
+                  marginBottom: 4, padding: '4px 8px',
+                  background: s.session_key === session?.session_key ? '#1a3a1a' : '#111',
+                  border: s.session_key === session?.session_key ? '1px solid #4ade80' : '1px solid #222',
+                  borderRadius: 4
+                }}>
+                  <span style={{ color: '#888' }}>[{i}]</span>{' '}
+                  <span style={{ color: '#fff' }}>{s.session_name}</span>{' '}
+                  <span style={{ color: '#60a5fa' }}>key={s.session_key}</span>{' '}
+                  <span style={{ color: '#aaa' }}>start={s.date_start ?? 'null'}</span>{' '}
+                  <span style={{ color: '#aaa' }}>end={s.date_end ?? 'null'}</span>{' '}
+                  {s.date_start && s.date_end
+                    ? <span style={{ color: now >= new Date(s.date_start) && now <= new Date(s.date_end) ? '#4ade80' : '#666' }}>
+                        {now >= new Date(s.date_start) && now <= new Date(s.date_end) ? '✅ LIVE' : ''}
+                      </span>
+                    : s.date_start && !s.date_end
+                      ? <span style={{ color: '#f97316' }}>⚠️ kein date_end</span>
+                      : <span style={{ color: '#ef4444' }}>❌ kein date_start</span>
+                  }
+                </div>
+              ))}
+
+              <div style={{ color: '#f97316', margin: '8px 0 4px' }}>
+                🌐 API: /sessions?session_key=latest
+              </div>
+              {rawSessions.session_key_latest?.map((s, i) => (
+                <div key={i} style={{ marginBottom: 4, padding: '4px 8px', background: '#111', border: '1px solid #222', borderRadius: 4 }}>
+                  <span style={{ color: '#fff' }}>{s.session_name}</span>{' '}
+                  <span style={{ color: '#60a5fa' }}>key={s.session_key}</span>{' '}
+                  <span style={{ color: '#aaa' }}>start={s.date_start ?? 'null'}</span>{' '}
+                  <span style={{ color: '#aaa' }}>end={s.date_end ?? 'null'}</span>
+                </div>
+              ))}
+
+              {rawSessions.error && (
+                <div style={{ color: '#ef4444' }}>Fehler: {rawSessions.error}</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function LivePage() {
@@ -113,6 +236,9 @@ export default function LivePage() {
           {' '}· alle 15 Sek. automatisch
         </p>
       )}
+
+      {/* 🔍 Diagnose-Panel – aktivierbar mit ?diag in der URL */}
+      {new URLSearchParams(window.location.search).has('diag') && <DiagPanel session={session} isLive={isLive} />}
 
       <div className="live-page-content">
 

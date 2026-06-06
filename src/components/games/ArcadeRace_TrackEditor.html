@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>ArcadeRace – Track Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: monospace; background: #111; color: #ccc; display: flex; gap: 0; height: 100vh; overflow: hidden; }
+
+#left { width: 320px; min-width: 260px; display: flex; flex-direction: column; border-right: 1px solid #333; }
+#left h2 { padding: 10px 12px; font-size: 13px; color: #aaa; border-bottom: 1px solid #333; background: #1a1a1a; }
+#table-wrap { overflow-y: auto; flex: 1; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th { background: #1a1a1a; padding: 6px 8px; color: #888; text-align: left; position: sticky; top: 0; border-bottom: 1px solid #333; }
+tr:hover { background: #1e1e2e; }
+tr.selected { background: #2a2a3e !important; }
+tr.start-row td { color: #4ade80; }
+td { padding: 3px 4px; border-bottom: 1px solid #1e1e1e; }
+td:first-child { color: #555; width: 36px; padding-left: 8px; }
+input[type=number] { background: transparent; border: none; color: #e2e8f0; font-family: monospace; font-size: 12px; width: 70px; padding: 2px 4px; border-radius: 3px; }
+input[type=number]:focus { background: #2d2d4e; outline: 1px solid #6366f1; color: #fff; }
+input[type=number]:hover { background: #222; }
+
+#right { flex: 1; display: flex; flex-direction: column; }
+#right h2 { padding: 10px 12px; font-size: 13px; color: #aaa; border-bottom: 1px solid #333; background: #1a1a1a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; }
+canvas { flex: 1; display: block; cursor: crosshair; }
+#status { padding: 6px 12px; font-size: 11px; color: #666; background: #1a1a1a; border-top: 1px solid #333; }
+
+button { background: #2d2d4e; border: 1px solid #444; color: #ccc; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: monospace; }
+button:hover { background: #3d3d6e; color: #fff; }
+
+#export-raw-btn { background: #1a3a1a; border-color: #2a6a2a; color: #4ade80; }
+#export-raw-btn:hover { background: #2a4a2a; }
+#export-track-btn { background: #1a2a3a; border-color: #3a6a9a; color: #67c8f9; font-weight: bold; }
+#export-track-btn:hover { background: #2a3a5a; color: #a0e0ff; }
+#set-start-btn { background: #1a3020; border-color: #2a6a3a; color: #4ade80; }
+#set-start-btn:hover { background: #2a4030; color: #86efac; }
+#mirror-h, #mirror-v { background: #2a1a3a; border-color: #553a66; color: #c084fc; }
+#mirror-h:hover, #mirror-v:hover { background: #3a2a4a; color: #e9d5ff; }
+#import-btn { background: #1a2a3a; border-color: #2a5a7a; color: #67e8f9; }
+#import-btn:hover { background: #2a3a4a; color: #a5f3fc; }
+
+/* ── Track-Meta Panel ─────────────────────────────────────── */
+#meta-panel {
+  padding: 8px 12px;
+  background: #141428;
+  border-bottom: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+#meta-panel label { font-size: 11px; color: #888; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+#meta-panel input[type=text],
+#meta-panel input[type=number] {
+  background: #1e1e3e; border: 1px solid #444; color: #e2e8f0;
+  font-family: monospace; font-size: 11px; width: 130px;
+  padding: 2px 6px; border-radius: 3px;
+}
+#meta-panel input:focus { outline: 1px solid #6366f1; }
+
+/* ── Entry Points Panel ───────────────────────────────────── */
+#entry-panel {
+  padding: 6px 12px 8px;
+  background: #141428;
+  border-bottom: 1px solid #333;
+}
+#entry-panel h3 { font-size: 11px; color: #888; margin-bottom: 5px; }
+#entry-list { display: flex; flex-direction: column; gap: 3px; }
+.entry-row { display: flex; gap: 4px; align-items: center; font-size: 11px; }
+.entry-row input[type=text]   { width: 30px; background:#1e1e3e; border:1px solid #444; color:#e2e8f0; font-family:monospace; font-size:11px; padding:2px 4px; border-radius:3px; }
+.entry-row input[type=number] { width: 50px; background:#1e1e3e; border:1px solid #444; color:#e2e8f0; font-family:monospace; font-size:11px; padding:2px 4px; border-radius:3px; }
+.entry-row input[type=text].ep-label { width: 90px; }
+.entry-del { background:#2a1a1a; border:1px solid #6a2a2a; color:#f87171; padding:1px 6px; font-size:10px; cursor:pointer; border-radius:3px; }
+.entry-del:hover { background:#3a2a2a; }
+#add-entry-btn { margin-top:4px; font-size:10px; padding:2px 8px; background:#1a2020; border-color:#2a5a4a; color:#4ade80; }
+
+/* ── Import overlay ───────────────────────────────────────── */
+#import-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100;display:none;align-items:center;justify-content:center; }
+#import-box { background:#1a1a2e;border:1px solid #444;border-radius:8px;padding:20px;width:560px;display:flex;flex-direction:column;gap:10px; }
+#import-box h3 { font-size:13px;color:#aaa;margin:0; }
+#import-box p { font-size:11px;color:#666;margin:0; }
+#import-textarea { background:#111;border:1px solid #333;color:#e2e8f0;font-family:monospace;font-size:11px;padding:8px;border-radius:4px;resize:vertical;height:200px; }
+#import-error { color:#f87171;font-size:11px;min-height:16px; }
+.import-actions { display:flex;gap:8px;justify-content:flex-end; }
+.import-actions button { padding:5px 14px;font-size:12px; }
+#import-confirm { background:#1a3a1a;border-color:#2a6a2a;color:#4ade80; }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <h2>Punkte (<span id="pt-count">0</span> total)</h2>
+
+  <!-- ── Track-Metadaten ─────────────────────────────────── -->
+  <div id="meta-panel">
+    <label>Track-ID (Dateiname)
+      <input type="text" id="meta-id" value="monaco" placeholder="z.B. barcelona">
+    </label>
+    <label>Anzeigename
+      <input type="text" id="meta-name" value="Monaco" placeholder="z.B. Barcelona">
+    </label>
+    <label>Scale (RAW → Spiel)
+      <input type="number" id="meta-scale" value="11" step="0.5">
+    </label>
+    <label>Spurbreite (trackWidth)
+      <input type="number" id="meta-trackwidth" value="175" step="5">
+    </label>
+    <label>Buffer (Toleranz)
+      <input type="number" id="meta-buffer" value="80" step="5">
+    </label>
+    <label>Sektoren
+      <input type="number" id="meta-sectors" value="3" min="1" max="10" step="1">
+    </label>
+  </div>
+
+  <!-- ── Einstiegspunkte ─────────────────────────────────── -->
+  <div id="entry-panel">
+    <h3>Einstiegspunkte (Abschnittstraining)</h3>
+    <div id="entry-list"></div>
+    <button id="add-entry-btn">+ Einstiegspunkt</button>
+  </div>
+
+  <div id="table-wrap">
+    <table id="pt-table">
+      <thead><tr><th>#</th><th>X →</th><th>Y ↓</th></tr></thead>
+      <tbody id="pt-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="right">
+  <h2>
+    <span>Vorschau</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button id="toggle-smooth">Smooth: AN</button>
+      <button id="set-start-btn" title="Punkt wählen, dann hier klicken">★ Start setzen</button>
+      <button id="mirror-h">⟺ H</button>
+      <button id="mirror-v">⇅ V</button>
+      <button id="import-btn">📥 Import</button>
+      <button id="export-raw-btn">📋 RAW kopieren</button>
+      <button id="export-track-btn">💾 Track exportieren</button>
+    </div>
+  </h2>
+  <canvas id="c"></canvas>
+  <div id="status">Hover über einen Punkt für Details</div>
+</div>
+
+<script>
+// ── Initialdaten (Monaco) ────────────────────────────────────────────────────
+const RAW_INIT = [
+  [899.23, 233.05],[935.50, 190.39],[953.50, 190.89],[966.50, 209.39],[944.92, 239.81],
+  [931.41, 252.59],[910.83, 269.89],[887.13, 287.25],[856.78, 304.21],[826.07, 319.53],
+  [802.25, 329.22],[777.23, 336.67],[751.15, 340.58],[724.14, 341.11],[696.48, 338.49],
+  [670.10, 333.30],[644.49, 325.78],[619.31, 316.03],[603.19, 307.75],[577.94, 292.74],
+  [551.14, 276.15],[527.35, 261.41],[496.63, 243.57],[481.69, 255.20],[458.03, 258.37],
+  [438.20, 243.27],[430.73, 218.51],[413.45, 204.46],[390.02, 186.25],[365.51, 167.20],
+  [343.94, 151.17],[322.24, 135.26],[299.03, 128.11],[274.71, 140.68],[250.64, 162.68],
+  [236.19, 180.26],[236.15, 204.48],[226.28, 228.38],[206.65, 252.37],[191.64, 270.55],
+  [169.83, 279.06],[148.97, 281.76],[142.45, 305.57],[139.68, 334.95],[139.64, 362.53],
+  [145.00, 387.07],[156.41, 414.06],[150.79, 437.67],[128.35, 441.39],[107.45, 428.87],
+  [ 82.31, 410.04],[ 60.81, 393.60],[ 50.00, 369.84],[ 66.32, 351.31],[ 73.50, 325.90],
+  [ 78.73, 300.46],[ 87.92, 275.13],[ 98.34, 251.53],[109.62, 231.07],[125.29, 208.73],
+  [144.56, 185.24],[161.82, 166.15],[181.01, 146.41],[200.08, 127.79],[219.48, 109.58],
+  [239.78,  91.20],[259.88,  73.59],[281.03,  54.65],[304.02,  50.00],[323.50,  68.93],
+  [333.35,  75.96],[349.37,  86.10],[371.22,  99.92],[397.06, 116.25],[425.05, 133.93],
+  [453.36, 151.78],[480.15, 168.64],[503.78, 183.22],[526.59, 194.41],[551.93, 206.46],
+  [574.87, 218.43],[597.24, 234.51],[620.69, 251.86],[644.73, 262.92],[670.97, 263.06],
+  [689.41, 248.47],[699.20, 225.46],[701.66, 196.96],[706.97, 171.02],[725.16, 154.16],
+  [757.63, 145.79],[793.73, 139.67],[824.11, 134.50],[848.79, 130.29],[873.00, 125.39],
+  [898.00, 127.39],[916.00, 139.39],[911.50, 161.39],[900.00, 176.39],[874.50, 191.39],
+  [871.00, 219.39],
+];
+
+let START = 60;
+const pts = RAW_INIT.map(p => [...p]);
+let showSmooth = true;
+let selectedIdx = -1;
+
+// ── Entry-Points State ────────────────────────────────────────────────────────
+let entryPoints = [
+  { label: 'Abschnitt 1', rawIdx: 60, emoji: '①' },
+  { label: 'Abschnitt 2', rawIdx: 74, emoji: '②' },
+  { label: 'Abschnitt 3', rawIdx: 89, emoji: '③' },
+  { label: 'Abschnitt 4', rawIdx: 2,  emoji: '④' },
+  { label: 'Abschnitt 5', rawIdx: 17, emoji: '⑤' },
+  { label: 'Abschnitt 6', rawIdx: 31, emoji: '⑥' },
+  { label: 'Abschnitt 7', rawIdx: 46, emoji: '⑦' },
+];
+
+// ── Canvas Setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const r = document.getElementById('right');
+  canvas.width  = r.clientWidth;
+  canvas.height = r.clientHeight - 80;
+  draw();
+}
+window.addEventListener('resize', resize);
+
+function interpolateCR(p0, p1, p2, p3, t) {
+  const t2=t*t, t3=t2*t;
+  return [
+    0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+    0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+  ];
+}
+
+function smoothTrack(raw, subs=4) {
+  const N=raw.length, out=[];
+  for(let i=0;i<N;i++){
+    const p0=raw[(i-1+N)%N], p1=raw[i], p2=raw[(i+1)%N], p3=raw[(i+2)%N];
+    for(let j=0;j<subs;j++) out.push(interpolateCR(p0,p1,p2,p3,j/subs));
+  }
+  return out;
+}
+
+// ── Entry Points UI ───────────────────────────────────────────────────────────
+function renderEntryList() {
+  const list = document.getElementById('entry-list');
+  list.innerHTML = '';
+  entryPoints.forEach((ep, i) => {
+    const row = document.createElement('div');
+    row.className = 'entry-row';
+    row.innerHTML = `
+      <input type="text" class="ep-emoji" value="${ep.emoji}" maxlength="2" title="Emoji/Symbol">
+      <input type="text" class="ep-label" value="${ep.label}" placeholder="Label">
+      <span style="color:#888;font-size:10px">idx:</span>
+      <input type="number" class="ep-idx" value="${ep.rawIdx}" min="0" step="1">
+      <button class="entry-del" data-i="${i}">✕</button>
+    `;
+    row.querySelector('.ep-emoji').addEventListener('input', e => { entryPoints[i].emoji = e.target.value; });
+    row.querySelector('.ep-label').addEventListener('input', e => { entryPoints[i].label = e.target.value; });
+    row.querySelector('.ep-idx').addEventListener('input', e => { entryPoints[i].rawIdx = parseInt(e.target.value)||0; draw(); });
+    row.querySelector('.entry-del').addEventListener('click', () => { entryPoints.splice(i, 1); renderEntryList(); draw(); });
+    list.appendChild(row);
+  });
+}
+renderEntryList();
+
+document.getElementById('add-entry-btn').addEventListener('click', () => {
+  const n = entryPoints.length + 1;
+  entryPoints.push({ label: `Abschnitt ${n}`, rawIdx: 0, emoji: `(${n})` });
+  renderEntryList();
+});
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const tbody = document.getElementById('pt-body');
+
+function buildTable() {
+  tbody.innerHTML = '';
+  document.getElementById('pt-count').textContent = pts.length;
+  pts.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    if(i === START) tr.classList.add('start-row');
+    tr.innerHTML = `<td>${String(i).padStart(2,'0')}${i===START?' ★':''}</td>
+      <td><input type="number" step="0.5" value="${p[0].toFixed(2)}" data-i="${i}" data-c="0"></td>
+      <td><input type="number" step="0.5" value="${p[1].toFixed(2)}" data-i="${i}" data-c="1"></td>`;
+    tr.addEventListener('click', () => { selectedIdx = i; draw(); highlightRow(i); });
+    tbody.appendChild(tr);
+  });
+  attachInputListeners();
+}
+
+function attachInputListeners() {
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      pts[+inp.dataset.i][+inp.dataset.c] = parseFloat(inp.value);
+      draw();
+    });
+  });
+}
+
+buildTable();
+
+function highlightRow(i) {
+  tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+  const rows = tbody.querySelectorAll('tr');
+  if(rows[i]) { rows[i].classList.add('selected'); rows[i].scrollIntoView({block:'nearest'}); }
+}
+
+// ── Transform ─────────────────────────────────────────────────────────────────
+function getTransform() {
+  const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+  const mnx=Math.min(...xs), mxx=Math.max(...xs), mny=Math.min(...ys), mxy=Math.max(...ys);
+  const W=canvas.width, H=canvas.height;
+  const sc = Math.min((W-40)/(mxx-mnx||1),(H-40)/(mxy-mny||1));
+  return { mnx, mny, sc, ox:(W-(mxx-mnx)*sc)/2, oy:(H-(mxy-mny)*sc)/2 };
+}
+
+function toScreen(p, t) { return [t.ox+(p[0]-t.mnx)*t.sc, t.oy+(p[1]-t.mny)*t.sc]; }
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+  const t = getTransform();
+
+  const drawPath = (points, closed) => {
+    ctx.beginPath();
+    const p0 = toScreen(points[0], t);
+    ctx.moveTo(p0[0], p0[1]);
+    for(let i=1;i<points.length;i++){const p=toScreen(points[i],t);ctx.lineTo(p[0],p[1]);}
+    if(closed) ctx.closePath();
+    ctx.stroke();
+  };
+
+  if(showSmooth) {
+    const smooth = smoothTrack(pts, 4);
+    ctx.strokeStyle='#4a5568'; ctx.lineWidth=10; drawPath(smooth, true);
+    ctx.strokeStyle='#718096'; ctx.lineWidth=6; drawPath(smooth, true);
+    ctx.strokeStyle='#a0aec0'; ctx.lineWidth=2; drawPath(smooth, true);
+  } else {
+    ctx.strokeStyle='#4a5568'; ctx.lineWidth=10; drawPath(pts, true);
+    ctx.strokeStyle='#a0aec0'; ctx.lineWidth=2; drawPath(pts, true);
+  }
+
+  // Entry-point dots
+  entryPoints.forEach(ep => {
+    const idx = ep.rawIdx;
+    if (idx < 0 || idx >= pts.length) return;
+    const [sx, sy] = toScreen(pts[idx], t);
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,60,0.7)'; ctx.fill();
+    ctx.fillStyle = '#ffc83c'; ctx.font='10px monospace'; ctx.textAlign='center';
+    ctx.fillText(ep.emoji, sx, sy - 8);
+  });
+
+  // Raw points
+  pts.forEach((p, i) => {
+    const [sx, sy] = toScreen(p, t);
+    const isSel = i === selectedIdx;
+    const isStart = i === START;
+    ctx.beginPath();
+    ctx.arc(sx, sy, isSel ? 7 : isStart ? 6 : 4, 0, Math.PI*2);
+    ctx.fillStyle = isStart ? '#4ade80' : isSel ? '#f59e0b' : '#6366f1';
+    ctx.fill();
+    if(isSel || isStart || i % 10 === 0) {
+      ctx.fillStyle = isStart ? '#4ade80' : isSel ? '#f59e0b' : '#94a3b8';
+      ctx.font = '10px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(i, sx, sy - 9);
+    }
+  });
+
+  // Start line
+  const sp = toScreen(pts[START], t);
+  const sp2 = toScreen(pts[(START+1)%pts.length], t);
+  const dx=sp2[0]-sp[0], dy=sp2[1]-sp[1], len=Math.sqrt(dx*dx+dy*dy)||1;
+  const nx=-dy/len*18, ny=dx/len*18;
+  ctx.strokeStyle='#4ade80'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(sp[0]-nx,sp[1]-ny); ctx.lineTo(sp[0]+nx,sp[1]+ny); ctx.stroke();
+}
+
+// ── Mouse ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const t=getTransform();
+  let best=1e9, bi=-1;
+  pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
+  if(best<400) {
+    document.getElementById('status').textContent=`Punkt #${bi}: x=${pts[bi][0].toFixed(2)}, y=${pts[bi][1].toFixed(2)}`;
+  } else {
+    document.getElementById('status').textContent='Hover über einen Punkt für Details';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const t=getTransform();
+  let best=1e9, bi=-1;
+  pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
+  if(best<400) { selectedIdx=bi; draw(); highlightRow(bi); }
+});
+
+// ── Mirror / Smooth / Start ────────────────────────────────────────────────────
+function mirrorH() {
+  const xs = pts.map(p=>p[0]);
+  const mnx = Math.min(...xs), mxx = Math.max(...xs), cx = (mnx+mxx)/2;
+  pts.forEach(p => p[0] = 2*cx - p[0]);
+  pts.reverse();
+  buildTable(); draw();
+}
+function mirrorV() {
+  const ys = pts.map(p=>p[1]);
+  const mny = Math.min(...ys), mxy = Math.max(...ys), cy = (mny+mxy)/2;
+  pts.forEach(p => p[1] = 2*cy - p[1]);
+  pts.reverse();
+  buildTable(); draw();
+}
+
+document.getElementById('mirror-h').addEventListener('click', mirrorH);
+document.getElementById('mirror-v').addEventListener('click', mirrorV);
+document.getElementById('toggle-smooth').addEventListener('click', function() {
+  showSmooth = !showSmooth;
+  this.textContent = `Smooth: ${showSmooth?'AN':'AUS'}`;
+  draw();
+});
+document.getElementById('set-start-btn').addEventListener('click', () => {
+  if(selectedIdx < 0) {
+    document.getElementById('status').textContent = 'Erst einen Punkt auswählen!';
+    return;
+  }
+  START = selectedIdx;
+  buildTable(); draw();
+  document.getElementById('status').textContent = `★ Startpunkt auf #${START} gesetzt`;
+});
+
+// ── Export RAW (clipboard) ────────────────────────────────────────────────────
+document.getElementById('export-raw-btn').addEventListener('click', () => {
+  const lines = pts.map((p,i)=>`  /* ${String(i).padStart(2,'0')} */ [${p[0].toFixed(2)}, ${p[1].toFixed(2)}],${i===START?' // ← START / ZIEL':''}`);
+  const seg = START * 4;
+  const jsxHint = [
+    '\n// ── JSX anpassen ──────────────────────────',
+    `    const START_SEG   = ${seg}`,
+    `      const sa=TRK[${seg}],sb=TRK[${seg+1}]`,
+  ].join('\n');
+  navigator.clipboard.writeText(`const RAW = [\n${lines.join('\n')}\n];` + jsxHint).then(()=>{
+    const btn = document.getElementById('export-raw-btn');
+    btn.textContent='✅ Kopiert!';
+    setTimeout(()=>btn.textContent='📋 RAW kopieren',2000);
+  });
+});
+
+// ── Export Track File (.track.js) ─────────────────────────────────────────────
+document.getElementById('export-track-btn').addEventListener('click', () => {
+  const id          = document.getElementById('meta-id').value.trim() || 'custom';
+  const name        = document.getElementById('meta-name').value.trim() || id;
+  const scale       = parseFloat(document.getElementById('meta-scale').value) || 11;
+  const trackWidth  = parseFloat(document.getElementById('meta-trackwidth').value) || 175;
+  const buffer      = parseFloat(document.getElementById('meta-buffer').value) || 80;
+  const sectorCount = parseInt(document.getElementById('meta-sectors').value) || 3;
+
+  const constName = id.replace(/[^a-zA-Z0-9_]/g,'_').toUpperCase() + '_TRACK';
+
+  const pointLines = pts.map((p,i) =>
+    `    /* ${String(i).padStart(2,'0')} */ [${p[0].toFixed(2)}, ${p[1].toFixed(2)}],${i===START?' // ← START / ZIEL':''}`
+  ).join('\n');
+
+  const epLines = entryPoints.map(ep =>
+    `    { label: '${ep.label}', rawIdx: ${ep.rawIdx}, emoji: '${ep.emoji}' },`
+  ).join('\n');
+
+  const fileContent = `/**
+ * ${id}.track.js  –  ArcadeRace Track-Definition
+ * Generiert vom Track Editor. Kann direkt in ArcadeRace / MonacoTraining importiert werden.
+ *
+ * Import:  import { ${constName} } from './tracks/${id}.track.js'
+ * Nutzung: <ArcadeRace track={${constName}} />
+ */
+
+export const ${constName} = {
+  id:          '${id}',
+  name:        '${name}',
+  scale:       ${scale},
+  trackWidth:  ${trackWidth},
+  buffer:      ${buffer},
+  startIndex:  ${START},       // RAW-Punkt ${START} → Subdivision-Segment = ${START * 4}
+  sectorCount: ${sectorCount},
+
+  entryPoints: [
+${epLines}
+  ],
+
+  points: [
+${pointLines}
+  ],
+}
+`;
+
+  const blob = new Blob([fileContent], { type: 'text/javascript' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${id}.track.js`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  const btn = document.getElementById('export-track-btn');
+  btn.textContent = `✅ ${id}.track.js gespeichert!`;
+  setTimeout(()=>btn.textContent='💾 Track exportieren', 3000);
+});
+
+// ── Import ────────────────────────────────────────────────────────────────────
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-overlay').style.display = 'flex';
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-error').textContent = '';
+  setTimeout(() => document.getElementById('import-textarea').focus(), 50);
+});
+document.getElementById('import-cancel').addEventListener('click', () => {
+  document.getElementById('import-overlay').style.display = 'none';
+});
+document.getElementById('import-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('import-overlay'))
+    document.getElementById('import-overlay').style.display = 'none';
+});
+document.getElementById('import-confirm').addEventListener('click', () => {
+  const raw = document.getElementById('import-textarea').value.trim();
+  const errEl = document.getElementById('import-error');
+  errEl.textContent = '';
+
+  let parsed = null;
+
+  // Format 1: JSON-Objekt mit "points"-Feld  { "track": "barcelona", "points": [[x,y],...] }
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && Array.isArray(obj.points)) {
+      parsed = obj.points;
+      if (obj.track) {
+        document.getElementById('meta-id').value = obj.track;
+        document.getElementById('meta-name').value = obj.track.charAt(0).toUpperCase() + obj.track.slice(1);
+      }
+    } else if (Array.isArray(obj)) {
+      parsed = obj;
+    }
+  } catch {}
+
+  // Format 2: .track.js  export const X = { points: [...] }
+  if (!parsed) {
+    const m = raw.match(/points\s*:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/s);
+    if (m) { try { parsed = JSON.parse('[' + m[1] + ']'); } catch {} }
+  }
+
+  // Format 3: reines Array  [[x,y],[x,y],...]
+  if (!parsed) {
+    const m = raw.match(/\[\s*(\[.*\])\s*\]/s);
+    if (m) { try { parsed = JSON.parse('[' + m[1] + ']'); } catch {} }
+  }
+
+  if (!parsed) { errEl.textContent = 'Format nicht erkannt. Erwartet: JSON mit "points"-Feld, .track.js oder [[x,y],...].'; return; }
+  if (!Array.isArray(parsed) || parsed.length < 3) { errEl.textContent = 'Zu wenige Punkte.'; return; }
+  if (!parsed.every(p => Array.isArray(p) && p.length >= 2 && !isNaN(p[0]) && !isNaN(p[1]))) {
+    errEl.textContent = 'Ungültige Punkte.'; return;
+  }
+
+  // Meta aus .track.js Format
+  const idM    = raw.match(/id\s*:\s*['"]([^'"]+)['"]/);
+  const nameM  = raw.match(/name\s*:\s*['"]([^'"]+)['"]/);
+  const scaleM = raw.match(/scale\s*:\s*([\d.]+)/);
+  const twM    = raw.match(/trackWidth\s*:\s*([\d.]+)/);
+  const bufM   = raw.match(/buffer\s*:\s*([\d.]+)/);
+  const siM    = raw.match(/startIndex\s*:\s*([\d]+)/);
+  const secM   = raw.match(/sectorCount\s*:\s*([\d]+)/);
+  if (idM)    document.getElementById('meta-id').value = idM[1];
+  if (nameM)  document.getElementById('meta-name').value = nameM[1];
+  if (scaleM) document.getElementById('meta-scale').value = scaleM[1];
+  if (twM)    document.getElementById('meta-trackwidth').value = twM[1];
+  if (bufM)   document.getElementById('meta-buffer').value = bufM[1];
+  if (siM)    { START = parseInt(siM[1]); }
+  if (secM)   document.getElementById('meta-sectors').value = secM[1];
+
+  pts.length = 0;
+  parsed.forEach(p => pts.push([parseFloat(p[0]), parseFloat(p[1])]));
+  buildTable(); draw();
+  document.getElementById('import-overlay').style.display = 'none';
+});
+
+setTimeout(resize, 50);
+</script>
+
+<!-- ── Import-Overlay ──────────────────────────────────────────────────────── -->
+<div id="import-overlay">
+  <div id="import-box">
+    <h3>Track importieren</h3>
+    <p>Unterstützte Formate: JSON mit <code>"points"</code>-Feld, komplette <code>.track.js</code>-Datei oder reines <code>[[x,y],...]</code>-Array.</p>
+    <textarea id="import-textarea" placeholder="[[x, y], [x, y], ...]  oder  export const TRACK = { ... }"></textarea>
+    <div id="import-error"></div>
+    <div class="import-actions">
+      <button id="import-cancel">Abbrechen</button>
+      <button id="import-confirm">✅ Übernehmen</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
