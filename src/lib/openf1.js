@@ -3,11 +3,12 @@
 // Kostenlos, ~1 Minute Verzögerung während Rennen
 // ============================================================
 
-const BASE_URL = 'https://api.openf1.org/v1'
+const BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 
 // Generischer Fetch mit Error Handling
 async function openF1Fetch(endpoint, params = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`)
+  const url = new URL(BASE_URL)
+  url.searchParams.set('endpoint', endpoint)
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
   })

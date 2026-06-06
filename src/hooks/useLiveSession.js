@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   getLatestSession, getPositions, getWeather,
-  getLatestLapNumber, getRaceControl, getIntervals,
+  getRaceControl, getIntervals,
   getStints, getDrivers, getLaps, getPitStops, getSessionResult
 } from '../lib/openf1'
 
-const REFRESH_INTERVAL = 15000
+const REFRESH_INTERVAL = 30000  // 30s statt 15s – API-Rate-Limit vermeiden
+const SLOW_EVERY = 4            // Drivers/Stints/PitStops/Result nur alle 4 Refreshes (~2 min)
 
 export function formatLapTime(seconds) {
   if (seconds == null || seconds <= 0) return null
@@ -65,37 +66,53 @@ export function useLiveSession() {
   const [lastUpdate, setLastUpdate]       = useState(null)
   const [isLive, setIsLive]               = useState(false)
   const timerRef = useRef(null)
+  const refreshCountRef = useRef(0)
 
   const fetchAll = useCallback(async () => {
+    refreshCountRef.current += 1
+    const cycle = refreshCountRef.current
     try {
       const sess = await getLatestSession()
       if (!sess) return
       setSession(sess)
       setIsLive(checkIsLive(sess))
 
-      const [pos, wx, lap, rc, iv, st, dr, lp, pt, sr] = await Promise.allSettled([
-        getPositions(sess.session_key),
-        getWeather(sess.session_key),
-        getLatestLapNumber(sess.session_key),
-        getRaceControl(sess.session_key),
-        getIntervals(sess.session_key),
-        getStints(sess.session_key),
-        getDrivers(sess.session_key),
-        getLaps(sess.session_key),
-        getPitStops(sess.session_key),
-        getSessionResult(sess.session_key),
+      const sk = sess.session_key
+
+      // ── Schnelle Daten: jedes Mal (5 Requests) ────────────
+      const [pos, wx, rc, iv, lp] = await Promise.allSettled([
+        getPositions(sk),
+        getWeather(sk),
+        getRaceControl(sk),
+        getIntervals(sk),
+        getLaps(sk),
       ])
 
       if (pos.status === 'fulfilled') setPositions(pos.value ?? [])
       if (wx.status  === 'fulfilled') setWeather(wx.value)
-      if (lap.status === 'fulfilled') setCurrentLap(lap.value)
       if (rc.status  === 'fulfilled') setRaceControl((rc.value ?? []).slice(-20).reverse())
       if (iv.status  === 'fulfilled') setIntervals(iv.value ?? [])
-      if (st.status  === 'fulfilled') setStints(st.value ?? [])
-      if (dr.status  === 'fulfilled') setDrivers(dr.value ?? [])
-      if (lp.status  === 'fulfilled') setLaps(lp.value ?? [])
-      if (pt.status  === 'fulfilled') setPitStops(pt.value ?? [])
-      if (sr.status  === 'fulfilled') setSessionResult(sr.value ?? [])
+      if (lp.status  === 'fulfilled') {
+        const lapData = lp.value ?? []
+        setLaps(lapData)
+        // Rundenanzahl direkt ableiten – kein extra Request nötig
+        if (lapData.length) setCurrentLap(Math.max(...lapData.map(l => l.lap_number ?? 0)))
+      }
+
+      // ── Langsame Daten: nur alle SLOW_EVERY Zyklen (~2 min) ──
+      if (cycle % SLOW_EVERY === 1) {
+        await new Promise(r => setTimeout(r, 400)) // kurze Pause vor nächster Gruppe
+        const [st, dr, pt, sr] = await Promise.allSettled([
+          getStints(sk),
+          getDrivers(sk),
+          getPitStops(sk),
+          getSessionResult(sk),
+        ])
+        if (st.status === 'fulfilled') setStints(st.value ?? [])
+        if (dr.status === 'fulfilled') setDrivers(dr.value ?? [])
+        if (pt.status === 'fulfilled') setPitStops(pt.value ?? [])
+        if (sr.status === 'fulfilled') setSessionResult(sr.value ?? [])
+      }
 
       setLastUpdate(new Date())
     } catch (e) {
