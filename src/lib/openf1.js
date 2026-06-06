@@ -22,7 +22,7 @@ export async function getSessions(meetingKey) {
   return openF1Fetch('/sessions', { meeting_key: meetingKey })
 }
 
-// ─── Aktuelle Session Key ermitteln ─────────────────────────
+// ─── Aktuelle Session ermitteln ─────────────────────────────
 export async function getLatestSession() {
   const sessions = await openF1Fetch('/sessions', { meeting_key: 'latest' })
   if (!sessions.length) return null
@@ -157,4 +157,22 @@ export async function getStints(sessionKey) {
 // ─── Sessions für aktuelles Meeting ──────────────────────────
 export async function getSessionsForMeeting(meetingKey) {
   return openF1Fetch('/sessions', { meeting_key: meetingKey })
+}
+
+// ─── Pit Stops ───────────────────────────────────────────────
+export async function getPitStops(sessionKey) {
+  return openF1Fetch('/pit', { session_key: sessionKey })
+}
+
+// ─── Session Ergebnis (finale Positionen) ────────────────────
+export async function getSessionResult(sessionKey) {
+  const data = await openF1Fetch('/position', { session_key: sessionKey })
+  // Nur die letzte Position pro Fahrer = Endergebnis
+  const latest = {}
+  for (const entry of data) {
+    if (!latest[entry.driver_number] || entry.date > latest[entry.driver_number].date) {
+      latest[entry.driver_number] = entry
+    }
+  }
+  return Object.values(latest).sort((a, b) => a.position - b.position)
 }
