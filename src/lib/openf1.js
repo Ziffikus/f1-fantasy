@@ -13,12 +13,7 @@ async function openF1Fetch(endpoint, params = {}) {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
   })
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-    }
-  })
+  const res = await fetch(url.toString())
   if (!res.ok) throw new Error(`OpenF1 API Fehler: ${res.status}`)
   return res.json()
 }

@@ -52,8 +52,8 @@ function DiagPanel({ session, isLive }) {
     try {
       const now = new Date()
       const [resLatest, resLatestKey] = await Promise.all([
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&meeting_key=latest`, { headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } }),
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&session_key=latest`, { headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` } }),
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&meeting_key=latest`),
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&session_key=latest`),
       ])
       const [latestRaw, latestKeyRaw] = await Promise.all([resLatest.json(), resLatestKey.json()])
       const latest = Array.isArray(latestRaw) ? latestRaw : []
