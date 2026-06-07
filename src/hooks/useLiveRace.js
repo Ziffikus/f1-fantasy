@@ -6,6 +6,11 @@ import { useState, useEffect, useRef } from 'react'
 const OPENF1_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 const POLL_INTERVAL = 60000
 
+const PROXY_HEADERS = {
+  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+}
+
 export const TYRE_COLORS = {
   SOFT:         '#e8002d',
   MEDIUM:       '#ffd700',
@@ -59,7 +64,7 @@ export function useLiveRace(weekend) {
     try {
       if (!sessionKeyRef.current) {
         const sType = sessionType === 'sprint' ? 'Sprint' : 'Race'
-        const sessionRes = await fetch(`${OPENF1_BASE}?endpoint=/sessions&session_type=${sType}&year=${new Date().getFullYear()}&limit=1`)
+        const sessionRes = await fetch(`${OPENF1_BASE}?endpoint=/sessions&session_type=${sType}&year=${new Date().getFullYear()}&limit=1`, { headers: PROXY_HEADERS })
         const sessions = await sessionRes.json()
         if (!sessions?.length) { setLoading(false); return }
         sessionKeyRef.current = sessions[0].session_key
@@ -68,8 +73,8 @@ export function useLiveRace(weekend) {
 
       const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
       const [posRes, stintRes] = await Promise.all([
-        fetch(`${OPENF1_BASE}?endpoint=/position&session_key=${sessionKey}&date>=${since}`),
-        fetch(`${OPENF1_BASE}?endpoint=/stints&session_key=${sessionKey}`),
+        fetch(`${OPENF1_BASE}?endpoint=/position&session_key=${sessionKey}&date>=${since}`, { headers: PROXY_HEADERS }),
+        fetch(`${OPENF1_BASE}?endpoint=/stints&session_key=${sessionKey}`, { headers: PROXY_HEADERS }),
       ])
       const [positions, stints] = await Promise.all([posRes.json(), stintRes.json()])
 
