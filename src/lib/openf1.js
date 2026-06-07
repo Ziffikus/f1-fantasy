@@ -25,8 +25,20 @@ export async function getSessions(meetingKey) {
 
 // ─── Aktuelle Session ermitteln ─────────────────────────────
 export async function getLatestSession() {
-  const sessions = await openF1Fetch('/sessions', { meeting_key: 'latest' })
-  if (!sessions.length) return null
+  let sessions = []
+
+  try {
+    sessions = await openF1Fetch('/sessions', { meeting_key: 'latest' })
+  } catch (_) {}
+
+  // Fallback: session_key=latest wenn meeting_key=latest leer oder fehlerhaft
+  if (!sessions.length) {
+    try {
+      const fallback = await openF1Fetch('/sessions', { session_key: 'latest' })
+      if (fallback.length) return fallback[0]
+    } catch (_) {}
+    return null
+  }
 
   const now = new Date()
 

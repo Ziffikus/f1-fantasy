@@ -52,8 +52,8 @@ function DiagPanel({ session, isLive }) {
     try {
       const now = new Date()
       const [resLatest, resLatestKey] = await Promise.all([
-        fetch('https://api.openf1.org/v1/sessions?meeting_key=latest'),
-        fetch('https://api.openf1.org/v1/sessions?session_key=latest'),
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&meeting_key=latest`),
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy?endpoint=/sessions&session_key=latest`),
       ])
       const [latest, latestKey] = await Promise.all([resLatest.json(), resLatestKey.json()])
       setRawSessions({ meeting_key_latest: latest, session_key_latest: latestKey, checkedAt: now.toISOString() })
