@@ -12,7 +12,7 @@ export const BARCELONA_TRACK = {
   scale:       9,
   trackWidth:  150,
   buffer:      80,
-  startIndex:  65,       // RAW-Punkt 199 → Subdivision-Segment = 796
+  startIndex:  130,       // RAW-Punkt 199 → Subdivision-Segment = 796
   sectorCount: 3,
 
   entryPoints: [
