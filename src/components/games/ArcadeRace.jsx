@@ -323,10 +323,9 @@ export default function ArcadeRace({ onClose }) {
     }
 
     function resetCar() {
-      const entryPoints = ENTRY_POINTS
-      const entrySeg = entryPoints.length > 0
-        ? entryPoints[selectedEntryRef.current]?.rawIdx * 4 ?? START_SEG
-        : START_SEG
+      const entrySeg = trainModeRef.current === 'qualifying'
+        ? START_SEG
+        : (ENTRY_POINTS[selectedEntryRef.current]?.rawIdx * 4 ?? START_SEG)
       car.x = TRK[entrySeg][0]; car.y = TRK[entrySeg][1]
       car.angle = segAngle(entrySeg); car.speed = START_SPEED
       camX = car.x; camY = car.y
