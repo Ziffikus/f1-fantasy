@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>ArcadeRace – Track Editor (Barcelona)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: monospace; background: #111; color: #ccc; display: flex; gap: 0; height: 100vh; overflow: hidden; }
+
+#left { width: 320px; min-width: 260px; display: flex; flex-direction: column; border-right: 1px solid #333; }
+#left h2 { padding: 10px 12px; font-size: 13px; color: #aaa; border-bottom: 1px solid #333; background: #1a1a1a; }
+#table-wrap { overflow-y: auto; flex: 1; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th { background: #1a1a1a; padding: 6px 8px; color: #888; text-align: left; position: sticky; top: 0; border-bottom: 1px solid #333; }
+tr:hover { background: #1e1e2e; }
+tr.selected { background: #2a2a3e !important; }
+tr.start-row td { color: #4ade80; }
+td { padding: 3px 4px; border-bottom: 1px solid #1e1e1e; }
+td:first-child { color: #555; width: 36px; padding-left: 8px; }
+input[type=number] { background: transparent; border: none; color: #e2e8f0; font-family: monospace; font-size: 12px; width: 70px; padding: 2px 4px; border-radius: 3px; }
+input[type=number]:focus { background: #2d2d4e; outline: 1px solid #6366f1; color: #fff; }
+input[type=number]:hover { background: #222; }
+
+#right { flex: 1; display: flex; flex-direction: column; }
+#right h2 { padding: 10px 12px; font-size: 13px; color: #aaa; border-bottom: 1px solid #333; background: #1a1a1a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; }
+canvas { flex: 1; display: block; cursor: crosshair; }
+#status { padding: 6px 12px; font-size: 11px; color: #666; background: #1a1a1a; border-top: 1px solid #333; }
+
+button { background: #2d2d4e; border: 1px solid #444; color: #ccc; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: monospace; }
+button:hover { background: #3d3d6e; color: #fff; }
+
+#export-raw-btn { background: #1a3a1a; border-color: #2a6a2a; color: #4ade80; }
+#export-raw-btn:hover { background: #2a4a2a; }
+#export-track-btn { background: #1a2a3a; border-color: #3a6a9a; color: #67c8f9; font-weight: bold; }
+#export-track-btn:hover { background: #2a3a5a; color: #a0e0ff; }
+#set-start-btn { background: #1a3020; border-color: #2a6a3a; color: #4ade80; }
+#set-start-btn:hover { background: #2a4030; color: #86efac; }
+#mirror-h, #mirror-v { background: #2a1a3a; border-color: #553a66; color: #c084fc; }
+#mirror-h:hover, #mirror-v:hover { background: #3a2a4a; color: #e9d5ff; }
+#import-btn { background: #1a2a3a; border-color: #2a5a7a; color: #67e8f9; }
+#import-btn:hover { background: #2a3a4a; color: #a5f3fc; }
+#svg-import-btn { background: #2a1a10; border-color: #7a4a20; color: #fb923c; }
+#svg-import-btn:hover { background: #3a2a18; color: #fdba74; }
+
+/* ── SVG Import Overlay ───────────────────────────────────── */
+#svg-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:200;display:none;align-items:center;justify-content:center; }
+#svg-box { background:#1a1a2e;border:1px solid #444;border-radius:10px;padding:24px;width:600px;display:flex;flex-direction:column;gap:14px; }
+#svg-box h3 { font-size:14px;color:#fb923c;margin:0; }
+#svg-drop-zone {
+  border: 2px dashed #7a4a20; border-radius: 8px;
+  padding: 32px; text-align: center; cursor: pointer;
+  color: #888; font-size: 13px; transition: all 0.2s;
+  background: #111;
+}
+#svg-drop-zone.drag-over { border-color: #fb923c; background: #1a0e00; color: #fb923c; }
+#svg-drop-zone strong { display:block; font-size:15px; color:#fb923c; margin-bottom:6px; }
+#svg-path-select { display:none; flex-direction:column; gap:8px; }
+#svg-path-select label { font-size:11px; color:#888; }
+#svg-path-list { background:#111; border:1px solid #333; border-radius:4px; color:#e2e8f0; font-family:monospace; font-size:11px; padding:4px; max-height:140px; overflow-y:auto; }
+#svg-path-list option { padding:3px 6px; }
+#svg-samples-row { display:flex; align-items:center; gap:8px; font-size:11px; color:#888; }
+#svg-samples-row input { width:70px; background:#1e1e3e; border:1px solid #444; color:#e2e8f0; font-family:monospace; font-size:11px; padding:2px 6px; border-radius:3px; }
+#svg-preview-canvas { width:100%; height:180px; background:#0d0d1a; border-radius:6px; border:1px solid #333; display:none; }
+#svg-error { color:#f87171; font-size:11px; min-height:16px; }
+#svg-info  { color:#888;   font-size:11px; min-height:16px; }
+.svg-actions { display:flex; gap:8px; justify-content:flex-end; }
+.svg-actions button { padding:5px 14px; font-size:12px; }
+#svg-confirm { background:#2a1a08; border-color:#7a4a20; color:#fb923c; }
+#svg-confirm:disabled { opacity:0.4; cursor:default; }
+
+/* ── Track-Meta Panel ─────────────────────────────────────── */
+#meta-panel {
+  padding: 8px 12px;
+  background: #141428;
+  border-bottom: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+#meta-panel label { font-size: 11px; color: #888; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+#meta-panel input[type=text],
+#meta-panel input[type=number] {
+  background: #1e1e3e; border: 1px solid #444; color: #e2e8f0;
+  font-family: monospace; font-size: 11px; width: 130px;
+  padding: 2px 6px; border-radius: 3px;
+}
+#meta-panel input:focus { outline: 1px solid #6366f1; }
+
+/* ── Entry Points Panel ───────────────────────────────────── */
+#entry-panel {
+  padding: 6px 12px 8px;
+  background: #141428;
+  border-bottom: 1px solid #333;
+}
+#entry-panel h3 { font-size: 11px; color: #888; margin-bottom: 5px; }
+#entry-list { display: flex; flex-direction: column; gap: 3px; }
+.entry-row { display: flex; gap: 4px; align-items: center; font-size: 11px; }
+.entry-row input[type=text]   { width: 30px; background:#1e1e3e; border:1px solid #444; color:#e2e8f0; font-family:monospace; font-size:11px; padding:2px 4px; border-radius:3px; }
+.entry-row input[type=number] { width: 50px; background:#1e1e3e; border:1px solid #444; color:#e2e8f0; font-family:monospace; font-size:11px; padding:2px 4px; border-radius:3px; }
+.entry-row input[type=text].ep-label { width: 90px; }
+.entry-del { background:#2a1a1a; border:1px solid #6a2a2a; color:#f87171; padding:1px 6px; font-size:10px; cursor:pointer; border-radius:3px; }
+.entry-del:hover { background:#3a2a2a; }
+#add-entry-btn { margin-top:4px; font-size:10px; padding:2px 8px; background:#1a2020; border-color:#2a5a4a; color:#4ade80; }
+
+/* ── Import overlay ───────────────────────────────────────── */
+#import-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100;display:none;align-items:center;justify-content:center; }
+#import-box { background:#1a1a2e;border:1px solid #444;border-radius:8px;padding:20px;width:560px;display:flex;flex-direction:column;gap:10px; }
+#import-box h3 { font-size:13px;color:#aaa;margin:0; }
+#import-box p { font-size:11px;color:#666;margin:0; }
+#import-textarea { background:#111;border:1px solid #333;color:#e2e8f0;font-family:monospace;font-size:11px;padding:8px;border-radius:4px;resize:vertical;height:200px; }
+#import-error { color:#f87171;font-size:11px;min-height:16px; }
+.import-actions { display:flex;gap:8px;justify-content:flex-end; }
+.import-actions button { padding:5px 14px;font-size:12px; }
+#import-confirm { background:#1a3a1a;border-color:#2a6a2a;color:#4ade80; }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <h2>Punkte (<span id="pt-count">0</span> total)</h2>
+
+  <!-- ── Track-Metadaten ─────────────────────────────────── -->
+  <div id="meta-panel">
+    <label>Track-ID (Dateiname)
+      <input type="text" id="meta-id" value="barcelona" placeholder="z.B. barcelona">
+    </label>
+    <label>Anzeigename
+      <input type="text" id="meta-name" value="Barcelona" placeholder="z.B. Barcelona">
+    </label>
+    <label>Scale (RAW → Spiel)
+      <input type="number" id="meta-scale" value="11" step="0.5">
+    </label>
+    <label>Spurbreite (trackWidth)
+      <input type="number" id="meta-trackwidth" value="175" step="5">
+    </label>
+    <label>Buffer (Toleranz)
+      <input type="number" id="meta-buffer" value="80" step="5">
+    </label>
+    <label>Sektoren
+      <input type="number" id="meta-sectors" value="3" min="1" max="10" step="1">
+    </label>
+  </div>
+
+  <!-- ── Einstiegspunkte ─────────────────────────────────── -->
+  <div id="entry-panel">
+    <h3>Einstiegspunkte (Abschnittstraining)</h3>
+    <div id="entry-list"></div>
+    <button id="add-entry-btn">+ Einstiegspunkt</button>
+  </div>
+
+  <div id="table-wrap">
+    <table id="pt-table">
+      <thead><tr><th>#</th><th>X →</th><th>Y ↓</th></tr></thead>
+      <tbody id="pt-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="right">
+  <h2>
+    <span>Vorschau</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button id="toggle-smooth">Smooth: AN</button>
+      <button id="set-start-btn" title="Punkt wählen, dann hier klicken">★ Start setzen</button>
+      <button id="mirror-h">⟺ H</button>
+      <button id="mirror-v">⇅ V</button>
+      <button id="reverse-btn">🔄 Richtung umkehren</button>
+      <button id="import-btn">📥 Import</button>
+      <button id="svg-import-btn">🗺️ SVG Import</button>
+      <button id="export-raw-btn">📋 RAW kopieren</button>
+      <button id="export-track-btn">💾 Track exportieren</button>
+    </div>
+  </h2>
+  <canvas id="c"></canvas>
+  <div id="status">Hover über einen Punkt für Details</div>
+</div>
+
+<script>
+// ── Initialdaten (Barcelona – aus barcelona.json) ────────────────────────────
+const RAW_INIT = [
+  /* 00 */ [282.54, 332.50],  // ← START / ZIEL
+  /* 01 */ [252.01, 332.64],
+  /* 02 */ [221.49, 332.73],
+  /* 03 */ [188.10, 332.70],
+  /* 04 */ [159.01, 331.67],
+  /* 05 */ [129.56, 327.50],
+  /* 06 */ [101.74, 316.92],
+  /* 07 */ [77.85, 299.20],
+  /* 08 */ [59.92, 274.01],
+  /* 09 */ [50.00, 243.34],
+  /* 10 */ [52.90, 214.48],
+  /* 11 */ [67.96, 187.74],
+  /* 12 */ [89.00, 169.21],
+  /* 13 */ [113.61, 152.36],
+  /* 14 */ [141.30, 134.03],
+  /* 15 */ [166.31, 118.12],
+  /* 16 */ [173.03, 87.67],
+  /* 17 */ [185.16, 60.80],
+  /* 18 */ [207.90, 51.35],
+  /* 19 */ [243.03, 50.00],
+  /* 20 */ [263.35, 50.02],
+  /* 21 */ [284.31, 50.09],
+  /* 22 */ [310.98, 50.21],
+  /* 23 */ [343.35, 50.37],
+  /* 24 */ [381.42, 50.58],
+  /* 25 */ [425.18, 50.81],
+  /* 26 */ [456.69, 50.97],
+  /* 27 */ [487.22, 51.13],
+  /* 28 */ [517.74, 51.29],
+  /* 29 */ [548.26, 51.45],
+  /* 30 */ [578.79, 51.60],
+  /* 31 */ [609.31, 51.76],
+  /* 32 */ [639.84, 51.92],
+  /* 33 */ [670.36, 52.08],
+  /* 34 */ [700.88, 52.24],
+  /* 35 */ [731.41, 52.40],
+  /* 36 */ [761.93, 52.55],
+  /* 37 */ [792.46, 52.71],
+  /* 38 */ [822.98, 52.87],
+  /* 39 */ [853.50, 53.03],
+  /* 40 */ [890.21, 54.10],
+  /* 41 */ [919.03, 63.56],
+  /* 42 */ [936.59, 82.10],
+  /* 43 */ [942.68, 109.66],
+  /* 44 */ [945.30, 140.16],
+  /* 45 */ [947.64, 170.57],
+  /* 46 */ [949.57, 202.34],
+  /* 47 */ [950.00, 231.36],
+  /* 48 */ [935.73, 254.66],
+  /* 49 */ [906.70, 270.24],
+  /* 50 */ [878.58, 282.12],
+  /* 51 */ [850.02, 294.03],
+  /* 52 */ [821.76, 305.34],
+  /* 53 */ [790.76, 312.31],
+  /* 54 */ [762.84, 304.86],
+  /* 55 */ [746.19, 279.44],
+  /* 56 */ [749.95, 250.93],
+  /* 57 */ [773.11, 233.43],
+  /* 58 */ [802.66, 222.09],
+  /* 59 */ [825.02, 207.75],
+  /* 60 */ [837.45, 177.64],
+  /* 61 */ [847.60, 148.72],
+  /* 62 */ [839.39, 128.65],
+  /* 63 */ [821.48, 136.73],
+  /* 64 */ [799.46, 149.55],
+  /* 65 */ [767.62, 168.84],
+  /* 66 */ [731.88, 190.94],
+  /* 67 */ [705.96, 207.06],
+  /* 68 */ [680.07, 223.24],
+  /* 69 */ [654.19, 239.42],
+  /* 70 */ [628.31, 255.60],
+  /* 71 */ [602.43, 271.78],
+  /* 72 */ [577.14, 286.51],
+  /* 73 */ [548.66, 302.64],
+  /* 74 */ [520.07, 313.50],
+  /* 75 */ [492.27, 311.11],
+  /* 76 */ [468.54, 290.89],
+  /* 77 */ [450.48, 266.79],
+  /* 78 */ [432.39, 241.91],
+  /* 79 */ [414.69, 216.84],
+  /* 80 */ [398.36, 192.60],
+  /* 81 */ [392.25, 164.50],
+  /* 82 */ [391.57, 129.12],
+  /* 83 */ [366.46, 121.21],
+  /* 84 */ [335.93, 121.21],
+  /* 85 */ [305.72, 121.24],
+  /* 86 */ [279.95, 128.04],
+  /* 87 */ [249.48, 144.23],
+  /* 88 */ [222.78, 159.02],
+  /* 89 */ [195.41, 174.33],
+  /* 90 */ [171.12, 194.82],
+  /* 91 */ [179.91, 217.55],
+  /* 92 */ [211.81, 222.48],
+  /* 93 */ [241.10, 223.01],
+  /* 94 */ [276.88, 223.44],
+  /* 95 */ [303.25, 225.69],
+  /* 96 */ [331.25, 236.52],
+  /* 97 */ [353.53, 259.95],
+  /* 98 */ [365.91, 289.39],
+  /* 99 */ [360.17, 313.28],
+  /* 100 */ [336.83, 328.56],
+  /* 101 */ [304.49, 332.26],
+  /* 102 */ [212.18, 316.63],
+  /* 103 */ [235.70, 316.61],
+  /* 104 */ [275.23, 316.43],
+  /* 105 */ [307.19, 316.28],
+  /* 106 */ [337.01, 311.54],
+  /* 107 */ [350.15, 293.28],
+  /* 108 */ [335.98, 263.81],
+  /* 109 */ [317.71, 247.29],
+  /* 110 */ [292.18, 241.04],
+  /* 111 */ [251.92, 239.67],
+  /* 112 */ [221.26, 239.26],
+  /* 113 */ [187.63, 237.62],
+  /* 114 */ [164.05, 224.87],
+  /* 115 */ [154.33, 196.63],
+  /* 116 */ [168.96, 172.71],
+  /* 117 */ [194.19, 156.86],
+  /* 118 */ [222.74, 140.93],
+  /* 119 */ [249.41, 126.09],
+  /* 120 */ [280.34, 110.55],
+  /* 121 */ [306.08, 105.35],
+  /* 122 */ [336.61, 105.35],
+  /* 123 */ [367.13, 105.35],
+  /* 124 */ [395.79, 110.36],
+  /* 125 */ [408.91, 133.35],
+  /* 126 */ [408.72, 171.28],
+  /* 127 */ [419.33, 195.82],
+  /* 128 */ [436.97, 220.94],
+  /* 129 */ [454.93, 246.02],
+  /* 130 */ [472.83, 270.27],
+  /* 131 */ [491.98, 293.06],
+  /* 132 */ [516.02, 298.35],
+  /* 133 */ [549.24, 284.41],
+  /* 134 */ [575.86, 269.50],
+  /* 135 */ [601.88, 253.55],
+  /* 136 */ [627.77, 237.38],
+  /* 137 */ [653.65, 221.20],
+  /* 138 */ [679.54, 205.02],
+  /* 139 */ [707.34, 187.67],
+  /* 140 */ [746.44, 163.52],
+  /* 141 */ [778.31, 144.08],
+  /* 142 */ [802.65, 129.57],
+  /* 143 */ [819.15, 120.23],
+  /* 144 */ [839.77, 112.97],
+  /* 145 */ [863.14, 124.95],
+  /* 146 */ [862.96, 154.77],
+  /* 147 */ [852.87, 183.57],
+  /* 148 */ [840.72, 213.49],
+  /* 149 */ [820.28, 232.73],
+  /* 150 */ [792.26, 244.10],
+  /* 151 */ [765.40, 257.71],
+  /* 152 */ [766.38, 286.19],
+  /* 153 */ [791.07, 296.49],
+  /* 154 */ [822.22, 288.23],
+  /* 155 */ [851.57, 276.33],
+  /* 156 */ [879.71, 264.51],
+  /* 157 */ [907.82, 252.61],
+  /* 158 */ [932.81, 233.71],
+  /* 159 */ [933.70, 206.29],
+  /* 160 */ [931.84, 174.84],
+  /* 161 */ [929.48, 144.45],
+  /* 162 */ [926.92, 113.99],
+  /* 163 */ [921.08, 87.95],
+  /* 164 */ [900.63, 73.22],
+  /* 165 */ [863.57, 69.43],
+  /* 166 */ [854.52, 69.60],
+  /* 167 */ [839.69, 69.52],
+  /* 168 */ [815.99, 69.40],
+  /* 169 */ [784.93, 69.24],
+  /* 170 */ [748.00, 69.05],
+  /* 171 */ [706.69, 68.84],
+  /* 172 */ [662.49, 68.61],
+  /* 173 */ [616.90, 68.37],
+  /* 174 */ [571.42, 68.14],
+  /* 175 */ [527.54, 67.91],
+  /* 176 */ [486.76, 67.70],
+  /* 177 */ [450.57, 67.51],
+  /* 178 */ [420.46, 67.36],
+  /* 179 */ [397.93, 67.24],
+  /* 180 */ [384.48, 67.17],
+  /* 181 */ [369.06, 67.10],
+  /* 182 */ [324.67, 66.90],
+  /* 183 */ [289.14, 66.74],
+  /* 184 */ [262.50, 66.63],
+  /* 185 */ [244.75, 66.57],
+  /* 186 */ [216.30, 67.16],
+  /* 187 */ [192.54, 77.59],
+  /* 188 */ [188.07, 108.86],
+  /* 189 */ [174.97, 132.17],
+  /* 190 */ [149.49, 148.28],
+  /* 191 */ [121.50, 166.79],
+  /* 192 */ [97.24, 183.49],
+  /* 193 */ [76.93, 203.18],
+  /* 194 */ [66.25, 230.72],
+  /* 195 */ [71.77, 261.23],
+  /* 196 */ [88.85, 287.42],
+  /* 197 */ [113.01, 304.67],
+  /* 198 */ [140.57, 313.62],
+  /* 199 */ [172.49, 316.47],
+];
+
+let START = 0;
+const pts = RAW_INIT.map(p => [...p]);
+let showSmooth = true;
+let selectedIdx = -1;
+
+// ── Entry-Points State ────────────────────────────────────────────────────────
+let entryPoints = [
+  { label: 'Start / Ziel',   rawIdx: 0,   emoji: '①' },
+  { label: 'Kurve 1-2',      rawIdx: 25,  emoji: '②' },
+  { label: 'Sector 2',       rawIdx: 50,  emoji: '③' },
+  { label: 'Chicane',        rawIdx: 75,  emoji: '④' },
+  { label: 'Sector 3',       rawIdx: 100, emoji: '⑤' },
+  { label: 'Letzter S',      rawIdx: 140, emoji: '⑥' },
+  { label: 'Zielgerade',     rawIdx: 170, emoji: '⑦' },
+];
+
+// ── Canvas Setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const r = document.getElementById('right');
+  const dpr = window.devicePixelRatio || 1;
+  const w = r.clientWidth;
+  const h = r.clientHeight - 80;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+
+function interpolateCR(p0, p1, p2, p3, t) {
+  const t2=t*t, t3=t2*t;
+  return [
+    0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+    0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+  ];
+}
+
+function smoothTrack(raw, subs=4) {
+  const N=raw.length, out=[];
+  for(let i=0;i<N;i++){
+    const p0=raw[(i-1+N)%N], p1=raw[i], p2=raw[(i+1)%N], p3=raw[(i+2)%N];
+    for(let j=0;j<subs;j++) out.push(interpolateCR(p0,p1,p2,p3,j/subs));
+  }
+  return out;
+}
+
+// ── Entry Points UI ───────────────────────────────────────────────────────────
+function renderEntryList() {
+  const list = document.getElementById('entry-list');
+  list.innerHTML = '';
+  entryPoints.forEach((ep, i) => {
+    const row = document.createElement('div');
+    row.className = 'entry-row';
+    row.innerHTML = `
+      <input type="text" class="ep-emoji" value="${ep.emoji}" maxlength="2" title="Emoji/Symbol">
+      <input type="text" class="ep-label" value="${ep.label}" placeholder="Label">
+      <span style="color:#888;font-size:10px">idx:</span>
+      <input type="number" class="ep-idx" value="${ep.rawIdx}" min="0" step="1">
+      <button class="entry-del" data-i="${i}">✕</button>
+    `;
+    row.querySelector('.ep-emoji').addEventListener('input', e => { entryPoints[i].emoji = e.target.value; });
+    row.querySelector('.ep-label').addEventListener('input', e => { entryPoints[i].label = e.target.value; });
+    row.querySelector('.ep-idx').addEventListener('input', e => { entryPoints[i].rawIdx = parseInt(e.target.value)||0; draw(); });
+    row.querySelector('.entry-del').addEventListener('click', () => { entryPoints.splice(i, 1); renderEntryList(); draw(); });
+    list.appendChild(row);
+  });
+}
+renderEntryList();
+
+document.getElementById('add-entry-btn').addEventListener('click', () => {
+  const n = entryPoints.length + 1;
+  entryPoints.push({ label: `Abschnitt ${n}`, rawIdx: 0, emoji: `(${n})` });
+  renderEntryList();
+});
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const tbody = document.getElementById('pt-body');
+
+function buildTable() {
+  tbody.innerHTML = '';
+  document.getElementById('pt-count').textContent = pts.length;
+  pts.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    if(i === START) tr.classList.add('start-row');
+    tr.innerHTML = `<td>${String(i).padStart(2,'0')}${i===START?' ★':''}</td>
+      <td><input type="number" step="0.5" value="${p[0].toFixed(2)}" data-i="${i}" data-c="0"></td>
+      <td><input type="number" step="0.5" value="${p[1].toFixed(2)}" data-i="${i}" data-c="1"></td>`;
+    tr.addEventListener('click', () => { selectedIdx = i; draw(); highlightRow(i); });
+    tbody.appendChild(tr);
+  });
+  attachInputListeners();
+}
+
+function attachInputListeners() {
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      pts[+inp.dataset.i][+inp.dataset.c] = parseFloat(inp.value);
+      draw();
+    });
+  });
+}
+
+buildTable();
+
+function highlightRow(i) {
+  tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+  const rows = tbody.querySelectorAll('tr');
+  if(rows[i]) { rows[i].classList.add('selected'); rows[i].scrollIntoView({block:'nearest'}); }
+}
+
+// ── Transform ─────────────────────────────────────────────────────────────────
+function getTransform() {
+  const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+  const mnx=Math.min(...xs), mxx=Math.max(...xs), mny=Math.min(...ys), mxy=Math.max(...ys);
+  const W=canvas.width, H=canvas.height;
+  const sc = Math.min((W-40)/(mxx-mnx||1),(H-40)/(mxy-mny||1));
+  return { mnx, mny, sc, ox:(W-(mxx-mnx)*sc)/2, oy:(H-(mxy-mny)*sc)/2 };
+}
+
+function toScreen(p, t) { return [t.ox+(p[0]-t.mnx)*t.sc, t.oy+(p[1]-t.mny)*t.sc]; }
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+  const t = getTransform();
+
+  const drawPath = (points, closed) => {
+    ctx.beginPath();
+    const p0 = toScreen(points[0], t);
+    ctx.moveTo(p0[0], p0[1]);
+    for(let i=1;i<points.length;i++){const p=toScreen(points[i],t);ctx.lineTo(p[0],p[1]);}
+    if(closed) ctx.closePath();
+    ctx.stroke();
+  };
+
+  if(showSmooth) {
+    const smooth = smoothTrack(pts, 4);
+    ctx.strokeStyle='#4a5568'; ctx.lineWidth=16; drawPath(smooth, true);
+    ctx.strokeStyle='#718096'; ctx.lineWidth=12; drawPath(smooth, true);
+    ctx.strokeStyle='#a0aec0'; ctx.lineWidth=2; drawPath(smooth, true);
+  } else {
+    ctx.strokeStyle='#4a5568'; ctx.lineWidth=16; drawPath(pts, true);
+    ctx.strokeStyle='#a0aec0'; ctx.lineWidth=2; drawPath(pts, true);
+  }
+
+  // Entry-point dots
+  entryPoints.forEach(ep => {
+    const idx = ep.rawIdx;
+    if (idx < 0 || idx >= pts.length) return;
+    const [sx, sy] = toScreen(pts[idx], t);
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,60,0.7)'; ctx.fill();
+    ctx.fillStyle = '#ffc83c'; ctx.font='10px monospace'; ctx.textAlign='center';
+    ctx.fillText(ep.emoji, sx, sy - 8);
+  });
+
+  // Raw points
+  pts.forEach((p, i) => {
+    const [sx, sy] = toScreen(p, t);
+    const isSel = i === selectedIdx;
+    const isStart = i === START;
+    ctx.beginPath();
+    ctx.arc(sx, sy, isSel ? 5 : isStart ? 4 : 2.5, 0, Math.PI*2);
+    ctx.fillStyle = isStart ? '#4ade80' : isSel ? '#f59e0b' : '#6366f1';
+    ctx.fill();
+    if(isSel || isStart || i % 10 === 0) {
+      ctx.fillStyle = isStart ? '#4ade80' : isSel ? '#f59e0b' : '#94a3b8';
+      ctx.font = '10px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(i, sx, sy - 9);
+    }
+  });
+
+  // Start line
+  const sp = toScreen(pts[START], t);
+  const sp2 = toScreen(pts[(START+1)%pts.length], t);
+  const dx=sp2[0]-sp[0], dy=sp2[1]-sp[1], len=Math.sqrt(dx*dx+dy*dy)||1;
+  const nx=-dy/len*18, ny=dx/len*18;
+  ctx.strokeStyle='#4ade80'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(sp[0]-nx,sp[1]-ny); ctx.lineTo(sp[0]+nx,sp[1]+ny); ctx.stroke();
+}
+
+// ── Mouse ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const t=getTransform();
+  let best=1e9, bi=-1;
+  pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
+  if(best<400) {
+    document.getElementById('status').textContent=`Punkt #${bi}: x=${pts[bi][0].toFixed(2)}, y=${pts[bi][1].toFixed(2)}`;
+  } else {
+    document.getElementById('status').textContent='Hover über einen Punkt für Details';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const t=getTransform();
+  let best=1e9, bi=-1;
+  pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
+  if(best<400) { selectedIdx=bi; draw(); highlightRow(bi); }
+});
+
+// ── Mirror / Smooth / Start ────────────────────────────────────────────────────
+function mirrorH() {
+  const xs = pts.map(p=>p[0]);
+  const mnx = Math.min(...xs), mxx = Math.max(...xs), cx = (mnx+mxx)/2;
+  pts.forEach(p => p[0] = 2*cx - p[0]);
+  pts.reverse();
+  buildTable(); draw();
+}
+function mirrorV() {
+  const ys = pts.map(p=>p[1]);
+  const mny = Math.min(...ys), mxy = Math.max(...ys), cy = (mny+mxy)/2;
+  pts.forEach(p => p[1] = 2*cy - p[1]);
+  pts.reverse();
+  buildTable(); draw();
+}
+
+document.getElementById('mirror-h').addEventListener('click', mirrorH);
+document.getElementById('mirror-v').addEventListener('click', mirrorV);
+document.getElementById('reverse-btn').addEventListener('click', () => {
+  pts.reverse();
+  // Keep START pointing to the same physical point
+  START = pts.length - 1 - START;
+  buildTable(); draw();
+  document.getElementById('status').textContent = '🔄 Fahrtrichtung umgekehrt';
+});
+document.getElementById('toggle-smooth').addEventListener('click', function() {
+  showSmooth = !showSmooth;
+  this.textContent = `Smooth: ${showSmooth?'AN':'AUS'}`;
+  draw();
+});
+document.getElementById('set-start-btn').addEventListener('click', () => {
+  if(selectedIdx < 0) {
+    document.getElementById('status').textContent = 'Erst einen Punkt auswählen!';
+    return;
+  }
+  START = selectedIdx;
+  buildTable(); draw();
+  document.getElementById('status').textContent = `★ Startpunkt auf #${START} gesetzt`;
+});
+
+// ── Export RAW (clipboard) ────────────────────────────────────────────────────
+document.getElementById('export-raw-btn').addEventListener('click', () => {
+  const lines = pts.map((p,i)=>`  /* ${String(i).padStart(2,'0')} */ [${p[0].toFixed(2)}, ${p[1].toFixed(2)}],${i===START?' // ← START / ZIEL':''}`);
+  const seg = START * 4;
+  const jsxHint = [
+    '\n// ── JSX anpassen ──────────────────────────',
+    `    const START_SEG   = ${seg}`,
+    `      const sa=TRK[${seg}],sb=TRK[${seg+1}]`,
+  ].join('\n');
+  navigator.clipboard.writeText(`const RAW = [\n${lines.join('\n')}\n];` + jsxHint).then(()=>{
+    const btn = document.getElementById('export-raw-btn');
+    btn.textContent='✅ Kopiert!';
+    setTimeout(()=>btn.textContent='📋 RAW kopieren',2000);
+  });
+});
+
+// ── Export Track File (.track.js) ─────────────────────────────────────────────
+document.getElementById('export-track-btn').addEventListener('click', () => {
+  const id          = document.getElementById('meta-id').value.trim() || 'custom';
+  const name        = document.getElementById('meta-name').value.trim() || id;
+  const scale       = parseFloat(document.getElementById('meta-scale').value) || 11;
+  const trackWidth  = parseFloat(document.getElementById('meta-trackwidth').value) || 175;
+  const buffer      = parseFloat(document.getElementById('meta-buffer').value) || 80;
+  const sectorCount = parseInt(document.getElementById('meta-sectors').value) || 3;
+
+  const constName = id.replace(/[^a-zA-Z0-9_]/g,'_').toUpperCase() + '_TRACK';
+
+  const pointLines = pts.map((p,i) =>
+    `    /* ${String(i).padStart(2,'0')} */ [${p[0].toFixed(2)}, ${p[1].toFixed(2)}],${i===START?' // ← START / ZIEL':''}`
+  ).join('\n');
+
+  const epLines = entryPoints.map(ep =>
+    `    { label: '${ep.label}', rawIdx: ${ep.rawIdx}, emoji: '${ep.emoji}' },`
+  ).join('\n');
+
+  const fileContent = `/**
+ * ${id}.track.js  –  ArcadeRace Track-Definition
+ * Generiert vom Track Editor. Kann direkt in ArcadeRace / MonacoTraining importiert werden.
+ *
+ * Import:  import { ${constName} } from './tracks/${id}.track.js'
+ * Nutzung: <ArcadeRace track={${constName}} />
+ */
+
+export const ${constName} = {
+  id:          '${id}',
+  name:        '${name}',
+  scale:       ${scale},
+  trackWidth:  ${trackWidth},
+  buffer:      ${buffer},
+  startIndex:  ${START},       // RAW-Punkt ${START} → Subdivision-Segment = ${START * 4}
+  sectorCount: ${sectorCount},
+
+  entryPoints: [
+${epLines}
+  ],
+
+  points: [
+${pointLines}
+  ],
+}
+`;
+
+  const blob = new Blob([fileContent], { type: 'text/javascript' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${id}.track.js`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  const btn = document.getElementById('export-track-btn');
+  btn.textContent = `✅ ${id}.track.js gespeichert!`;
+  setTimeout(()=>btn.textContent='💾 Track exportieren', 3000);
+});
+
+// ── Import ────────────────────────────────────────────────────────────────────
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-overlay').style.display = 'flex';
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-error').textContent = '';
+  setTimeout(() => document.getElementById('import-textarea').focus(), 50);
+});
+document.getElementById('import-cancel').addEventListener('click', () => {
+  document.getElementById('import-overlay').style.display = 'none';
+});
+document.getElementById('import-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('import-overlay'))
+    document.getElementById('import-overlay').style.display = 'none';
+});
+document.getElementById('import-confirm').addEventListener('click', () => {
+  const raw = document.getElementById('import-textarea').value.trim();
+  const errEl = document.getElementById('import-error');
+  errEl.textContent = '';
+
+  // Accept full .track.js export too
+  let match = raw.match(/points\s*:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/s);
+  if (!match) match = raw.match(/\[\s*(\[.*\])\s*\]/s);
+  if(!match) { errEl.textContent = 'Format nicht erkannt.'; return; }
+
+  let parsed;
+  try { parsed = JSON.parse('[' + match[1] + ']'); }
+  catch(e) { errEl.textContent = 'Parse-Fehler: ' + e.message; return; }
+  if(!Array.isArray(parsed) || parsed.length < 3) { errEl.textContent = 'Zu wenige Punkte.'; return; }
+  if(!parsed.every(p => Array.isArray(p) && p.length >= 2 && !isNaN(p[0]) && !isNaN(p[1]))) {
+    errEl.textContent = 'Ungültige Punkte.'; return;
+  }
+
+  // Also try to read meta fields from .track.js format
+  const idM    = raw.match(/id\s*:\s*['"]([^'"]+)['"]/);
+  const nameM  = raw.match(/name\s*:\s*['"]([^'"]+)['"]/);
+  const scaleM = raw.match(/scale\s*:\s*([\d.]+)/);
+  const twM    = raw.match(/trackWidth\s*:\s*([\d.]+)/);
+  const bufM   = raw.match(/buffer\s*:\s*([\d.]+)/);
+  const siM    = raw.match(/startIndex\s*:\s*([\d]+)/);
+  const secM   = raw.match(/sectorCount\s*:\s*([\d]+)/);
+  if (idM)    document.getElementById('meta-id').value = idM[1];
+  if (nameM)  document.getElementById('meta-name').value = nameM[1];
+  if (scaleM) document.getElementById('meta-scale').value = scaleM[1];
+  if (twM)    document.getElementById('meta-trackwidth').value = twM[1];
+  if (bufM)   document.getElementById('meta-buffer').value = bufM[1];
+  if (siM)    { START = parseInt(siM[1]); }
+  if (secM)   document.getElementById('meta-sectors').value = secM[1];
+
+  pts.length = 0;
+  parsed.forEach(p => pts.push([parseFloat(p[0]), parseFloat(p[1])]));
+  buildTable(); draw();
+  document.getElementById('import-overlay').style.display = 'none';
+});
+
+setTimeout(resize, 50);
+</script>
+
+<!-- ── SVG Import Overlay ───────────────────────────────────────────────────── -->
+<div id="svg-overlay">
+  <div id="svg-box">
+    <h3>🗺️ SVG Track importieren</h3>
+
+    <div id="svg-drop-zone">
+      <strong>SVG-Datei hierher ziehen</strong>
+      oder klicken zum Auswählen
+      <input type="file" id="svg-file-input" accept=".svg" style="display:none">
+    </div>
+
+    <div id="svg-path-select">
+      <label>Pfad auswählen (automatisch vorgeschlagen):</label>
+      <select id="svg-path-list" size="5"></select>
+      <div id="svg-mode-row" style="display:flex;gap:6px;align-items:center;font-size:11px;color:#888;flex-wrap:wrap;">
+        <span>Modus:</span>
+        <button id="svg-mode-center" style="background:#1a2a10;border-color:#3a6a20;color:#4ade80;font-size:10px;padding:2px 8px;">⊕ Mittellinie (Außen+Innen)</button>
+        <button id="svg-mode-direct" style="font-size:10px;padding:2px 8px;">→ Direktpfad</button>
+        <span id="svg-mode-hint" style="color:#555;font-size:10px;margin-left:4px">Pfad hat 2 Subpfade → Mittellinie empfohlen</span>
+      </div>
+      <div id="svg-samples-row">
+        <span>Punkte:</span>
+        <input type="number" id="svg-samples" value="200" min="50" max="500" step="10">
+        <span style="color:#555">  (50–500)</span>
+        <button id="svg-preview-btn" style="margin-left:auto">👁 Vorschau</button>
+      </div>
+    </div>
+
+    <canvas id="svg-preview-canvas"></canvas>
+    <div id="svg-info"></div>
+    <div id="svg-error"></div>
+
+    <div class="svg-actions">
+      <button id="svg-cancel">Abbrechen</button>
+      <button id="svg-confirm" disabled>✅ Track übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// SVG IMPORT ENGINE
+// Portierung der extract_track_coords.py Logik in reines Browser-JavaScript.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── SVG Path Kommando Parser ──────────────────────────────────────────────────
+// Nimmt einen SVG <path d="..."> String und gibt eine Liste von Bezier/Line-
+// Segmenten zurück, die wir dann gleichmäßig samplen können.
+
+function parseSVGPathToSegments(d) {
+  // Tokenize: Kommandos + Zahlen
+  const tokens = d.match(/[MmZzLlHhVvCcSsQqTtAa]|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g) || [];
+  const segs = [];
+  let x=0, y=0, x0=0, y0=0; // current + subpath start
+  let cpx=0, cpy=0; // last control point (for S/s, T/t)
+  let cmd='', i=0;
+
+  const num = () => parseFloat(tokens[i++]);
+
+  while (i < tokens.length) {
+    const t = tokens[i];
+    if (/[MmZzLlHhVvCcSsQqTtAa]/.test(t)) { cmd = t; i++; }
+
+    if (cmd === 'M' || cmd === 'm') {
+      const abs = cmd === 'M';
+      const nx = abs ? num() : x + num();
+      const ny = abs ? num() : y + num();
+      x=nx; y=ny; x0=x; y0=y;
+      cmd = abs ? 'L' : 'l'; // subsequent coords are lineto
+    } else if (cmd === 'Z' || cmd === 'z') {
+      segs.push({ type:'L', x0:x,y0:y, x1:x0, y1:y0 });
+      x=x0; y=y0; i++;
+    } else if (cmd === 'L' || cmd === 'l') {
+      const abs = cmd==='L';
+      const nx = abs ? num() : x+num();
+      const ny = abs ? num() : y+num();
+      segs.push({type:'L',x0:x,y0:y,x1:nx,y1:ny});
+      x=nx; y=ny;
+    } else if (cmd === 'H' || cmd === 'h') {
+      const abs=cmd==='H'; const nx=abs?num():x+num();
+      segs.push({type:'L',x0:x,y0:y,x1:nx,y1:y}); x=nx;
+    } else if (cmd === 'V' || cmd === 'v') {
+      const abs=cmd==='V'; const ny=abs?num():y+num();
+      segs.push({type:'L',x0:x,y0:y,x1:x,y1:ny}); y=ny;
+    } else if (cmd === 'C' || cmd === 'c') {
+      const abs=cmd==='C';
+      const cx1=abs?num():x+num(), cy1=abs?num():y+num();
+      const cx2=abs?num():x+num(), cy2=abs?num():y+num();
+      const nx =abs?num():x+num(), ny =abs?num():y+num();
+      segs.push({type:'C',x0:x,y0:y,cx1,cy1,cx2,cy2,x1:nx,y1:ny});
+      cpx=cx2; cpy=cy2; x=nx; y=ny;
+    } else if (cmd === 'S' || cmd === 's') {
+      const abs=cmd==='S';
+      const cx1=2*x-cpx, cy1=2*y-cpy;
+      const cx2=abs?num():x+num(), cy2=abs?num():y+num();
+      const nx =abs?num():x+num(), ny =abs?num():y+num();
+      segs.push({type:'C',x0:x,y0:y,cx1,cy1,cx2,cy2,x1:nx,y1:ny});
+      cpx=cx2; cpy=cy2; x=nx; y=ny;
+    } else if (cmd === 'Q' || cmd === 'q') {
+      const abs=cmd==='Q';
+      const cx=abs?num():x+num(), cy=abs?num():y+num();
+      const nx=abs?num():x+num(), ny=abs?num():y+num();
+      // Elevate quadratic to cubic
+      segs.push({type:'C',x0:x,y0:y,
+        cx1:x+(2/3)*(cx-x), cy1:y+(2/3)*(cy-y),
+        cx2:nx+(2/3)*(cx-nx),cy2:ny+(2/3)*(cy-ny),
+        x1:nx,y1:ny});
+      cpx=cx; cpy=cy; x=nx; y=ny;
+    } else if (cmd === 'T' || cmd === 't') {
+      const abs=cmd==='T';
+      const cx=2*x-cpx, cy=2*y-cpy;
+      const nx=abs?num():x+num(), ny=abs?num():y+num();
+      segs.push({type:'C',x0:x,y0:y,
+        cx1:x+(2/3)*(cx-x),cy1:y+(2/3)*(cy-y),
+        cx2:nx+(2/3)*(cx-nx),cy2:ny+(2/3)*(cy-ny),
+        x1:nx,y1:ny});
+      cpx=cx; cpy=cy; x=nx; y=ny;
+    } else if (cmd === 'A' || cmd === 'a') {
+      const abs=cmd==='A';
+      const rx=num(),ry=num(),rot=num(),large=num(),sweep=num();
+      const nx=abs?num():x+num(), ny=abs?num():y+num();
+      // Approximate arc as cubic beziers
+      const arcSegs = arcToCubics(x,y,rx,ry,rot,large,sweep,nx,ny);
+      segs.push(...arcSegs);
+      x=nx; y=ny;
+    } else {
+      i++; // skip unknown
+    }
+  }
+  return segs;
+}
+
+// ── Arc → Cubic approximation ────────────────────────────────────────────────
+function arcToCubics(x1,y1,rx,ry,phiDeg,fA,fS,x2,y2) {
+  if(rx===0||ry===0) return [{type:'L',x0:x1,y0:y1,x1:x2,y1:y2}];
+  const phi=phiDeg*Math.PI/180;
+  const cos=Math.cos(phi), sin=Math.sin(phi);
+  const dx=(x1-x2)/2, dy=(y1-y2)/2;
+  const x1p= cos*dx+sin*dy, y1p=-sin*dx+cos*dy;
+  let rx2=rx*rx,ry2=ry*ry,x1p2=x1p*x1p,y1p2=y1p*y1p;
+  let lam=(x1p2/rx2)+(y1p2/ry2);
+  if(lam>1){const s=Math.sqrt(lam);rx*=s;ry*=s;rx2=rx*rx;ry2=ry*ry;}
+  const num=(rx2*ry2-rx2*y1p2-ry2*x1p2);
+  const den=(rx2*y1p2+ry2*x1p2);
+  const sq=Math.max(0,num/den);
+  let c=Math.sqrt(sq)*(fA===fS?-1:1);
+  const cxp= c*rx*y1p/ry, cyp=-c*ry*x1p/rx;
+  const cx=(x1+x2)/2+cos*cxp-sin*cyp;
+  const cy=(y1+y2)/2+sin*cxp+cos*cyp;
+  const ang1=Math.atan2((y1p-cyp)/ry,(x1p-cxp)/rx);
+  let dAng=Math.atan2((-y1p-cyp)/ry,(-x1p-cxp)/rx)-ang1;
+  if(!fS&&dAng>0)dAng-=2*Math.PI;
+  if(fS&&dAng<0)dAng+=2*Math.PI;
+  const n=Math.ceil(Math.abs(dAng)/(Math.PI/2));
+  const segs=[];
+  let px=x1,py=y1;
+  for(let i=0;i<n;i++){
+    const a1=ang1+i*dAng/n, a2=ang1+(i+1)*dAng/n;
+    const da=a2-a1, alpha=(4/3)*Math.tan(da/4);
+    const cos1=Math.cos(a1),sin1=Math.sin(a1),cos2=Math.cos(a2),sin2=Math.sin(a2);
+    const ex=cx+cos*rx*cos2-sin*ry*sin2, ey=cy+sin*rx*cos2+cos*ry*sin2;
+    segs.push({type:'C',x0:px,y0:py,
+      cx1:px-alpha*(cos*rx*sin1+sin*ry*cos1),
+      cy1:py-alpha*(sin*rx*sin1-cos*ry*cos1),
+      cx2:ex+alpha*(cos*rx*sin2+sin*ry*cos2),
+      cy2:ey+alpha*(sin*rx*sin2-cos*ry*cos2),
+      x1:ex,y1:ey});
+    px=ex;py=ey;
+  }
+  return segs;
+}
+
+// ── Segment length estimation ─────────────────────────────────────────────────
+function segLength(s, steps=8) {
+  let len=0, px=s.x0, py=s.y0;
+  for(let i=1;i<=steps;i++){
+    const t=i/steps;
+    let nx,ny;
+    if(s.type==='L'){ nx=s.x0+(s.x1-s.x0)*t; ny=s.y0+(s.y1-s.y0)*t; }
+    else { // cubic bezier
+      const mt=1-t;
+      nx=mt*mt*mt*s.x0+3*mt*mt*t*s.cx1+3*mt*t*t*s.cx2+t*t*t*s.x1;
+      ny=mt*mt*mt*s.y0+3*mt*mt*t*s.cy1+3*mt*t*t*s.cy2+t*t*t*s.y1;
+    }
+    const ddx=nx-px,ddy=ny-py; len+=Math.sqrt(ddx*ddx+ddy*ddy);
+    px=nx;py=ny;
+  }
+  return len;
+}
+
+// ── Sample point at t on a segment ───────────────────────────────────────────
+function segPoint(s, t) {
+  if(s.type==='L') return [s.x0+(s.x1-s.x0)*t, s.y0+(s.y1-s.y0)*t];
+  const mt=1-t;
+  return [
+    mt*mt*mt*s.x0+3*mt*mt*t*s.cx1+3*mt*t*t*s.cx2+t*t*t*s.x1,
+    mt*mt*mt*s.y0+3*mt*mt*t*s.cy1+3*mt*t*t*s.cy2+t*t*t*s.y1
+  ];
+}
+
+// ── Gleichmäßiges Sampling entlang aller Segmente ────────────────────────────
+function samplePath(segs, numSamples) {
+  // Compute cumulative length
+  const lens = segs.map(s => segLength(s));
+  const total = lens.reduce((a,b)=>a+b, 0);
+  if(total === 0) return [];
+  const cumLen = [0];
+  lens.forEach(l => cumLen.push(cumLen[cumLen.length-1]+l));
+
+  const points = [];
+  for(let i=0;i<numSamples;i++){
+    const target = (i/numSamples)*total;
+    // Find segment
+    let si=0;
+    while(si < segs.length-1 && cumLen[si+1] < target) si++;
+    const tInSeg = lens[si]===0 ? 0 : (target-cumLen[si])/lens[si];
+    points.push(segPoint(segs[si], Math.min(1,tInSeg)));
+  }
+  return points;
+}
+
+// ── Normalisierung auf 1000×1000 (wie Python-Script) ─────────────────────────
+function normalizePts(points, targetSize=1000) {
+  if(!points.length) return [];
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  points.forEach(([x,y])=>{ minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y); });
+  const w=maxX-minX||1, h=maxY-minY||1;
+  const scale=(targetSize*0.9)/Math.max(w,h);
+  const pad=targetSize*0.05;
+  return points.map(([x,y])=>[
+    Math.round(((x-minX)*scale+pad)*100)/100,
+    Math.round(((y-minY)*scale+pad)*100)/100
+  ]);
+}
+
+// ── SVG Pfade aus dem DOM lesen ───────────────────────────────────────────────
+const SVG_PREFERRED_IDS = ['Path-173','Path-172','Path-171','Path-17','Circuit','track','Track','centerline','Centerline'];
+const SVG_SKIP_CLASSES  = new Set(['st17','st11','st12','st13','st25','st31']);
+
+function extractPaths(svgText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const pathEls = [...doc.querySelectorAll('path')];
+  const paths = [];
+  pathEls.forEach(el => {
+    const id  = el.getAttribute('id') || '';
+    const cls = el.getAttribute('class') || '';
+    const d   = el.getAttribute('d') || '';
+    if(!d || SVG_SKIP_CLASSES.has(cls)) return;
+    const subpathCount = (d.match(/[Mm]/g)||[]).length;
+    paths.push({ id, cls, d, len: d.length, subpathCount });
+  });
+  return paths;
+}
+
+function autoSelectPath(paths) {
+  for(const pref of SVG_PREFERRED_IDS) {
+    const found = paths.find(p => p.id === pref);
+    if(found) return found;
+  }
+  // Prefer paths with exactly 2 subpaths (outer+inner ring = track body)
+  const rings = paths.filter(p => p.subpathCount === 2).sort((a,b)=>b.len-a.len);
+  if(rings.length) return rings[0];
+  return paths.sort((a,b)=>b.len-a.len)[0] || null;
+}
+
+// ── Subpfade aufteilen ────────────────────────────────────────────────────────
+function splitSubpaths(d) {
+  const result = [];
+  let current = '';
+  const tokens = d.match(/[MmZzLlHhVvCcSsQqTtAa]|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g) || [];
+  let i = 0;
+  while(i < tokens.length) {
+    const t = tokens[i];
+    if((t === 'M' || t === 'm') && current.trim()) {
+      result.push(current.trim());
+      current = '';
+    }
+    current += t + ' ';
+    i++;
+  }
+  if(current.trim()) result.push(current.trim());
+  return result.filter(s => s.length > 2);
+}
+
+// ── Mittellinie aus Außen+Innen berechnen ─────────────────────────────────────
+function extractCenterline(d, N) {
+  const subpaths = splitSubpaths(d);
+  if(subpaths.length < 2) return null;
+  const segsA = parseSVGPathToSegments(subpaths[0]);
+  const segsB = parseSVGPathToSegments(subpaths[1]);
+  if(!segsA.length || !segsB.length) return null;
+  const ptsA = samplePath(segsA, N);
+  const ptsB = samplePath(segsB, N);
+  if(!ptsA.length || !ptsB.length) return null;
+  const center = [];
+  for(const pa of ptsA) {
+    let bestDist = Infinity, bestPb = ptsB[0];
+    for(const pb of ptsB) {
+      const dx=pa[0]-pb[0], dy=pa[1]-pb[1];
+      const d2=dx*dx+dy*dy;
+      if(d2 < bestDist) { bestDist=d2; bestPb=pb; }
+    }
+    center.push([(pa[0]+bestPb[0])/2, (pa[1]+bestPb[1])/2]);
+  }
+  return center;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI Logic
+// ─────────────────────────────────────────────────────────────────────────────
+let svgPaths = [];
+let svgCurrentPts = null;
+let svgMode = 'center';
+
+const svgOverlay    = document.getElementById('svg-overlay');
+const svgDropZone   = document.getElementById('svg-drop-zone');
+const svgFileInput  = document.getElementById('svg-file-input');
+const svgPathList   = document.getElementById('svg-path-list');
+const svgPathSel    = document.getElementById('svg-path-select');
+const svgSamples    = document.getElementById('svg-samples');
+const svgPreviewC   = document.getElementById('svg-preview-canvas');
+const svgError      = document.getElementById('svg-error');
+const svgInfo       = document.getElementById('svg-info');
+const svgConfirm    = document.getElementById('svg-confirm');
+const svgModeHint   = document.getElementById('svg-mode-hint');
+const svgModeCenter = document.getElementById('svg-mode-center');
+const svgModeDirect = document.getElementById('svg-mode-direct');
+
+function setMode(m) {
+  svgMode = m;
+  [svgModeCenter, svgModeDirect].forEach(btn => {
+    btn.style.background  = '#2d2d4e';
+    btn.style.borderColor = '#444';
+    btn.style.color       = '#ccc';
+  });
+  const active = m === 'center' ? svgModeCenter : svgModeDirect;
+  active.style.background  = '#1a2a10';
+  active.style.borderColor = '#3a6a20';
+  active.style.color       = '#4ade80';
+}
+svgModeCenter.addEventListener('click', () => { setMode('center'); previewSelected(); });
+svgModeDirect.addEventListener('click', () => { setMode('direct'); previewSelected(); });
+
+document.getElementById('svg-import-btn').addEventListener('click', () => {
+  svgOverlay.style.display = 'flex';
+  resetSVGUI();
+});
+document.getElementById('svg-cancel').addEventListener('click', () => { svgOverlay.style.display='none'; });
+svgOverlay.addEventListener('click', e => { if(e.target===svgOverlay) svgOverlay.style.display='none'; });
+
+svgDropZone.addEventListener('click', () => svgFileInput.click());
+svgDropZone.addEventListener('dragover', e => { e.preventDefault(); svgDropZone.classList.add('drag-over'); });
+svgDropZone.addEventListener('dragleave', () => svgDropZone.classList.remove('drag-over'));
+svgDropZone.addEventListener('drop', e => {
+  e.preventDefault(); svgDropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) loadSVGFile(file);
+});
+svgFileInput.addEventListener('change', e => { if(e.target.files[0]) loadSVGFile(e.target.files[0]); });
+
+function resetSVGUI() {
+  svgPaths=[]; svgCurrentPts=null;
+  svgPathSel.style.display='none';
+  svgPreviewC.style.display='none';
+  svgError.textContent=''; svgInfo.textContent='';
+  svgConfirm.disabled=true;
+  setMode('center');
+  // Reset drop zone text without rebuilding innerHTML (preserves file input reference)
+  svgDropZone.querySelector('strong').textContent = 'SVG-Datei hierher ziehen';
+  const hint = svgDropZone.childNodes[1];
+  if(hint && hint.nodeType === 3) hint.textContent = ' oder klicken zum Auswählen';
+}
+
+function loadSVGFile(file) {
+  if(!file.name.toLowerCase().endsWith('.svg')) {
+    svgError.textContent='Nur .svg Dateien werden unterstützt.'; return;
+  }
+  svgError.textContent=''; svgInfo.textContent='Lese SVG...';
+  const reader = new FileReader();
+  reader.onload = e => processSVGText(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function processSVGText(text, filename) {
+  svgPaths = extractPaths(text);
+  if(!svgPaths.length) { svgError.textContent='Keine <path>-Elemente in der SVG gefunden.'; return; }
+  svgPathList.innerHTML = '';
+  const best = autoSelectPath([...svgPaths]);
+  svgPaths.sort((a,b)=>b.len-a.len).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id || p.len;
+    opt.dataset.d = p.d;
+    opt.dataset.sub = p.subpathCount;
+    const ring = p.subpathCount >= 2 ? ' ⊕' : '';
+    opt.textContent = `${p.id||'(kein ID)'}  [${p.cls||'—'}]  d-Länge: ${p.len}${ring}`;
+    if(p.id === (best&&best.id)) opt.selected=true;
+    svgPathList.appendChild(opt);
+  });
+  svgDropZone.querySelector('strong').textContent = `✅ ${filename}`;
+  const hint2 = svgDropZone.childNodes[1];
+  if(hint2 && hint2.nodeType === 3) hint2.textContent = ` ${svgPaths.length} Pfade (⊕ = Doppelpfad/Ring → Mittellinie)`;
+  svgPathSel.style.display = 'flex';
+  updateModeForSelected();
+}
+
+function updateModeForSelected() {
+  const sel = svgPathList.selectedOptions[0];
+  const sub = sel ? parseInt(sel.dataset.sub||1) : 1;
+  if(sub >= 2) {
+    svgModeHint.textContent = `Pfad hat ${sub} Subpfade → Mittellinie empfohlen ✓`;
+    svgModeHint.style.color = '#4ade80';
+    setMode('center');
+  } else {
+    svgModeHint.textContent = 'Pfad hat 1 Subpfad → Direktpfad';
+    svgModeHint.style.color = '#888';
+    setMode('direct');
+  }
+  previewSelected();
+}
+
+function getSelectedD() {
+  const sel = svgPathList.selectedOptions[0];
+  return sel ? sel.dataset.d : null;
+}
+
+function previewSelected() {
+  const d = getSelectedD();
+  if(!d) return;
+  svgError.textContent='';
+  try {
+    const n = parseInt(svgSamples.value)||200;
+    const sel = svgPathList.selectedOptions[0];
+    const subCount = sel ? parseInt(sel.dataset.sub||1) : 1;
+    let raw;
+    if(svgMode === 'center' && subCount >= 2) {
+      raw = extractCenterline(d, n);
+      if(!raw) { svgError.textContent='Mittellinie fehlgeschlagen → Direktmodus versuchen.'; return; }
+      svgInfo.textContent = `⊕ Mittellinie aus ${subCount} Subpfaden: ${raw.length} Punkte normalisiert.`;
+    } else {
+      const sub = splitSubpaths(d);
+      const segs = parseSVGPathToSegments(sub[0] || d);
+      if(!segs.length) { svgError.textContent='Pfad konnte nicht geparst werden.'; return; }
+      raw = samplePath(segs, n);
+      svgInfo.textContent = `→ Direktpfad: ${raw.length} Punkte normalisiert.`;
+    }
+    if(!raw || !raw.length) { svgError.textContent='Keine Punkte extrahiert.'; return; }
+    svgCurrentPts = normalizePts(raw);
+    drawSVGPreview(svgCurrentPts);
+    svgConfirm.disabled = false;
+  } catch(err) {
+    svgError.textContent = 'Fehler: ' + err.message;
+    svgCurrentPts = null; svgConfirm.disabled=true;
+  }
+}
+
+function drawSVGPreview(points) {
+  svgPreviewC.style.display='block';
+  const W=svgPreviewC.offsetWidth||580, H=180;
+  svgPreviewC.width=W; svgPreviewC.height=H;
+  const ctx2=svgPreviewC.getContext('2d');
+  ctx2.fillStyle='#0d0d1a'; ctx2.fillRect(0,0,W,H);
+  if(!points.length) return;
+  let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity;
+  points.forEach(([x,y])=>{ mnx=Math.min(mnx,x);mxx=Math.max(mxx,x);mny=Math.min(mny,y);mxy=Math.max(mxy,y); });
+  const sc=Math.min((W-20)/(mxx-mnx||1),(H-20)/(mxy-mny||1));
+  const ox=(W-(mxx-mnx)*sc)/2, oy=(H-(mxy-mny)*sc)/2;
+  const tx=p=>[ox+(p[0]-mnx)*sc, oy+(p[1]-mny)*sc];
+  ctx2.strokeStyle='#374151'; ctx2.lineWidth=8;
+  ctx2.beginPath(); let [sx,sy]=tx(points[0]); ctx2.moveTo(sx,sy);
+  points.forEach(p=>{ const [x,y]=tx(p); ctx2.lineTo(x,y); }); ctx2.closePath(); ctx2.stroke();
+  ctx2.strokeStyle='#fb923c'; ctx2.lineWidth=2;
+  ctx2.beginPath(); [sx,sy]=tx(points[0]); ctx2.moveTo(sx,sy);
+  points.forEach(p=>{ const [x,y]=tx(p); ctx2.lineTo(x,y); }); ctx2.closePath(); ctx2.stroke();
+  const [s0x,s0y]=tx(points[0]);
+  ctx2.beginPath(); ctx2.arc(s0x,s0y,5,0,Math.PI*2);
+  ctx2.fillStyle='#4ade80'; ctx2.fill();
+}
+
+document.getElementById('svg-preview-btn').addEventListener('click', previewSelected);
+svgPathList.addEventListener('change', updateModeForSelected);
+svgSamples.addEventListener('change', previewSelected);
+
+svgConfirm.addEventListener('click', () => {
+  if(!svgCurrentPts || !svgCurrentPts.length) return;
+  pts.length=0;
+  svgCurrentPts.forEach(p => pts.push([p[0],p[1]]));
+  START=0;
+  buildTable(); draw();
+  svgOverlay.style.display='none';
+  document.getElementById('status').textContent = `✅ SVG importiert: ${pts.length} Punkte geladen.`;
+});
+</script>
+
+<!-- ── Import-Overlay ──────────────────────────────────────────────────────── -->
+<div id="import-overlay">
+  <div id="import-box">
+    <h3>Track importieren</h3>
+    <p>RAW-Array <code>[[x,y],...]</code> oder komplette <code>.track.js</code>-Datei einfügen.</p>
+    <textarea id="import-textarea" placeholder="[[x, y], [x, y], ...]  oder  export const TRACK = { ... }"></textarea>
+    <div id="import-error"></div>
+    <div class="import-actions">
+      <button id="import-cancel">Abbrechen</button>
+      <button id="import-confirm">✅ Übernehmen</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

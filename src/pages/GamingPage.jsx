@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
 import ArcadeRacing from '../components/games/ArcadeRacing'
+import ArcadeRace   from '../components/games/ArcadeRace'
 import MonacoTraining from '../components/games/MonacoTraining'
 import { useRaceWeekends, useCountdown } from '../hooks/useRaceWeekends'
 import './GamingPage.css'
 
-const GAMES = [
+const GAMES_ALT = [
   {
     id: 'arcade_racing',
     title: 'Arcade Racing',
@@ -22,6 +23,18 @@ const GAMES = [
     emoji: '👻',
     description: 'Fahre gegen deinen eigenen Ghost. Sektoren-Analyse & Live-Delta zeigen dir wo du Zeit verlierst.',
     component: MonacoTraining,
+    beta: true,
+  },
+]
+
+const GAMES_NEU = [
+  {
+    id: 'arcade_race_new',
+    title: 'Arcade Race',
+    subtitle: 'Monaco · Ghost Run',
+    emoji: '🏎️',
+    description: 'Neue Version mit verbesserter Streckenphysik, Ghost-System & Sektoren-Analyse.',
+    component: ArcadeRace,
     beta: true,
   },
 ]
@@ -58,13 +71,59 @@ function RaceCountdown({ weekend }) {
   )
 }
 
+function GameGrid({ games, onSelect }) {
+  return (
+    <div className="gaming-grid">
+      {games.map(g => (
+        <div key={g.id} className="gaming-card card" onClick={() => onSelect(g.id)}>
+          <div className="gaming-card-emoji">{g.emoji}</div>
+          <div className="gaming-card-info">
+            <div className="gaming-card-title">
+              {g.title}
+              {g.beta && (
+                <span style={{
+                  marginLeft: '0.4rem',
+                  fontSize: '0.55rem',
+                  fontWeight: 900,
+                  letterSpacing: '0.1em',
+                  background: 'rgba(232,0,45,0.85)',
+                  color: '#fff',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  verticalAlign: 'middle',
+                }}>BETA</span>
+              )}
+            </div>
+            <div className="gaming-card-sub">{g.subtitle}</div>
+            <p className="gaming-card-desc">{g.description}</p>
+          </div>
+          <button className="btn btn-primary gaming-card-btn">Spielen</button>
+        </div>
+      ))}
+
+      <div className="gaming-card gaming-card--soon card">
+        <div className="gaming-card-emoji">🎯</div>
+        <div className="gaming-card-info">
+          <div className="gaming-card-title">Fahrer Quiz</div>
+          <div className="gaming-card-sub">Demnächst</div>
+          <p className="gaming-card-desc">Wie gut kennst du die F1-Fahrer? Rate Zeiten, Strecken und Stats.</p>
+        </div>
+        <button className="btn btn-secondary gaming-card-btn" disabled>Bald</button>
+      </div>
+    </div>
+  )
+}
+
 export default function GamingPage() {
-  const [activeGame, setActiveGame] = useState(null)
+  const [activeGame, setActiveGame]   = useState(null)
+  const [activeTab,  setActiveTab]    = useState('neu')   // 'alt' | 'neu'
   const { nextWeekend } = useRaceWeekends()
 
-  const game          = GAMES.find(g => g.id === activeGame)
+  const allGames      = [...GAMES_ALT, ...GAMES_NEU]
+  const game          = allGames.find(g => g.id === activeGame)
   const GameComponent = game?.component
 
+  // ── Aktives Spiel ──────────────────────────────────────────────────────────
   if (activeGame && GameComponent) {
     return (
       <div className="gaming-root">
@@ -74,7 +133,9 @@ export default function GamingPage() {
           </button>
           <h1 className="gaming-title">
             {game.emoji} {game.title}
-            {game.beta && <span className="badge badge-beta" style={{marginLeft:'0.5rem',fontSize:'0.55rem',verticalAlign:'middle'}}>BETA</span>}
+            {game.beta && (
+              <span className="badge badge-beta" style={{marginLeft:'0.5rem',fontSize:'0.55rem',verticalAlign:'middle'}}>BETA</span>
+            )}
           </h1>
         </div>
         <GameComponent onClose={() => setActiveGame(null)} />
@@ -82,6 +143,7 @@ export default function GamingPage() {
     )
   }
 
+  // ── Übersicht ──────────────────────────────────────────────────────────────
   return (
     <div className="gaming-root">
       <div className="gaming-header">
@@ -94,44 +156,44 @@ export default function GamingPage() {
 
       {nextWeekend && <RaceCountdown weekend={nextWeekend} />}
 
-      <div className="gaming-grid">
-        {GAMES.map(g => (
-          <div key={g.id} className="gaming-card card" onClick={() => setActiveGame(g.id)}>
-            <div className="gaming-card-emoji">{g.emoji}</div>
-            <div className="gaming-card-info">
-              <div className="gaming-card-title">
-                {g.title}
-                {g.beta && (
-                  <span style={{
-                    marginLeft:'0.4rem',
-                    fontSize:'0.55rem',
-                    fontWeight:900,
-                    letterSpacing:'0.1em',
-                    background:'rgba(232,0,45,0.85)',
-                    color:'#fff',
-                    padding:'1px 5px',
-                    borderRadius:'3px',
-                    verticalAlign:'middle',
-                  }}>BETA</span>
-                )}
-              </div>
-              <div className="gaming-card-sub">{g.subtitle}</div>
-              <p className="gaming-card-desc">{g.description}</p>
-            </div>
-            <button className="btn btn-primary gaming-card-btn">Spielen</button>
-          </div>
+      {/* ALT / NEU Tabs */}
+      <div className="gaming-tabs" style={{
+        display: 'flex',
+        gap: '0.25rem',
+        marginBottom: '0.75rem',
+        background: 'rgba(255,255,255,0.04)',
+        borderRadius: '8px',
+        padding: '3px',
+      }}>
+        {[['neu', '✨ Neu'], ['alt', '📦 Alt']].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            style={{
+              flex: 1,
+              padding: '0.4rem 0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              background: activeTab === key
+                ? 'rgba(232,0,45,0.85)'
+                : 'transparent',
+              color: activeTab === key
+                ? '#fff'
+                : 'var(--text-secondary)',
+            }}
+          >{label}</button>
         ))}
-
-        <div className="gaming-card gaming-card--soon card">
-          <div className="gaming-card-emoji">🎯</div>
-          <div className="gaming-card-info">
-            <div className="gaming-card-title">Fahrer Quiz</div>
-            <div className="gaming-card-sub">Demnächst</div>
-            <p className="gaming-card-desc">Wie gut kennst du die F1-Fahrer? Rate Zeiten, Strecken und Stats.</p>
-          </div>
-          <button className="btn btn-secondary gaming-card-btn" disabled>Bald</button>
-        </div>
       </div>
+
+      {activeTab === 'alt'
+        ? <GameGrid games={GAMES_ALT} onSelect={setActiveGame} />
+        : <GameGrid games={GAMES_NEU} onSelect={setActiveGame} />
+      }
     </div>
   )
 }
