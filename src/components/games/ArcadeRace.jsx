@@ -5,7 +5,7 @@ import './ArcadeRace.css'
 
 // ── Track-Registry ────────────────────────────────────────────────────────────
 // Neue Tracks nur in tracks/index.js eintragen – sie erscheinen automatisch hier.
-import { ALL_TRACKS } from './tracks/index.js'
+import { ALL_TRACKS } from './tracks'
 
 // ── Mathematische Kurvenglättung (Catmull-Rom-Spline) ────────────────────────
 function interpolateCatmullRom(p0, p1, p2, p3, t) {
