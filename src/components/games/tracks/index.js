@@ -5,9 +5,8 @@
 //      Die Komponente zeigt ihn dann automatisch in der Auswahl an.
 
 import { MONACO_TRACK }    from './monaco.track.js'
-// import { BARCELONA_TRACK } from './barcelona.track.js'
-// import { SILVERSTONE_TRACK } from './silverstone.track.js'
-// import { SUZUKA_TRACK }    from './suzuka.track.js'
+import { BARCELONA_TRACK } from './barcelona.track.js'
+import { AUSTRIA_TRACK }   from './austria.track.js'
 
 /**
  * Reihenfolge bestimmt die Anzeige im Track-Selector.
@@ -16,9 +15,8 @@ import { MONACO_TRACK }    from './monaco.track.js'
  */
 export const ALL_TRACKS = [
   MONACO_TRACK,
-  // BARCELONA_TRACK,
-  // SILVERSTONE_TRACK,
-  // SUZUKA_TRACK,
+  BARCELONA_TRACK,
+  AUSTRIA_TRACK,
 ]
 
 /** Gibt den Track mit der passenden id zurück, Fallback: erster Track */
