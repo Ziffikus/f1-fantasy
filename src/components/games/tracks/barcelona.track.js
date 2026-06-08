@@ -9,10 +9,10 @@
 export const BARCELONA_TRACK = {
   id:          'barcelona',
   name:        'Barcelona',
-  scale:       11,
-  trackWidth:  175,
+  scale:       9,
+  trackWidth:  150,
   buffer:      80,
-  startIndex:  199,       // RAW-Punkt 199 → Subdivision-Segment = 796
+  startIndex:  65,       // RAW-Punkt 199 → Subdivision-Segment = 796
   sectorCount: 3,
 
   entryPoints: [
