@@ -9,10 +9,10 @@
 export const AUSTRIA_TRACK = {
   id:          'austria',
   name:        'Austria',
-  scale:       11,
-  trackWidth:  175,
+  scale:       7,
+  trackWidth:  150,
   buffer:      80,
-  startIndex:  0,       // RAW-Punkt 0 → Subdivision-Segment = 0
+  startIndex:  6,       // RAW-Punkt 0 → Subdivision-Segment = 0
   sectorCount: 3,
 
   entryPoints: [
