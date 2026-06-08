@@ -3,12 +3,9 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import './ArcadeRace.css'
 
-// ── Track importieren ─────────────────────────────────────────────────────────
-// Um einen anderen Track zu laden, einfach diese eine Zeile ändern:
-//   import { BARCELONA_TRACK } from './tracks/barcelona.track.js'
-//   <ArcadeRace track={BARCELONA_TRACK} />
-// oder direkt als Default-Export hier swappen:
-import { MONACO_TRACK } from './tracks/monaco.track.js'
+// ── Track-Registry ────────────────────────────────────────────────────────────
+// Neue Tracks nur in tracks/index.js eintragen – sie erscheinen automatisch hier.
+import { ALL_TRACKS } from './tracks/index.js'
 
 // ── Mathematische Kurvenglättung (Catmull-Rom-Spline) ────────────────────────
 function interpolateCatmullRom(p0, p1, p2, p3, t) {
@@ -64,8 +61,11 @@ const ZOOM         = 0.63
  * @param {function} [props.onClose]
  */
 export default function ArcadeRace({ track: trackProp, onClose }) {
-  // Aktiver Track – prop überschreibt den Default
-  const track = trackProp ?? MONACO_TRACK
+  // Track-Auswahl – prop überschreibt den internen State (Rückwärtskompatibilität)
+  const [selectedTrackId, setSelectedTrackId] = useState(
+    trackProp?.id ?? ALL_TRACKS[0]?.id
+  )
+  const track = trackProp ?? ALL_TRACKS.find(t => t.id === selectedTrackId) ?? ALL_TRACKS[0]
 
   // Aus dem Track-Objekt abgeleitete Konstanten
   const TRACK_SCALE  = track.scale
@@ -595,6 +595,40 @@ export default function ArcadeRace({ track: trackProp, onClose }) {
               {hasGhost  && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
               {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
+
+              {/* ── Track-Auswahl (nur sichtbar wenn kein track-Prop) ── */}
+              {!trackProp && ALL_TRACKS.length > 1 && (
+                <div style={{ width: '100%', marginTop: '0.5rem' }}>
+                  <div style={{ fontSize:'0.65rem', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text-muted)', marginBottom:'0.3rem' }}>Strecke</div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)',
+                    gap: '0.25rem',
+                    maxHeight: '6rem',
+                    overflowY: 'auto',
+                  }}>
+                    {ALL_TRACKS.map(t => (
+                      <button key={t.id} className="btn"
+                        style={{
+                          fontSize: '0.7rem', padding: '0.3rem 0.3rem', textAlign: 'center',
+                          background: selectedTrackId === t.id ? 'rgba(232,196,64,0.2)' : 'transparent',
+                          border:     selectedTrackId === t.id ? '1px solid rgba(232,196,64,0.6)' : '1px solid var(--border)',
+                          color:      selectedTrackId === t.id ? '#e8c440' : 'var(--text-secondary)',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}
+                        onClick={() => {
+                          if (selectedTrackId !== t.id) {
+                            setSelectedTrackId(t.id)
+                            setBestLap(null)
+                            setHasGhost(false)
+                            try { if (localStorage.getItem(`arcadeRace_ghost_${t.id}`)) setHasGhost(true) } catch {}
+                          }
+                        }}
+                      >{t.emoji ?? '🏎️'} {t.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div style={{ width: '100%', marginTop: '0.5rem' }}>
                 <div style={{ fontSize:'0.65rem', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text-muted)', marginBottom:'0.3rem' }}>Modus</div>
