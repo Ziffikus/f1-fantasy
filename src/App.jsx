@@ -19,6 +19,7 @@ const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
 const HistoryPage       = lazy(() => import('./pages/HistoryPage'))
 const DriverPage        = lazy(() => import('./pages/DriverPage'))
 const LivePage          = lazy(() => import('./pages/LivePage'))
+const LiveBetaPage      = lazy(() => import('./pages/LiveBetaPage'))
 const GamingPage        = lazy(() => import('./pages/GamingPage'))
 
 // Layout
@@ -94,6 +95,7 @@ useEffect(() => {
             <Route path="fahrer" element={<DriversPage />} />
             <Route path="fahrer/:id" element={<DriverPage />} />
             <Route path="live" element={<LivePage />} />
+            <Route path="live-beta" element={<LiveBetaPage />} />
             <Route path="gaming" element={<GamingPage />} />
             <Route path="regeln" element={<RulesPage />} />
             <Route path="spieler/:id" element={<PublicProfilePage />} />
