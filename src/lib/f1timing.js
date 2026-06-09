@@ -1,55 +1,55 @@
 // ============================================================
-// F1 Live Timing API – https://livetiming.formula1.com
-// Kostenlos, direkt aus dem Browser fetchbar, kein Auth nötig
-// Datenquelle: offizielle F1 Timing-Infrastruktur
+// F1 Live Timing – via Supabase Proxy (CORS-Workaround)
+// Quelle: livetiming.formula1.com
 // ============================================================
 
-const BASE = 'https://livetiming.formula1.com/static'
+const PROXY = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 
-async function f1Fetch(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`F1 Timing Fehler: ${res.status} – ${url}`)
+async function f1Fetch(path) {
+  const url = new URL(PROXY)
+  url.searchParams.set('source', 'f1timing')
+  url.searchParams.set('path', path)
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`F1 Timing Fehler: ${res.status} – ${path}`)
   return res.json()
 }
 
-// ─── Aktuelle Session (immer das neueste Meeting) ────────────
-// Gibt SessionStatus zurück: "Started" | "Finalised" | "Inactive" etc.
+// ─── Aktuelle Session ────────────────────────────────────────
 export async function getTimingSession() {
-  return f1Fetch(`${BASE}/SessionInfo.json`)
+  return f1Fetch('SessionInfo.json')
 }
 
-// ─── Timing Data: Positionen, Rundenzeiten, Gaps, Sektoren ──
+// ─── Timing Data ─────────────────────────────────────────────
 export async function getTimingData(path) {
-  return f1Fetch(`${BASE}/${path}TimingData.json`)
+  return f1Fetch(`${path}TimingData.json`)
 }
 
-// ─── Fahrerliste mit Team, Farbe, Kürzel ────────────────────
+// ─── Fahrerliste ─────────────────────────────────────────────
 export async function getDriverList(path) {
-  return f1Fetch(`${BASE}/${path}DriverList.json`)
+  return f1Fetch(`${path}DriverList.json`)
 }
 
-// ─── Wetterdaten ─────────────────────────────────────────────
+// ─── Wetter ──────────────────────────────────────────────────
 export async function getWeatherData(path) {
-  return f1Fetch(`${BASE}/${path}WeatherData.json`)
+  return f1Fetch(`${path}WeatherData.json`)
 }
 
-// ─── Race Control Messages (SC, VSC, Flaggen...) ─────────────
+// ─── Race Control ─────────────────────────────────────────────
 export async function getRaceControlMessages(path) {
-  return f1Fetch(`${BASE}/${path}RaceControlMessages.json`)
+  return f1Fetch(`${path}RaceControlMessages.json`)
 }
 
-// ─── Streckenstatus ──────────────────────────────────────────
-// Status: "1"=Clear, "2"=Yellow, "4"=SC, "5"=Red, "6"=VSC
+// ─── Track Status ─────────────────────────────────────────────
 export async function getTrackStatus(path) {
-  return f1Fetch(`${BASE}/${path}TrackStatus.json`)
+  return f1Fetch(`${path}TrackStatus.json`)
 }
 
-// ─── Aktueller Rundenstand ───────────────────────────────────
+// ─── Rundenzähler ────────────────────────────────────────────
 export async function getLapCount(path) {
-  return f1Fetch(`${BASE}/${path}LapCount.json`)
+  return f1Fetch(`${path}LapCount.json`)
 }
 
-// ─── Reifendaten (Stints pro Fahrer) ─────────────────────────
+// ─── Reifendaten ─────────────────────────────────────────────
 export async function getTimingAppData(path) {
-  return f1Fetch(`${BASE}/${path}TimingAppData.json`)
+  return f1Fetch(`${path}TimingAppData.json`)
 }
