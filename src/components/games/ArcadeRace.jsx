@@ -710,77 +710,10 @@ export default function ArcadeRace({ onClose }) {
         {gameState==='idle' && (
           <div className="arcade-overlay">
             <div className="arcade-start-card monaco-start-card">
-              <div className="arcade-start-title">🎓 {track.name} Training</div>
+              <div className="arcade-start-title">🏎️ {track.name}</div>
               {hasGhost && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
               {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
-
-              {/* ── Track-Auswahl (automatisch wenn mehrere Tracks) ── */}
-              {ALL_TRACKS.length > 1 && (
-                <div style={{width:'100%',marginTop:'0.5rem'}}>
-                  <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Strecke</div>
-                  <div style={{
-                    display:'grid',
-                    gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)',
-                    gap:'0.25rem', maxHeight:'5.5rem', overflowY:'auto'
-                  }}>
-                    {ALL_TRACKS.map(t => (
-                      <button key={t.id} className="btn"
-                        style={{
-                          fontSize:'0.7rem', padding:'0.3rem 0.3rem', textAlign:'center',
-                          background: selectedTrackId === t.id ? 'rgba(232,196,64,0.2)' : 'transparent',
-                          border:     selectedTrackId === t.id ? '1px solid rgba(232,196,64,0.6)' : '1px solid var(--border)',
-                          color:      selectedTrackId === t.id ? '#e8c440' : 'var(--text-secondary)',
-                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-                        }}
-                        onClick={() => setSelectedTrackId(t.id)}
-                      >{t.emoji ?? '🏎️'} {t.name}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div style={{width:'100%',marginTop:'0.5rem'}}>
-                <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Modus</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem'}}>
-                  {[['qualifying','🏆 Qualifying'],['section','🔧 Abschnitt']].map(([mode, label]) => (
-                    <button key={mode} className="btn"
-                      style={{
-                        fontSize:'0.75rem', padding:'0.3rem 0.4rem',
-                        background: trainMode===mode ? 'rgba(100,181,246,0.25)' : 'transparent',
-                        border: trainMode===mode ? '1px solid rgba(100,181,246,0.7)' : '1px solid var(--border)',
-                        color: trainMode===mode ? '#64b5f6' : 'var(--text-secondary)',
-                      }}
-                      onClick={()=>{ setTrainMode(mode); if(mode==='qualifying') setSelectedEntry(0) }}
-                    >{label}</button>
-                  ))}
-                </div>
-              </div>
-
-              {trainMode==='qualifying' && (
-                <p style={{fontSize:'0.72rem',color:'var(--text-muted)',margin:'0.35rem 0 0'}}>
-                  Start/Ziel bei {ENTRY_POINTS[0]?.emoji ?? '①'} · vollständige Runde
-                </p>
-              )}
-
-              {trainMode==='section' && (
-                <div style={{width:'100%',marginTop:'0.4rem'}}>
-                  <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:'0.3rem'}}>Einstiegspunkt</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem'}}>
-                    {ENTRY_POINTS.map((ep, i) => (
-                      <button key={i} className="btn"
-                        style={{
-                          fontSize:'0.7rem', padding:'0.25rem 0.4rem', textAlign:'left',
-                          background: selectedEntry===i ? 'rgba(232,196,64,0.2)' : 'transparent',
-                          border: selectedEntry===i ? '1px solid rgba(232,196,64,0.6)' : '1px solid var(--border)',
-                          color: selectedEntry===i ? '#e8c440' : 'var(--text-secondary)',
-                        }}
-                        onClick={()=>setSelectedEntry(i)}
-                      >{ep.emoji} {ep.label}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.5rem'}}>START</button>
             </div>
@@ -851,6 +784,55 @@ export default function ArcadeRace({ onClose }) {
             <span className="arcade-lb-time">{formatTime(entry.lap_time_ms)}</span>
           </div>
         ))}
+      </div>
+
+      {/* ── Persistente Strecken- & Modus-Auswahl ── */}
+      <div className="arcade-settings card">
+        {ALL_TRACKS.length > 1 && (
+          <div className="arcade-settings-section">
+            <div className="arcade-settings-label">Strecke</div>
+            <div className="arcade-settings-grid" style={{gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)'}}>
+              {ALL_TRACKS.map(t => (
+                <button key={t.id}
+                  className={`arcade-settings-btn${selectedTrackId === t.id ? ' arcade-settings-btn--active-yellow' : ''}`}
+                  onClick={() => setSelectedTrackId(t.id)}
+                >{t.emoji ?? '🏎️'} {t.name}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="arcade-settings-section">
+          <div className="arcade-settings-label">Modus</div>
+          <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
+            {[['qualifying','🏆 Qualifying'],['section','🔧 Abschnitt']].map(([mode, label]) => (
+              <button key={mode}
+                className={`arcade-settings-btn${trainMode === mode ? ' arcade-settings-btn--active-blue' : ''}`}
+                onClick={() => { setTrainMode(mode); if(mode==='qualifying') setSelectedEntry(0) }}
+              >{label}</button>
+            ))}
+          </div>
+        </div>
+
+        {trainMode==='section' && ENTRY_POINTS.length > 0 && (
+          <div className="arcade-settings-section">
+            <div className="arcade-settings-label">Einstiegspunkt</div>
+            <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
+              {ENTRY_POINTS.map((ep, i) => (
+                <button key={i}
+                  className={`arcade-settings-btn${selectedEntry === i ? ' arcade-settings-btn--active-yellow' : ''}`}
+                  onClick={() => setSelectedEntry(i)}
+                >{ep.emoji} {ep.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {trainMode==='qualifying' && (
+          <p style={{fontSize:'0.72rem',color:'var(--text-muted)',margin:'0.25rem 0 0'}}>
+            Start/Ziel bei {ENTRY_POINTS[0]?.emoji ?? '①'} · vollständige Runde
+          </p>
+        )}
       </div>
     </div>
   )

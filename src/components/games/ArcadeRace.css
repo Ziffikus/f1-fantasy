@@ -261,7 +261,70 @@
   color: #fff;
 }
 
-/* ── Leaderboard ─────────────────────────────────────────────── */
+/* ── Persistente Einstellungen (unter Leaderboard) ──────────── */
+.arcade-settings {
+  width: 100%;
+  max-width: 720px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.arcade-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.arcade-settings-label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.arcade-settings-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.arcade-settings-btn {
+  padding: 0.6rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arcade-settings-btn:hover {
+  border-color: rgba(255,255,255,0.3);
+  color: var(--text-primary);
+}
+
+.arcade-settings-btn--active-yellow {
+  background: rgba(232,196,64,0.18);
+  border-color: rgba(232,196,64,0.65);
+  color: #e8c440;
+}
+
+.arcade-settings-btn--active-blue {
+  background: rgba(100,181,246,0.18);
+  border-color: rgba(100,181,246,0.65);
+  color: #64b5f6;
+}
 .arcade-leaderboard {
   width: 100%;
   max-width: 720px;
