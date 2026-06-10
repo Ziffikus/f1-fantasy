@@ -30,10 +30,10 @@ const GAMES_ALT = [
 const GAMES_NEU = [
   {
     id: 'arcade_race_new',
-    title: 'Arcade Race',
-    subtitle: 'Monaco · Ghost Run',
+    title: 'ARCADE RACE',
+    subtitle: '',
     emoji: '🏎️',
-    description: 'Neue Version mit verbesserter Streckenphysik, Ghost-System & Sektoren-Analyse.',
+    description: '',
     component: ArcadeRace,
     beta: true,
   },
@@ -94,8 +94,8 @@ function GameGrid({ games, onSelect }) {
                 }}>BETA</span>
               )}
             </div>
-            <div className="gaming-card-sub">{g.subtitle}</div>
-            <p className="gaming-card-desc">{g.description}</p>
+            {g.subtitle && <div className="gaming-card-sub">{g.subtitle}</div>}
+            {g.description && <p className="gaming-card-desc">{g.description}</p>}
           </div>
           <button className="btn btn-primary gaming-card-btn">Spielen</button>
         </div>
