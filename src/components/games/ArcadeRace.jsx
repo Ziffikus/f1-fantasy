@@ -787,41 +787,85 @@ export default function ArcadeRace({ onClose }) {
       </div>
 
       {/* ── Persistente Strecken- & Modus-Auswahl ── */}
-      <div className="arcade-settings card">
+      <div style={{
+        width:'100%', maxWidth:'720px',
+        background:'#16161f', border:'1px solid rgba(255,255,255,0.08)',
+        borderRadius:'8px', padding:'1.25rem',
+        display:'flex', flexDirection:'column', gap:'1.25rem',
+      }}>
         {ALL_TRACKS.length > 1 && (
-          <div className="arcade-settings-section">
-            <div className="arcade-settings-label">Strecke</div>
-            <div className="arcade-settings-grid" style={{gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+            <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Strecke</div>
+            <div style={{display:'grid', gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)', gap:'0.5rem'}}>
               {ALL_TRACKS.map(t => (
                 <button key={t.id}
-                  className={`arcade-settings-btn${selectedTrackId === t.id ? ' arcade-settings-btn--active-yellow' : ''}`}
                   onClick={() => setSelectedTrackId(t.id)}
+                  style={{
+                    all:'unset', boxSizing:'border-box',
+                    display:'block', width:'100%',
+                    padding:'0.85rem 0.5rem',
+                    fontSize:'0.9rem', fontWeight:800,
+                    fontFamily:"'Barlow Condensed', sans-serif",
+                    letterSpacing:'0.05em', textTransform:'uppercase',
+                    textAlign:'center', cursor:'pointer',
+                    borderRadius:'8px',
+                    border: selectedTrackId === t.id ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
+                    background: selectedTrackId === t.id ? 'rgba(232,196,64,0.15)' : '#1e1e2a',
+                    color: selectedTrackId === t.id ? '#e8c440' : '#8888a0',
+                    transition:'all 0.15s',
+                  }}
                 >{t.emoji ?? '🏎️'} {t.name}</button>
               ))}
             </div>
           </div>
         )}
 
-        <div className="arcade-settings-section">
-          <div className="arcade-settings-label">Modus</div>
-          <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+          <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Modus</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
             {[['qualifying','🏆 Qualifying'],['section','🔧 Abschnitt']].map(([mode, label]) => (
               <button key={mode}
-                className={`arcade-settings-btn${trainMode === mode ? ' arcade-settings-btn--active-blue' : ''}`}
                 onClick={() => { setTrainMode(mode); if(mode==='qualifying') setSelectedEntry(0) }}
+                style={{
+                  all:'unset', boxSizing:'border-box',
+                  display:'block', width:'100%',
+                  padding:'0.85rem 0.5rem',
+                  fontSize:'0.9rem', fontWeight:800,
+                  fontFamily:"'Barlow Condensed', sans-serif",
+                  letterSpacing:'0.05em', textTransform:'uppercase',
+                  textAlign:'center', cursor:'pointer',
+                  borderRadius:'8px',
+                  border: trainMode === mode ? '2px solid #E8002D' : '1px solid rgba(255,255,255,0.08)',
+                  background: trainMode === mode ? 'rgba(232,0,45,0.15)' : '#1e1e2a',
+                  color: trainMode === mode ? '#E8002D' : '#8888a0',
+                  transition:'all 0.15s',
+                }}
               >{label}</button>
             ))}
           </div>
         </div>
 
         {trainMode==='section' && ENTRY_POINTS.length > 0 && (
-          <div className="arcade-settings-section">
-            <div className="arcade-settings-label">Einstiegspunkt</div>
-            <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+            <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Einstiegspunkt</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
               {ENTRY_POINTS.map((ep, i) => (
                 <button key={i}
-                  className={`arcade-settings-btn${selectedEntry === i ? ' arcade-settings-btn--active-yellow' : ''}`}
                   onClick={() => setSelectedEntry(i)}
+                  style={{
+                    all:'unset', boxSizing:'border-box',
+                    display:'block', width:'100%',
+                    padding:'0.85rem 0.5rem',
+                    fontSize:'0.9rem', fontWeight:800,
+                    fontFamily:"'Barlow Condensed', sans-serif",
+                    letterSpacing:'0.05em', textTransform:'uppercase',
+                    textAlign:'center', cursor:'pointer',
+                    borderRadius:'8px',
+                    border: selectedEntry === i ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
+                    background: selectedEntry === i ? 'rgba(232,196,64,0.15)' : '#1e1e2a',
+                    color: selectedEntry === i ? '#e8c440' : '#8888a0',
+                    transition:'all 0.15s',
+                  }}
                 >{ep.emoji} {ep.label}</button>
               ))}
             </div>
@@ -829,7 +873,7 @@ export default function ArcadeRace({ onClose }) {
         )}
 
         {trainMode==='qualifying' && (
-          <p style={{fontSize:'0.72rem',color:'var(--text-muted)',margin:'0.25rem 0 0'}}>
+          <p style={{fontSize:'0.72rem',color:'#55556a',margin:0}}>
             Start/Ziel bei {ENTRY_POINTS[0]?.emoji ?? '①'} · vollständige Runde
           </p>
         )}
