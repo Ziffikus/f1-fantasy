@@ -265,16 +265,16 @@
 .arcade-settings {
   width: 100%;
   max-width: 720px;
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .arcade-settings-section {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .arcade-settings-label {
@@ -288,20 +288,21 @@
 
 .arcade-settings-grid {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .arcade-settings-btn {
-  padding: 0.6rem 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 700;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 800;
   font-family: var(--font-display);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   text-align: center;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
@@ -310,20 +311,20 @@
 }
 
 .arcade-settings-btn:hover {
-  border-color: rgba(255,255,255,0.3);
+  border-color: rgba(255,255,255,0.25);
   color: var(--text-primary);
 }
 
 .arcade-settings-btn--active-yellow {
-  background: rgba(232,196,64,0.18);
-  border-color: rgba(232,196,64,0.65);
+  background: rgba(232,196,64,0.12);
+  border-color: #e8c440;
   color: #e8c440;
 }
 
 .arcade-settings-btn--active-blue {
-  background: rgba(100,181,246,0.18);
-  border-color: rgba(100,181,246,0.65);
-  color: #64b5f6;
+  background: rgba(232,0,45,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .arcade-leaderboard {
   width: 100%;
