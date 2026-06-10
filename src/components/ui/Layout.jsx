@@ -18,7 +18,6 @@ import {
   Flag,
   BookOpen,
   History,
-  Radio,
   Gamepad2,
   FlaskConical
 } from 'lucide-react'
@@ -27,7 +26,6 @@ import './Layout.css'
 const NAV_ITEMS = [
   { to: '/',          label: 'Dashboard',  icon: LayoutDashboard, exact: true },
   { to: '/wertung',   label: 'Wertung',    icon: Trophy },
-  { to: '/live',      label: 'Live',       icon: Radio },
   { to: '/live-beta',  label: 'Live Beta',  icon: FlaskConical },
   { to: '/draft',     label: 'Draft',      icon: Shuffle },
   { to: '/kalender',  label: 'Kalender',   icon: Calendar },
