@@ -113,6 +113,17 @@ export function useLiveTimingSession() {
   }, [fetchAll])
 
   // ─── Fahrer sortiert nach Position mit allen Timing-Daten ──
+  // ─── Retired-Status aus RC-Messages ableiten ───────────────
+  function isRetiredFromRC(racingNumber) {
+    const patterns = [/RETIRED/i, /ACCIDENT/i, /MECHANICAL/i, /COLLISION/i]
+    return raceControl.some(msg => {
+      const text = String(msg.Message ?? '')
+      const matchesDriver = msg.RacingNumber === racingNumber ||
+        text.includes(`CAR ${racingNumber} `)
+      return matchesDriver && patterns.some(p => p.test(text))
+    })
+  }
+
   function getDriversRanked() {
     if (!timingData?.Lines) return []
 
@@ -120,6 +131,10 @@ export function useLiveTimingSession() {
       .map(([num, timing]) => {
         const driver = driverList[num] ?? {}
         const tyre   = getCurrentTyre(num)
+
+        // Retired: direkt aus TimingData ODER aus Race Control Messages
+        const retired = timing.Retired === true || isRetiredFromRC(num)
+
         return {
           racingNumber:  num,
           position:      parseInt(timing.Position ?? '99'),
@@ -130,15 +145,17 @@ export function useLiveTimingSession() {
           teamName:      driver.TeamName   ?? '',
           teamColour:    driver.TeamColour ?? '888888',
           lastLapTime:   timing.LastLapTime?.Value ?? null,
-          lastLapStatus: timing.LastLapTime?.Status ?? null,  // 2=green, 4=purple
+          lastLapStatus: timing.LastLapTime?.Status ?? null,
           bestLapTime:   timing.BestLapTime?.Value ?? null,
           bestLapLap:    timing.BestLapTime?.Lap   ?? null,
           gapToLeader:   timing.GapToLeader ?? null,
           interval:      timing.IntervalToPositionAhead?.Value ?? null,
           catching:      timing.IntervalToPositionAhead?.Catching ?? false,
           numberOfLaps:  timing.NumberOfLaps ?? 0,
-          inPit:         timing.InPit  ?? false,
-          pitOut:        timing.PitOut ?? false,
+          inPit:         timing.InPit   ?? false,
+          pitOut:        timing.PitOut  ?? false,
+          stopped:       timing.Stopped ?? false,
+          retired,
           sectors:       timing.Sectors ?? [],
           tyre,
         }

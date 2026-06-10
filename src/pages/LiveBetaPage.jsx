@@ -31,18 +31,26 @@ function TyreBadge({ tyre }) {
 }
 
 function DriverRow({ d, isFirst }) {
+  const rowClass = [
+    'lb-row',
+    isFirst     ? 'lb-row--leader'  : '',
+    d.inPit     ? 'lb-row--pit'     : '',
+    d.retired   ? 'lb-row--retired' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className={['lb-row', isFirst ? 'lb-row--leader' : '', d.inPit ? 'lb-row--pit' : ''].filter(Boolean).join(' ')}>
+    <div className={rowClass}>
       <span className={`lb-cell-pos${isFirst ? ' lb-cell-pos--leader' : ''}`}>{d.position}</span>
 
       <div className="lb-cell-driver">
-        <div className="lb-driver-stripe" style={{ background: `#${d.teamColour}` }} />
+        <div className="lb-driver-stripe" style={{ background: `#${d.teamColour}`, opacity: d.retired ? 0.4 : 1 }} />
         <div className="lb-driver-info">
-          <span className="lb-driver-code">{d.driverCode}</span>
+          <span className={`lb-driver-code${d.retired ? ' lb-driver-code--retired' : ''}`}>{d.driverCode}</span>
           <span className="lb-driver-team">{d.teamName}</span>
         </div>
-        {d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
-        {d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
+        {d.retired && <span className="lb-tag lb-tag--dnf">DNF</span>}
+        {!d.retired && d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
+        {!d.retired && d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
       </div>
 
       <span className="lb-cell-laps">{d.numberOfLaps || '–'}</span>

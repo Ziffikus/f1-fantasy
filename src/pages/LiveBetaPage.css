@@ -317,3 +317,19 @@
   .lb-driver-code  { font-size: 0.82rem; }
   .lb-tyre         { font-size: 0.65rem; padding: 0.1rem 0.2rem; }
 }
+
+/* ── DNF / Retired ───────────────────────────────────────────── */
+.lb-row--retired {
+  opacity: 0.4;
+}
+
+.lb-driver-code--retired {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.lb-tag--dnf {
+  color: #ef4444;
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.3);
+}
