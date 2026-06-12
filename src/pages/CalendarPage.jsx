@@ -499,7 +499,6 @@ export default function CalendarPage() {
           </div>
           <div className="cal-col-badges">
             {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
-            {isNext && <span className="badge badge-live">Next</span>}
             {TV_BROADCASTER[w.round] && (
               <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
                 {TV_BROADCASTER[w.round].name}
