@@ -115,11 +115,15 @@ export function useLiveTimingSession() {
   // ─── Fahrer sortiert nach Position mit allen Timing-Daten ──
   // ─── Retired-Status aus RC-Messages ableiten ───────────────
   function isRetiredFromRC(racingNumber) {
-    const patterns = [/RETIRED/i, /ACCIDENT/i, /MECHANICAL/i, /COLLISION/i]
+    // Nur echte Retirement-Meldungen, keine Safety-Car/Yellow-Flag Unfälle ohne Fahrerbezug
+    const patterns = [/RETIRED/i, /MECHANICAL/i]
+    // Word-Boundary Regex: "CAR 1" matcht nicht auf "CAR 10", "CAR 11", etc.
+    const carRegex = new RegExp(`\\bCAR\\s+${racingNumber}\\b`)
     return raceControl.some(msg => {
       const text = String(msg.Message ?? '')
-      const matchesDriver = msg.RacingNumber === racingNumber ||
-        text.includes(`CAR ${racingNumber} `)
+      const matchesDriver =
+        String(msg.RacingNumber) === String(racingNumber) ||
+        carRegex.test(text)
       return matchesDriver && patterns.some(p => p.test(text))
     })
   }
