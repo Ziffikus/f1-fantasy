@@ -48,11 +48,12 @@ function DriverRow({ d, isFirst }) {
           <span className={`lb-driver-code${d.retired ? ' lb-driver-code--retired' : ''}`}>{d.driverCode}</span>
           <span className="lb-driver-team">{d.teamName}</span>
         </div>
-        <div className="lb-driver-tag-col">
-          {d.retired && <span className="lb-tag lb-tag--dnf">DNF</span>}
-          {!d.retired && d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
-          {!d.retired && d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
-        </div>
+      </div>
+
+      <div className="lb-cell-tag">
+        {d.retired && <span className="lb-tag lb-tag--dnf">DNF</span>}
+        {!d.retired && d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
+        {!d.retired && d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
       </div>
 
       <span className="lb-cell-laps">{d.numberOfLaps || '–'}</span>
@@ -142,6 +143,7 @@ export default function LiveBetaPage() {
           <div className="lb-header-row">
             <span className="lb-cell-pos">#</span>
             <span className="lb-cell-driver">Fahrer</span>
+            <span className="lb-cell-tag"></span>
             <span className="lb-cell-laps">Rnd</span>
             <span className="lb-cell-time">Letzte Runde</span>
             <span className="lb-cell-best">Beste Runde</span>
