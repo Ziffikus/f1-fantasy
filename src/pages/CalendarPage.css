@@ -751,6 +751,55 @@
   .race-session-label { min-width: 90px; }
 }
 
+/* ── TV-Sender Badge ────────────────────────────────────────── */
+.cal-tv-badge {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.cal-tv-badge--orf {
+  background: rgba(0, 90, 170, 0.15);
+  color: #4da6ff;
+  border-color: rgba(0, 90, 170, 0.35);
+}
+.cal-tv-badge--servustv {
+  background: rgba(220, 38, 38, 0.12);
+  color: #f87171;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* ── Stream-Link im Footer ──────────────────────────────────── */
+.cal-stream-link {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.22rem 0.55rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition: opacity var(--transition);
+}
+.cal-stream-link:hover { opacity: 0.75; }
+
+.cal-stream-link--orf {
+  background: rgba(0, 90, 170, 0.15);
+  color: #4da6ff;
+  border-color: rgba(0, 90, 170, 0.35);
+}
+.cal-stream-link--servustv {
+  background: rgba(220, 38, 38, 0.12);
+  color: #f87171;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
 /* ── Countdown ──────────────────────────────────────────────── */
 .cal-countdown {
   background: var(--bg-card);

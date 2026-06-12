@@ -7,6 +7,37 @@ import TrackMap from '../components/ui/TrackMap'
 import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'lucide-react'
 import './CalendarPage.css'
 
+// ── AT-TV Sender pro Rennen 2026 (Quelle: ServusTV / ORF) ─────
+const SERVUS = { name: 'ServusTV', url: 'https://www.servustv.com/sport/formel-1/' }
+const ORF_TV = { name: 'ORF',      url: 'https://on.orf.at/sport' }
+
+const TV_BROADCASTER = {
+  1:  SERVUS,  // Australien
+  2:  ORF_TV,  // China
+  3:  ORF_TV,  // Bahrain
+  4:  ORF_TV,  // Miami
+  5:  ORF_TV,  // Monaco
+  6:  ORF_TV,  // Barcelona-Catalunya
+  7:  SERVUS,  // Kanada
+  8:  SERVUS,  // Österreich
+  9:  ORF_TV,  // Großbritannien
+  10: ORF_TV,  // Ungarn
+  11: SERVUS,  // Belgien
+  12: SERVUS,  // Niederlande
+  13: SERVUS,  // Italien
+  14: ORF_TV,  // Madrid/Spanien
+  15: SERVUS,  // Aserbaidschan
+  16: ORF_TV,  // Singapur
+  17: SERVUS,  // USA (Austin)
+  18: ORF_TV,  // Mexiko
+  19: SERVUS,  // Brasilien
+  20: ORF_TV,  // Las Vegas
+  21: SERVUS,  // Katar
+  22: SERVUS,  // Japan (Suzuka)
+  23: SERVUS,  // Saudi-Arabien
+  24: ORF_TV,  // Abu Dhabi
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '–'
   return new Date(dateStr).toLocaleString('de-AT', {
@@ -469,6 +500,11 @@ export default function CalendarPage() {
           <div className="cal-right">
             {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
             {isNext && <span className="badge badge-live">Next</span>}
+            {TV_BROADCASTER[w.round] && (
+              <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
+                {TV_BROADCASTER[w.round].name}
+              </span>
+            )}
             <span className="cal-race-date">
               {new Date(w.race_start).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })}
             </span>
@@ -504,6 +540,17 @@ export default function CalendarPage() {
                 <span className="cal-circuit">
                   <Clock size={11} /> {w.circuit}
                 </span>
+                {TV_BROADCASTER[w.round] && (
+                  <a
+                    href={TV_BROADCASTER[w.round].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`cal-stream-link cal-stream-link--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    ▶ {TV_BROADCASTER[w.round].name} live
+                  </a>
+                )}
               </div>
             </div>
           )
