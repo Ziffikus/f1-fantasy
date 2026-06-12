@@ -38,8 +38,8 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  gap: 0.5rem;
+  padding: 0.85rem 0.75rem;
   background: none;
   border: none;
   cursor: pointer;
@@ -49,14 +49,14 @@
 
 .cal-round {
   font-family: var(--font-display);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-  min-width: 2rem;
+  white-space: nowrap;
 }
 
-.cal-flag { font-size: 1.4rem; line-height: 1; }
+.cal-flag { font-size: 1.2rem; line-height: 1; flex-shrink: 0; }
 
 .cal-info {
   flex: 1;
@@ -89,8 +89,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.4rem;
-  width: 8rem;
+  gap: 0.3rem;
+  width: 7.5rem;        /* Sprint + tv-badge passen rein */
   flex-shrink: 0;
 }
 
@@ -98,14 +98,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.4rem;
-  width: 4.5rem;
+  gap: 0.35rem;
+  width: 4.2rem;        /* "06. Sep." + chevron */
   flex-shrink: 0;
-}
-
-@media (max-width: 380px) {
-  .cal-col-badges { width: auto; }
-  .cal-col-date   { width: auto; }
 }
 
 .cal-race-date {
@@ -176,9 +171,13 @@
 }
 
 @media (max-width: 480px) {
-  .cal-race-name { font-size: 0.82rem; }
+  .cal-race-name { font-size: 0.78rem; }
   .cal-session-row { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
   .cal-session-time { text-align: left; }
+  .cal-card-header { gap: 0.35rem; padding: 0.75rem 0.6rem; }
+  .cal-col-badges { width: 6.8rem; gap: 0.25rem; }
+  .cal-col-date   { width: 3.8rem; }
+  .cal-round      { font-size: 0.6rem; }
 }
 
 .cal-sessions-track {
@@ -770,14 +769,15 @@
 /* ── TV-Sender Badge ────────────────────────────────────────── */
 .cal-tv-badge {
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 0.18rem 0.45rem;
+  padding: 0.15rem 0.35rem;
   border-radius: 3px;
   border: 1px solid transparent;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .cal-tv-badge--orf {
   background: rgba(0, 90, 170, 0.15);
