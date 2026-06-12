@@ -85,11 +85,27 @@
   color: var(--text-muted);
 }
 
-.cal-right {
+.cal-col-badges {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  width: 8rem;
   flex-shrink: 0;
+}
+
+.cal-col-date {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 380px) {
+  .cal-col-badges { width: auto; }
+  .cal-col-date   { width: auto; }
 }
 
 .cal-race-date {

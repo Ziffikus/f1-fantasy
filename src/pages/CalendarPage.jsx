@@ -8,8 +8,8 @@ import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'luc
 import './CalendarPage.css'
 
 // ── AT-TV Sender pro Rennen 2026 (Quelle: ServusTV / ORF) ─────
-const SERVUS = { name: 'ServusTV', url: 'https://www.servustv.com/sport/formel-1/' }
-const ORF_TV = { name: 'ORF',      url: 'https://on.orf.at/sport' }
+const SERVUS = { name: 'ServusTV', url: 'https://www.servustv.com/sport/b/fia-formula-one-world-championship/aa-25hkbv8c52111/' }
+const ORF_TV = { name: 'ORF',      url: 'https://on.orf.at/sendereihe/7028409/formel-1' }
 
 const TV_BROADCASTER = {
   1:  SERVUS,  // Australien
@@ -497,7 +497,7 @@ export default function CalendarPage() {
               <MapPin size={11} /> {w.city}, {w.country}
             </span>
           </div>
-          <div className="cal-right">
+          <div className="cal-col-badges">
             {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
             {isNext && <span className="badge badge-live">Next</span>}
             {TV_BROADCASTER[w.round] && (
@@ -505,6 +505,8 @@ export default function CalendarPage() {
                 {TV_BROADCASTER[w.round].name}
               </span>
             )}
+          </div>
+          <div className="cal-col-date">
             <span className="cal-race-date">
               {new Date(w.race_start).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })}
             </span>
