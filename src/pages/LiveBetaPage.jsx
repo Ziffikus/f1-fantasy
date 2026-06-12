@@ -125,17 +125,6 @@ export default function LiveBetaPage() {
         {error && <div className="lb-error">⚠ {error}</div>}
       </div>
 
-      {/* Wetter */}
-      {weather && (
-        <div className="lb-weather">
-          <span className="lb-chip">🌡 {weather.AirTemp}°C Luft</span>
-          <span className="lb-chip">🏎 {weather.TrackTemp}°C Asphalt</span>
-          <span className="lb-chip">💧 {weather.Humidity}%</span>
-          <span className="lb-chip">🌬 {weather.WindSpeed} m/s</span>
-          {parseFloat(weather.Rainfall) > 0 && <span className="lb-chip lb-chip--rain">🌧 Regen</span>}
-        </div>
-      )}
-
       {/* Timing Tabelle */}
       {drivers.length > 0 ? (
         <div className="lb-table">
@@ -180,6 +169,17 @@ export default function LiveBetaPage() {
               <span className="lb-rc-msg">{msg.Message}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Wetter */}
+      {weather && (
+        <div className="lb-weather">
+          <span className="lb-chip">🌡 {weather.AirTemp}°C Luft</span>
+          <span className="lb-chip">🏎 {weather.TrackTemp}°C Asphalt</span>
+          <span className="lb-chip">💧 {weather.Humidity}%</span>
+          <span className="lb-chip">🌬 {weather.WindSpeed} m/s</span>
+          {parseFloat(weather.Rainfall) > 0 && <span className="lb-chip lb-chip--rain">🌧 Regen</span>}
         </div>
       )}
 

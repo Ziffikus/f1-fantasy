@@ -70,21 +70,40 @@
 }
 
 /* ── Weather ─────────────────────────────────────────────────── */
-.lb-weather { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+.lb-weather {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
 
 .lb-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  font-size: 0.72rem;
+  gap: 0.3rem;
+  font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 4px;
-  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
   white-space: nowrap;
 }
-.lb-chip--rain { color: #60a5fa; background: color-mix(in srgb, #60a5fa 15%, transparent); }
+.lb-chip--rain { color: #60a5fa; background: color-mix(in srgb, #60a5fa 15%, transparent); border-color: color-mix(in srgb, #60a5fa 30%, transparent); }
+
+@media (max-width: 600px) {
+  .lb-weather {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+  .lb-chip {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.6rem;
+    justify-content: center;
+  }
+}
 
 /* ── Table ───────────────────────────────────────────────────── */
 .lb-table {
