@@ -88,11 +88,7 @@ export function useLiveTimingSession() {
         getTimingAppData(path),
       ])
 
-      if (td.status  === 'fulfilled') {
-        setTimingData(td.value)
-        // DEBUG: Rohdaten für Diagnose zugänglich machen – nach Fix entfernen
-        window.__f1timing = td.value
-      }
+      if (td.status  === 'fulfilled') setTimingData(td.value)
       if (dl.status  === 'fulfilled') setDriverList(dl.value)
       if (wx.status  === 'fulfilled') setWeather(wx.value)
       if (rc.status  === 'fulfilled') setRaceControl(rc.value?.Messages ?? [])
@@ -140,8 +136,8 @@ export function useLiveTimingSession() {
         const driver = driverList[num] ?? {}
         const tyre   = getCurrentTyre(num)
 
-        // Retired: direkt aus TimingData ODER aus Race Control Messages
-        const retired = timing.Retired === true || isRetiredFromRC(num)
+        // Retired: F1 Timing setzt Retired selten – Stopped=true ist das echte DNF-Signal
+        const retired = timing.Retired === true || timing.Stopped === true || isRetiredFromRC(num)
 
         return {
           racingNumber:  num,
