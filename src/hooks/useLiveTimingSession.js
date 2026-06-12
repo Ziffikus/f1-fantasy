@@ -88,7 +88,11 @@ export function useLiveTimingSession() {
         getTimingAppData(path),
       ])
 
-      if (td.status  === 'fulfilled') setTimingData(td.value)
+      if (td.status  === 'fulfilled') {
+        setTimingData(td.value)
+        // DEBUG: Rohdaten für Diagnose zugänglich machen – nach Fix entfernen
+        window.__f1timing = td.value
+      }
       if (dl.status  === 'fulfilled') setDriverList(dl.value)
       if (wx.status  === 'fulfilled') setWeather(wx.value)
       if (rc.status  === 'fulfilled') setRaceControl(rc.value?.Messages ?? [])
