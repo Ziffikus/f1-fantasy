@@ -101,7 +101,7 @@
 .lb-header-row,
 .lb-row {
   display: grid;
-  grid-template-columns: 1.6rem 1fr 2.4rem 5.6rem 5.6rem 4.2rem 4.2rem 3rem;
+  grid-template-columns: 1.6rem 1fr 2.4rem 5.6rem 5.6rem 4.2rem 5rem 3rem;
   gap: 0.2rem;
   align-items: center;
   padding: 0 0.75rem;
@@ -148,6 +148,13 @@
   gap: 0.35rem;
   min-width: 0;
   overflow: hidden;
+}
+
+.lb-driver-tag-col {
+  width: 2.2rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .lb-driver-stripe { width: 3px; height: 1.3rem; border-radius: 2px; flex-shrink: 0; }

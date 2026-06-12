@@ -48,9 +48,11 @@ function DriverRow({ d, isFirst }) {
           <span className={`lb-driver-code${d.retired ? ' lb-driver-code--retired' : ''}`}>{d.driverCode}</span>
           <span className="lb-driver-team">{d.teamName}</span>
         </div>
-        {d.retired && <span className="lb-tag lb-tag--dnf">DNF</span>}
-        {!d.retired && d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
-        {!d.retired && d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
+        <div className="lb-driver-tag-col">
+          {d.retired && <span className="lb-tag lb-tag--dnf">DNF</span>}
+          {!d.retired && d.inPit  && <span className="lb-tag lb-tag--pit">PIT</span>}
+          {!d.retired && d.pitOut && <span className="lb-tag lb-tag--out">OUT</span>}
+        </div>
       </div>
 
       <span className="lb-cell-laps">{d.numberOfLaps || '–'}</span>
