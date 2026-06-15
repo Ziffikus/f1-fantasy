@@ -8,7 +8,6 @@ import {
   getTrackStatus,
   getLapCount,
   getTimingAppData,
-  getSessionStatus,
 } from '../lib/f1timing'
 
 // Kein Rate Limiting bei F1 Live Timing → 15s reicht
@@ -24,10 +23,11 @@ function toArray(x) {
 }
 
 // ─── Session live? ───────────────────────────────────────────
-// Kommt aus SessionStatus.json (NICHT SessionInfo.json)
-function checkIsLive(status) {
-  if (!status) return false
-  return status.Status !== 'Finalised'
+// TODO: Quelle noch offen – wird gerade per console.log geprüft
+// (vermutlich session.ArchiveStatus?.Status aus SessionInfo.json)
+function checkIsLive(session) {
+  if (!session?.ArchiveStatus) return false
+  return session.ArchiveStatus.Status !== 'Complete'
 }
 
 // ─── Tyre Farben & Kürzel ────────────────────────────────────
@@ -81,13 +81,15 @@ export function useLiveTimingSession() {
     try {
       // 1. Session holen (gibt uns Path)
       const sess = await getTimingSession()
+      console.log('SessionInfo:', JSON.stringify(sess, null, 2))   // ← TEMPORÄR, danach entfernen
       setSession(sess)
+      setIsLive(checkIsLive(sess))
 
       const path = sess.Path
       setSessionPath(path)
 
       // 2. Alle Daten parallel – Fehler einzelner Endpoints brechen nichts ab
-      const [td, dl, wx, rc, ts, lc, tad, ss] = await Promise.allSettled([
+      const [td, dl, wx, rc, ts, lc, tad] = await Promise.allSettled([
         getTimingData(path),
         getDriverList(path),
         getWeatherData(path),
@@ -95,7 +97,6 @@ export function useLiveTimingSession() {
         getTrackStatus(path),
         getLapCount(path),
         getTimingAppData(path),
-        getSessionStatus(path),
       ])
 
       if (td.status === 'fulfilled') setTimingData(td.value)
@@ -105,10 +106,6 @@ export function useLiveTimingSession() {
       if (ts.status === 'fulfilled') setTrackStatus(ts.value)
       if (lc.status === 'fulfilled') setLapCount(lc.value)
       if (tad.status === 'fulfilled') setTyreData(tad.value)
-
-      // isLive kommt aus SessionStatus.json, nicht aus SessionInfo.json
-      if (ss.status === 'fulfilled') setIsLive(checkIsLive(ss.value))
-      else setIsLive(false)
 
       setLastUpdate(new Date())
       setError(null)
