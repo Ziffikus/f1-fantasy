@@ -61,3 +61,8 @@ export async function getLapCount(path) {
 export async function getTimingAppData(path) {
   return f1Fetch(`${path}TimingAppData.json`)
 }
+
+// ─── Session Status (live/finalisiert) ─────────────────────────
+export async function getSessionStatus(path) {
+  return f1Fetch(`${path}SessionStatus.json`)
+}

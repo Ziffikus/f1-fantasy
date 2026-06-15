@@ -8,16 +8,26 @@ import {
   getTrackStatus,
   getLapCount,
   getTimingAppData,
+  getSessionStatus,
 } from '../lib/f1timing'
 
 // Kein Rate Limiting bei F1 Live Timing → 15s reicht
 const REFRESH_INTERVAL = 15000
 
+// ─── Hilfsfunktion ───────────────────────────────────────────
+// F1-Feeds liefern Listen (Messages, Stints, ...) manchmal als
+// Objekt mit numerischen String-Keys statt als Array (Artefakt
+// des Delta-Merge-Formats) → hier robust normalisieren
+function toArray(x) {
+  if (!x) return []
+  return Array.isArray(x) ? x : Object.values(x)
+}
+
 // ─── Session live? ───────────────────────────────────────────
-function checkIsLive(session) {
-  if (!session) return false
-  // "Finalised" = abgeschlossen, alles andere = aktiv/live
-  return session.SessionStatus !== 'Finalised'
+// Kommt aus SessionStatus.json (NICHT SessionInfo.json)
+function checkIsLive(status) {
+  if (!status) return false
+  return status.Status !== 'Finalised'
 }
 
 // ─── Tyre Farben & Kürzel ────────────────────────────────────
@@ -69,16 +79,15 @@ export function useLiveTimingSession() {
 
   const fetchAll = useCallback(async () => {
     try {
-      // 1. Session holen (gibt uns Path + Status)
+      // 1. Session holen (gibt uns Path)
       const sess = await getTimingSession()
       setSession(sess)
-      setIsLive(checkIsLive(sess))
 
       const path = sess.Path
       setSessionPath(path)
 
       // 2. Alle Daten parallel – Fehler einzelner Endpoints brechen nichts ab
-      const [td, dl, wx, rc, ts, lc, tad] = await Promise.allSettled([
+      const [td, dl, wx, rc, ts, lc, tad, ss] = await Promise.allSettled([
         getTimingData(path),
         getDriverList(path),
         getWeatherData(path),
@@ -86,15 +95,20 @@ export function useLiveTimingSession() {
         getTrackStatus(path),
         getLapCount(path),
         getTimingAppData(path),
+        getSessionStatus(path),
       ])
 
-      if (td.status  === 'fulfilled') setTimingData(td.value)
-      if (dl.status  === 'fulfilled') setDriverList(dl.value)
-      if (wx.status  === 'fulfilled') setWeather(wx.value)
-      if (rc.status  === 'fulfilled') setRaceControl(rc.value?.Messages ?? [])
-      if (ts.status  === 'fulfilled') setTrackStatus(ts.value)
-      if (lc.status  === 'fulfilled') setLapCount(lc.value)
+      if (td.status === 'fulfilled') setTimingData(td.value)
+      if (dl.status === 'fulfilled') setDriverList(dl.value)
+      if (wx.status === 'fulfilled') setWeather(wx.value)
+      if (rc.status === 'fulfilled') setRaceControl(toArray(rc.value?.Messages))
+      if (ts.status === 'fulfilled') setTrackStatus(ts.value)
+      if (lc.status === 'fulfilled') setLapCount(lc.value)
       if (tad.status === 'fulfilled') setTyreData(tad.value)
+
+      // isLive kommt aus SessionStatus.json, nicht aus SessionInfo.json
+      if (ss.status === 'fulfilled') setIsLive(checkIsLive(ss.value))
+      else setIsLive(false)
 
       setLastUpdate(new Date())
       setError(null)
@@ -168,8 +182,8 @@ export function useLiveTimingSession() {
   }
 
   function getCurrentTyre(racingNumber) {
-    const stints = tyreData?.Lines?.[racingNumber]?.Stints
-    if (!stints?.length) return null
+    const stints = toArray(tyreData?.Lines?.[racingNumber]?.Stints)
+    if (!stints.length) return null
     return stints[stints.length - 1]
   }
 
