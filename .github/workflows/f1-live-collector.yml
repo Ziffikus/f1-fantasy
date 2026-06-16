@@ -1,0 +1,50 @@
+name: F1 Live Timing Collector
+
+# Läuft alle 15 Minuten, prüft anhand der "race_weekends"-Tabelle in
+# Supabase, ob gerade (oder in Kürze) eine Session läuft. Nur wenn ja,
+# wird der eigentliche SignalR-Collector gestartet. So passt sich der
+# Workflow automatisch an JEDE Zeitzone an (Europa, Amerika, Asien, ...)
+# – keine manuell gepflegten Cron-Zeiten pro Rennwochenende nötig.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}   # manueller Test-Start über die GitHub-Oberfläche
+
+jobs:
+  check-and-collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Dependencies installieren
+        working-directory: ./live-collector
+        run: npm install
+
+      - name: Prüfen, ob gerade eine Session aktiv ist
+        id: check
+        working-directory: ./live-collector
+        run: node check-session.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      - name: Collector starten (nur falls Session aktiv)
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: ./live-collector
+        run: node index.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MAX_RUNTIME_MS: ${{ steps.check.outputs.runtime_ms }}
+          DEBUG_VERBOSE: '0'
+          DEBUG_DUMP_STATE: '0'
+
+      - name: Status
+        if: steps.check.outputs.should_run != 'true'
+        run: echo "Keine aktive Session – Collector wurde nicht gestartet."
