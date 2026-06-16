@@ -13,6 +13,10 @@ dist/
 *.log
 npm-debug.log*
 
+# Live Collector Debug-Dumps
+live-collector/debug/
+live-collector/node_modules/
+
 # Editor
 .vscode/
 .idea/
