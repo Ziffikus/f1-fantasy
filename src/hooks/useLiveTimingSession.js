@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 import {
   getTimingSession,
   getTimingData,
@@ -10,8 +11,13 @@ import {
   getTimingAppData,
 } from '../lib/f1timing'
 
-// Kein Rate Limiting bei F1 Live Timing → 15s reicht
-const REFRESH_INTERVAL = 15000
+// Session-Meta (Path, Name, SessionStatus) wird weiterhin gepollt –
+// das ist eine leichte statische Datei und liefert auch live brauchbare Infos.
+const SESSION_POLL_INTERVAL = 15000
+
+// Wenn die letzte Live-Tabellen-Aktualisierung älter ist als das hier,
+// gilt der Live-Collector als "nicht aktiv" → Fallback auf Archiv-Endpunkte.
+const LIVE_DATA_FRESHNESS_MS = 2 * 60 * 1000
 
 // ─── Hilfsfunktion ───────────────────────────────────────────
 // F1-Feeds liefern Listen (Messages, Stints, ...) manchmal als
@@ -23,11 +29,10 @@ function toArray(x) {
 }
 
 // ─── Session live? ───────────────────────────────────────────
-// TODO: Quelle noch offen – wird gerade per console.log geprüft
-// (vermutlich session.ArchiveStatus?.Status aus SessionInfo.json)
+// "Finalised" = Session abgeschlossen & archiviert, alles andere = live/aktiv
 function checkIsLive(session) {
-  if (!session?.ArchiveStatus) return false
-  return session.ArchiveStatus.Status !== 'Complete'
+  if (!session) return false
+  return session.SessionStatus !== 'Finalised'
 }
 
 // ─── Tyre Farben & Kürzel ────────────────────────────────────
@@ -61,51 +66,112 @@ export const TRACK_STATUS = {
 }
 
 export function useLiveTimingSession() {
-  const [session,      setSession]      = useState(null)
-  const [sessionPath,  setSessionPath]  = useState(null)
-  const [timingData,   setTimingData]   = useState(null)
-  const [driverList,   setDriverList]   = useState({})
-  const [weather,      setWeather]      = useState(null)
-  const [raceControl,  setRaceControl]  = useState([])
-  const [trackStatus,  setTrackStatus]  = useState(null)
-  const [lapCount,     setLapCount]     = useState(null)
-  const [tyreData,     setTyreData]     = useState(null)
-  const [isLive,       setIsLive]       = useState(false)
-  const [loading,      setLoading]      = useState(true)
-  const [lastUpdate,   setLastUpdate]   = useState(null)
-  const [error,        setError]        = useState(null)
+  // ── Session-Metadaten (statisch, immer abgerufen) ──────────
+  const [session,     setSession]     = useState(null)
+  const [sessionPath, setSessionPath] = useState(null)
+  const [isLive,      setIsLive]      = useState(false)
+
+  // ── Live-Daten aus Supabase (live_timing Tabelle, Realtime) ─
+  // Form: { TimingData: { payload, updated_at }, DriverList: {...}, ... }
+  const [liveTopics, setLiveTopics] = useState({})
+  const liveTopicsRef = useRef({})
+  useEffect(() => { liveTopicsRef.current = liveTopics }, [liveTopics])
+
+  // ── Archiv-Fallback (statische Endpunkte über f1timing.js) ──
+  const [archiveTimingData,  setArchiveTimingData]  = useState(null)
+  const [archiveDriverList,  setArchiveDriverList]  = useState({})
+  const [archiveWeather,     setArchiveWeather]     = useState(null)
+  const [archiveRaceControl, setArchiveRaceControl] = useState([])
+  const [archiveTrackStatus, setArchiveTrackStatus] = useState(null)
+  const [archiveLapCount,    setArchiveLapCount]    = useState(null)
+  const [archiveTyreData,    setArchiveTyreData]    = useState(null)
+
+  const [loading,     setLoading]     = useState(true)
+  const [lastUpdate,  setLastUpdate]  = useState(null)
+  const [error,       setError]       = useState(null)
+  const [liveSource,  setLiveSource]  = useState(false) // true = Daten kommen gerade aus live_timing
 
   const timerRef = useRef(null)
 
+  function isLiveFresh(topics) {
+    const ts = topics?.TimingData?.updated_at
+    if (!ts) return false
+    return Date.now() - new Date(ts).getTime() < LIVE_DATA_FRESHNESS_MS
+  }
+
+  // ── Initial-Load + Realtime-Subscription auf live_timing ───
+  useEffect(() => {
+    let channel
+    let cancelled = false
+
+    async function loadInitialLiveData() {
+      const { data, error } = await supabase.from('live_timing').select('*')
+      if (cancelled) return
+      if (error) {
+        console.warn('Supabase live_timing initial load error:', error.message)
+        return
+      }
+      const map = {}
+      for (const row of data ?? []) {
+        map[row.topic] = { payload: row.payload, updated_at: row.updated_at }
+      }
+      setLiveTopics(map)
+    }
+
+    loadInitialLiveData()
+
+    channel = supabase
+      .channel('live_timing_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_timing' }, (payload) => {
+        const row = payload.new
+        if (!row) return
+        setLiveTopics(prev => ({
+          ...prev,
+          [row.topic]: { payload: row.payload, updated_at: row.updated_at },
+        }))
+      })
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // ── Polling: Session-Meta + Archiv-Fallback ─────────────────
   const fetchAll = useCallback(async () => {
     try {
-      // 1. Session holen (gibt uns Path)
       const sess = await getTimingSession()
-      console.log('SessionInfo:', JSON.stringify(sess, null, 2))   // ← TEMPORÄR, danach entfernen
       setSession(sess)
       setIsLive(checkIsLive(sess))
 
       const path = sess.Path
       setSessionPath(path)
 
-      // 2. Alle Daten parallel – Fehler einzelner Endpoints brechen nichts ab
-      const [td, dl, wx, rc, ts, lc, tad] = await Promise.allSettled([
-        getTimingData(path),
-        getDriverList(path),
-        getWeatherData(path),
-        getRaceControlMessages(path),
-        getTrackStatus(path),
-        getLapCount(path),
-        getTimingAppData(path),
-      ])
+      const fresh = isLiveFresh(liveTopicsRef.current)
+      setLiveSource(fresh)
 
-      if (td.status === 'fulfilled') setTimingData(td.value)
-      if (dl.status === 'fulfilled') setDriverList(dl.value)
-      if (wx.status === 'fulfilled') setWeather(wx.value)
-      if (rc.status === 'fulfilled') setRaceControl(toArray(rc.value?.Messages))
-      if (ts.status === 'fulfilled') setTrackStatus(ts.value)
-      if (lc.status === 'fulfilled') setLapCount(lc.value)
-      if (tad.status === 'fulfilled') setTyreData(tad.value)
+      // Archiv-Endpunkte nur abrufen, wenn die Live-Tabelle nicht aktuell ist
+      // (spart Requests, und während Live-Sessions würden diese sowieso 404 werfen)
+      if (!fresh) {
+        const [td, dl, wx, rc, ts, lc, tad] = await Promise.allSettled([
+          getTimingData(path),
+          getDriverList(path),
+          getWeatherData(path),
+          getRaceControlMessages(path),
+          getTrackStatus(path),
+          getLapCount(path),
+          getTimingAppData(path),
+        ])
+
+        if (td.status === 'fulfilled') setArchiveTimingData(td.value)
+        if (dl.status === 'fulfilled') setArchiveDriverList(dl.value)
+        if (wx.status === 'fulfilled') setArchiveWeather(wx.value)
+        if (rc.status === 'fulfilled') setArchiveRaceControl(toArray(rc.value?.Messages))
+        if (ts.status === 'fulfilled') setArchiveTrackStatus(ts.value)
+        if (lc.status === 'fulfilled') setArchiveLapCount(lc.value)
+        if (tad.status === 'fulfilled') setArchiveTyreData(tad.value)
+      }
 
       setLastUpdate(new Date())
       setError(null)
@@ -119,16 +185,24 @@ export function useLiveTimingSession() {
 
   useEffect(() => {
     fetchAll()
-    timerRef.current = setInterval(fetchAll, REFRESH_INTERVAL)
+    timerRef.current = setInterval(fetchAll, SESSION_POLL_INTERVAL)
     return () => clearInterval(timerRef.current)
   }, [fetchAll])
 
-  // ─── Fahrer sortiert nach Position mit allen Timing-Daten ──
+  // ── Finale Werte: live_timing bevorzugt, sonst Archiv ────────
+  const timingData   = liveSource ? (liveTopics.TimingData?.payload ?? null)    : archiveTimingData
+  const driverList   = liveSource ? (liveTopics.DriverList?.payload ?? {})      : archiveDriverList
+  const weather      = liveSource ? (liveTopics.WeatherData?.payload ?? null)   : archiveWeather
+  const trackStatus  = liveSource ? (liveTopics.TrackStatus?.payload ?? null)   : archiveTrackStatus
+  const lapCount     = liveSource ? (liveTopics.LapCount?.payload ?? null)      : archiveLapCount
+  const tyreData     = liveSource ? (liveTopics.TimingAppData?.payload ?? null) : archiveTyreData
+  const raceControl  = liveSource
+    ? toArray(liveTopics.RaceControlMessages?.payload?.Messages)
+    : archiveRaceControl
+
   // ─── Retired-Status aus RC-Messages ableiten ───────────────
   function isRetiredFromRC(racingNumber) {
-    // Nur echte Retirement-Meldungen, keine Safety-Car/Yellow-Flag Unfälle ohne Fahrerbezug
     const patterns = [/RETIRED/i, /MECHANICAL/i]
-    // Word-Boundary Regex: "CAR 1" matcht nicht auf "CAR 10", "CAR 11", etc.
     const carRegex = new RegExp(`\\bCAR\\s+${racingNumber}\\b`)
     return raceControl.some(msg => {
       const text = String(msg.Message ?? '')
@@ -139,6 +213,12 @@ export function useLiveTimingSession() {
     })
   }
 
+  function getCurrentTyre(racingNumber) {
+    const stints = toArray(tyreData?.Lines?.[racingNumber]?.Stints)
+    if (!stints.length) return null
+    return stints[stints.length - 1]
+  }
+
   function getDriversRanked() {
     if (!timingData?.Lines) return []
 
@@ -147,7 +227,6 @@ export function useLiveTimingSession() {
         const driver = driverList[num] ?? {}
         const tyre   = getCurrentTyre(num)
 
-        // Retired: F1 Timing setzt Retired selten – Stopped=true ist das echte DNF-Signal
         const retired = timing.Retired === true || timing.Stopped === true || isRetiredFromRC(num)
 
         return {
@@ -178,12 +257,6 @@ export function useLiveTimingSession() {
       .sort((a, b) => a.position - b.position)
   }
 
-  function getCurrentTyre(racingNumber) {
-    const stints = toArray(tyreData?.Lines?.[racingNumber]?.Stints)
-    if (!stints.length) return null
-    return stints[stints.length - 1]
-  }
-
   return {
     session,
     sessionPath,
@@ -195,6 +268,7 @@ export function useLiveTimingSession() {
     lapCount,
     tyreData,
     isLive,
+    liveSource,    // true = Daten kommen gerade live aus dem Collector, false = Archiv-Fallback
     loading,
     lastUpdate,
     error,
