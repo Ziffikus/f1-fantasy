@@ -449,7 +449,7 @@ export function PastRaceExpanded({ w }) {
 
       {/* Track + Circuit */}
       <div className="cal-sessions-track">
-        <TrackMap round={w.round} size="md" />
+        <TrackMap round={w.round} circuit={w.circuit} country={w.country} size="md" />
       </div>
       <div className="cal-sessions-footer">
         <span className="cal-circuit">
@@ -535,7 +535,7 @@ export default function CalendarPage() {
                 <CalSessionRow label="Rennen 🏁"  dateStr={w.race_start} />
               </div>
               <div className="cal-sessions-track">
-                <TrackMap round={w.round} size="md" />
+                <TrackMap round={w.round} circuit={w.circuit} country={w.country} size="md" />
               </div>
               <div className="cal-sessions-footer">
                 <span className="cal-circuit">
