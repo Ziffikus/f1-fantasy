@@ -196,6 +196,19 @@
   opacity: 0.7;
 }
 
+/* Mobil: horizontales Padding der Karte aufheben, damit die Strecke
+   randlos die volle Bildschirmbreite einnimmt */
+@media (max-width: 599px) {
+  .cal-sessions-track {
+    margin: 0 -1rem;
+  }
+}
+
+/* Desktop: etwas mehr Luft um die größere Strecke */
+@media (min-width: 600px) {
+  .cal-sessions-track { padding: 1.25rem 0; }
+}
+
 /* ── Past Race: Session-Tabs ───────────────────────────────── */
 .cal-past-sessions-header {
   font-family: var(--font-display);

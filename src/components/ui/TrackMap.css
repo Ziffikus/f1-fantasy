@@ -5,11 +5,27 @@
   flex-shrink: 0;
 }
 
-/* Größen */
+/* Größen (fixe Boxen, für kleinere Platzierungen z.B. in Listen) */
 .track-map--sm  { width: 60px;  height: 60px;  }
 .track-map--md  { width: 120px; height: 120px; }
 .track-map--lg  { width: 200px; height: 200px; }
 .track-map--xl  { width: 280px; height: 280px; }
+
+/* "full": skaliert mit dem Elternelement statt fixer Box-Größe.
+   Wird im Kalender verwendet, damit die Strecke am Smartphone die
+   ganze Breite ausfüllt und am Desktop deutlich größer ist. */
+.track-map--full {
+  width: 100%;
+  height: auto;
+}
+.track-map--full .track-map-img {
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 600px) {
+  .track-map--full { max-width: 520px; }
+}
 
 .track-map-img {
   width: 100%;
