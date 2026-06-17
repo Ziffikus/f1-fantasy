@@ -115,7 +115,15 @@
   color: var(--text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 4rem; /* column consistency across all cards */
+}
+
+/* Date + chevron grouped tightly in row 1 */
+.cal-date-chevron {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .cal-chevron {
@@ -124,27 +132,41 @@
   flex-shrink: 0;
 }
 
-/* Sprint badge slot — fixed width so TV column stays consistent
-   even when no sprint weekend (slot stays empty but holds its space) */
+/* Sprint badge slot — fixed width = just enough for "SPRINT" badge */
 .cal-sprint-slot {
-  width: 4.5rem;
+  width: 3.8rem;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
 }
 
-/* TV badge slot — fixed width so all badges start at the same x */
+/* TV badge slot — fixed width = just enough for "SERVUSTV" badge */
 .cal-tv-slot {
-  width: 5rem;
+  width: 4.6rem;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+}
+
+/* Normalize all three badge sizes to be identical */
+.cal-badge-norm,
+.cal-tv-badge {
+  font-family: var(--font-display);
+  font-size: 0.6rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.35rem !important;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 
 @media (max-width: 480px) {
-  .cal-sprint-slot { width: 3.8rem; }
+  .cal-sprint-slot { width: 3.4rem; }
   .cal-tv-slot     { width: 4.2rem; }
 }
 
