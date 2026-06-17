@@ -489,27 +489,27 @@ export default function CalendarPage() {
     return (
       <div className={`cal-card ${isPast ? 'cal-card--past' : ''} ${isNext ? 'cal-card--next' : ''}`}>
         <button className="cal-card-header" onClick={() => setExpanded(isExpanded ? null : w.id)}>
-          <span className="cal-round">R{w.round}</span>
-          <span className="cal-flag">{w.flag_emoji}</span>
-          <div className="cal-info">
+          <div className="cal-header-row cal-header-row--top">
+            <span className="cal-round">R{w.round}</span>
+            <span className="cal-flag">{w.flag_emoji}</span>
             <span className="cal-race-name">{w.name}</span>
+            <span className="cal-chevron">{isExpanded ? '▲' : '▼'}</span>
+          </div>
+          <div className="cal-header-row cal-header-row--bottom">
             <span className="cal-location">
               <MapPin size={11} /> {w.city}, {w.country}
             </span>
-          </div>
-          <div className="cal-col-badges">
-            {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
-            {TV_BROADCASTER[w.round] && (
-              <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
-                {TV_BROADCASTER[w.round].name}
-              </span>
-            )}
-          </div>
-          <div className="cal-col-date">
+            <div className="cal-col-badges">
+              {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
+              {TV_BROADCASTER[w.round] && (
+                <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
+                  {TV_BROADCASTER[w.round].name}
+                </span>
+              )}
+            </div>
             <span className="cal-race-date">
               {new Date(w.race_start).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })}
             </span>
-            <span className="cal-chevron">{isExpanded ? '▲' : '▼'}</span>
           </div>
         </button>
 
