@@ -493,22 +493,24 @@ export default function CalendarPage() {
             <span className="cal-round">R{w.round}</span>
             <span className="cal-flag">{w.flag_emoji}</span>
             <span className="cal-race-name">{w.name}</span>
-            {w.is_sprint_weekend && <span className="badge badge-sprint cal-sprint-badge">Sprint</span>}
+            <span className="cal-race-date">
+              {new Date(w.race_start).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })}
+            </span>
             <span className="cal-chevron">{isExpanded ? '▲' : '▼'}</span>
           </div>
           <div className="cal-header-row cal-header-row--bottom">
             <span className="cal-location">
               <MapPin size={11} /> {w.city}, {w.country}
             </span>
-            <div className="cal-col-badges">
+            <span className="cal-sprint-slot">
+              {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
+            </span>
+            <span className="cal-tv-slot">
               {TV_BROADCASTER[w.round] && (
                 <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
                   {TV_BROADCASTER[w.round].name}
                 </span>
               )}
-            </div>
-            <span className="cal-race-date">
-              {new Date(w.race_start).toLocaleDateString('de-AT', { day: '2-digit', month: 'short' })}
             </span>
           </div>
         </button>

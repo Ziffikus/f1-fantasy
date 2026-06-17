@@ -115,6 +115,7 @@
   color: var(--text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
+  min-width: 4rem; /* column consistency across all cards */
 }
 
 .cal-chevron {
@@ -123,7 +124,29 @@
   flex-shrink: 0;
 }
 
-.cal-sprint-badge { flex-shrink: 0; }
+/* Sprint badge slot — fixed width so TV column stays consistent
+   even when no sprint weekend (slot stays empty but holds its space) */
+.cal-sprint-slot {
+  width: 4.5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* TV badge slot — fixed width so all badges start at the same x */
+.cal-tv-slot {
+  width: 5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@media (max-width: 480px) {
+  .cal-sprint-slot { width: 3.8rem; }
+  .cal-tv-slot     { width: 4.2rem; }
+}
 
 /* ── Sessions (expanded) ────────────────────────────────────── */
 .cal-sessions {
