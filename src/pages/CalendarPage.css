@@ -123,6 +123,8 @@
   flex-shrink: 0;
 }
 
+.cal-sprint-badge { flex-shrink: 0; }
+
 /* ── Sessions (expanded) ────────────────────────────────────── */
 .cal-sessions {
   border-top: 1px solid var(--border);
@@ -179,8 +181,6 @@
 
 @media (max-width: 480px) {
   .cal-race-name { font-size: 0.78rem; }
-  .cal-session-row { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
-  .cal-session-time { text-align: left; }
   .cal-card-header { gap: 0.3rem; padding: 0.75rem 0.6rem; }
   .cal-col-badges { gap: 0.25rem; }
   .cal-round      { font-size: 0.6rem; }

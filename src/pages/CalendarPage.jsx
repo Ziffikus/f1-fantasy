@@ -493,6 +493,7 @@ export default function CalendarPage() {
             <span className="cal-round">R{w.round}</span>
             <span className="cal-flag">{w.flag_emoji}</span>
             <span className="cal-race-name">{w.name}</span>
+            {w.is_sprint_weekend && <span className="badge badge-sprint cal-sprint-badge">Sprint</span>}
             <span className="cal-chevron">{isExpanded ? '▲' : '▼'}</span>
           </div>
           <div className="cal-header-row cal-header-row--bottom">
@@ -500,7 +501,6 @@ export default function CalendarPage() {
               <MapPin size={11} /> {w.city}, {w.country}
             </span>
             <div className="cal-col-badges">
-              {w.is_sprint_weekend && <span className="badge badge-sprint">Sprint</span>}
               {TV_BROADCASTER[w.round] && (
                 <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
                   {TV_BROADCASTER[w.round].name}
