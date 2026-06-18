@@ -505,15 +505,15 @@ export default function CalendarPage() {
               <MapPin size={11} /> {w.city}, {w.country}
             </span>
             <span className="cal-badges-right">
-              <span className="cal-sprint-slot">
-                {w.is_sprint_weekend && <span className="badge badge-sprint cal-badge-norm">Sprint</span>}
-              </span>
               <span className="cal-tv-slot">
                 {TV_BROADCASTER[w.round] && (
                   <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
                     {TV_BROADCASTER[w.round].name}
                   </span>
                 )}
+              </span>
+              <span className="cal-sprint-slot">
+                {w.is_sprint_weekend && <span className="badge badge-sprint cal-badge-norm">Sprint</span>}
               </span>
             </span>
           </div>

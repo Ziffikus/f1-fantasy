@@ -132,25 +132,27 @@
   flex-shrink: 0;
 }
 
-/* Right-hand badge group — hugs the row's right edge (location is flex:1
-   and absorbs the remaining space), Sprint + TV badge sit close together */
+/* Right-hand badge column — fixed width so the visible content always
+   starts at the same x position down the whole list, whether it shows
+   "ORF", "SERVUSTV", or a TV badge + Sprint combo. Order: TV badge, Sprint. */
 .cal-badges-right {
+  width: 8.4rem;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.35rem;
-  flex-shrink: 0;
-  margin-left: auto;
 }
 
-/* Sprint badge slot — shrinks to fit the badge, collapses to 0 when absent */
-.cal-sprint-slot {
+/* TV badge slot — first in the row */
+.cal-tv-slot {
   flex-shrink: 0;
   display: flex;
   align-items: center;
 }
 
-/* TV badge slot — shrinks to fit the badge ("ORF" vs "ServusTV") */
-.cal-tv-slot {
+/* Sprint badge slot — second, right after the TV badge */
+.cal-sprint-slot {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -172,7 +174,7 @@
 }
 
 @media (max-width: 480px) {
-  .cal-badges-right { gap: 0.25rem; }
+  .cal-badges-right { width: 7.6rem; gap: 0.25rem; }
 }
 
 /* ── Sessions (expanded) ────────────────────────────────────── */
