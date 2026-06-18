@@ -22,13 +22,17 @@
 }
 
 .cal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 0.5rem;
+  row-gap: 0.4rem;
 }
 
 /* ── Card ───────────────────────────────────────────────────── */
 .cal-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -43,10 +47,10 @@
 }
 
 .cal-card-header {
+  grid-column: 1 / -1;
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 0.5rem;
+  grid-template-columns: subgrid;
   row-gap: 0.35rem;
   padding: 0.85rem 0.75rem;
   background: none;
@@ -130,9 +134,10 @@
   flex-shrink: 0;
 }
 
-/* Date + chevron — grid cell in column 2, row 1. Shares its column width
-   with .cal-badges-right below, so the date lands at the same left start
-   as the badges, and the chevron stays pinned to the column's right edge. */
+/* Date + chevron — grid cell in column 2, row 1. Thanks to subgrid
+   (.cal-list → .cal-card → .cal-card-header), column 2's width is the
+   SAME fixed value for every card in the list, not just within one card.
+   The date lands at that shared left edge; the chevron stays pinned right. */
 .cal-date-chevron {
   grid-column: 2;
   grid-row: 1;
@@ -149,10 +154,10 @@
   flex-shrink: 0;
 }
 
-/* Badge row — grid cell in column 2, row 2. The grid column width is
-   auto-derived from the widest cell in this column (this row or the date
-   row above), so when TV badge + Sprint are both shown, they fill the
-   column edge-to-edge and line up exactly with the chevron above. */
+/* Badge row — grid cell in column 2, row 2. Column 2's width is computed
+   ONCE across the entire list (subgrid), as the widest content anywhere —
+   typically a TV badge + Sprint combo. Every row's badges therefore start
+   at the exact same x, whether it's "ORF", "SERVUSTV", or a combo. */
 .cal-badges-right {
   grid-column: 2;
   grid-row: 2;
@@ -198,6 +203,7 @@
 
 /* ── Sessions (expanded) ────────────────────────────────────── */
 .cal-sessions {
+  grid-column: 1 / -1;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
   padding: 0.75rem 1rem;
