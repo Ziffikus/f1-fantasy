@@ -132,22 +132,28 @@
   flex-shrink: 0;
 }
 
-/* Sprint badge slot — fixed width = just enough for "SPRINT" badge */
-.cal-sprint-slot {
-  width: 3.8rem;
-  flex-shrink: 0;
+/* Right-hand badge group — hugs the row's right edge (location is flex:1
+   and absorbs the remaining space), Sprint + TV badge sit close together */
+.cal-badges-right {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
-/* TV badge slot — fixed width = just enough for "SERVUSTV" badge */
-.cal-tv-slot {
-  width: 4.6rem;
+/* Sprint badge slot — shrinks to fit the badge, collapses to 0 when absent */
+.cal-sprint-slot {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+}
+
+/* TV badge slot — shrinks to fit the badge ("ORF" vs "ServusTV") */
+.cal-tv-slot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 /* Normalize all three badge sizes to be identical */
@@ -166,8 +172,7 @@
 }
 
 @media (max-width: 480px) {
-  .cal-sprint-slot { width: 3.4rem; }
-  .cal-tv-slot     { width: 4.2rem; }
+  .cal-badges-right { gap: 0.25rem; }
 }
 
 /* ── Sessions (expanded) ────────────────────────────────────── */
