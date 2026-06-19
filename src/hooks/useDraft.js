@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 
@@ -34,6 +34,11 @@ export function useDraft(raceWeekendId) {
   const [drivers, setDrivers] = useState([])
   const [constructors, setConstructors] = useState([])
   const [loading, setLoading] = useState(true)
+  // Verhindert Doppel-Push: speichert fuer wie viele Picks bereits ein Push gesendet wurde.
+  // Geteilt zwischen makePick, adminMakePick und Realtime-Handler.
+  // Der direkte Pick-Pfad sendet zuerst und setzt den Zaehler;
+  // der Realtime-Handler (~300ms spaeter) erkennt das und ueberspringt.
+  const pushSentForPickCount = useRef(-1)
 
   useEffect(() => {
     if (!raceWeekendId) return
@@ -77,13 +82,20 @@ export function useDraft(raceWeekendId) {
                   const idx = freshPicks.length % numPlayers
                   const nextPlayer = order[idx]
                   if (nextPlayer?.profiles?.id) {
-                    await sendPushIfEnabled({
-                      profile_id: nextPlayer.profiles.id,
-                      title: '🏎️ Du bist dran!',
-                      body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
-                      url: '/f1-fantasy/draft',
-                      tag: 'draft-turn',
-                    })
+                    // Nur senden wenn makePick/adminMakePick es nicht schon getan hat
+                    if (pushSentForPickCount.current !== freshPicks.length) {
+                      pushSentForPickCount.current = freshPicks.length
+                      console.log('[Push] Realtime-Fallback sendet Push (direkter Pfad hat nicht gesendet)')
+                      await sendPushIfEnabled({
+                        profile_id: nextPlayer.profiles.id,
+                        title: '🏎️ Du bist dran!',
+                        body: `${nextPlayer.profiles.display_name}, mach deinen Pick im F1 Fantasy Draft!`,
+                        url: '/f1-fantasy/draft',
+                        tag: 'draft-turn',
+                      })
+                    } else {
+                      console.log('[Push] Realtime: Push bereits gesendet – wird übersprungen')
+                    }
                   }
                 }
               }
@@ -251,6 +263,9 @@ export function useDraft(raceWeekendId) {
           const idx = (afterPicks?.length ?? 0) % numPlayers
           const nextPlayer = draftOrder[idx]
           if (nextPlayer?.profile_id && nextPlayer?.profiles?.display_name) {
+            // Zähler setzen – Realtime-Handler (~300ms später) überspringt dann
+            pushSentForPickCount.current = afterPicks.length
+            console.log('[Push] makePick sendet Push direkt')
             await sendPushIfEnabled({
               profile_id: nextPlayer.profile_id,
               title: '🏎️ Du bist dran!',
@@ -301,6 +316,9 @@ export function useDraft(raceWeekendId) {
           const idx = (afterPicks?.length ?? 0) % numPlayers
           const nextPlayer = draftOrder[idx]
           if (nextPlayer?.profile_id && nextPlayer?.profiles?.display_name) {
+            // Zähler setzen – Realtime-Handler (~300ms später) überspringt dann
+            pushSentForPickCount.current = afterPicks.length
+            console.log('[Push] adminMakePick sendet Push direkt')
             await sendPushIfEnabled({
               profile_id: nextPlayer.profile_id,
               title: '🏎️ Du bist dran!',
