@@ -8,21 +8,24 @@ import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'luc
 import './CalendarPage.css'
 
 // ── AT-TV Sender pro Rennen 2026 (Quelle: ServusTV / ORF) ─────
+// Keys = race_weekends.round aus Supabase (1–22). Bahrain und
+// Saudi-Arabien waren für 2026 ursprünglich geplant, wurden aber
+// abgesagt — daher lückenlos 1–22 statt 1–24.
 const SERVUS = { name: 'ServusTV', url: 'https://www.servustv.com/sport/b/fia-formula-one-world-championship/aa-25hkbv8c52111/' }
 const ORF_TV = { name: 'ORF',      url: 'https://on.orf.at/sendereihe/7028409/formel-1' }
 
 const TV_BROADCASTER = {
   1:  SERVUS,  // Australien
   2:  ORF_TV,  // China
-  3:  ORF_TV,  // Bahrain
+  3:  SERVUS,  // Japan
   4:  ORF_TV,  // Miami
-  5:  ORF_TV,  // Monaco
-  6:  ORF_TV,  // Barcelona-Catalunya
-  7:  SERVUS,  // Kanada
+  5:  SERVUS,  // Kanada
+  6:  ORF_TV,  // Monaco
+  7:  ORF_TV,  // Barcelona-Catalunya
   8:  SERVUS,  // Österreich
   9:  ORF_TV,  // Großbritannien
-  10: ORF_TV,  // Ungarn
-  11: SERVUS,  // Belgien
+  10: SERVUS,  // Belgien
+  11: ORF_TV,  // Ungarn
   12: SERVUS,  // Niederlande
   13: SERVUS,  // Italien
   14: ORF_TV,  // Madrid/Spanien
@@ -30,12 +33,10 @@ const TV_BROADCASTER = {
   16: ORF_TV,  // Singapur
   17: SERVUS,  // USA (Austin)
   18: ORF_TV,  // Mexiko
-  19: SERVUS,  // Brasilien
+  19: SERVUS,  // Brasilien (São Paulo)
   20: ORF_TV,  // Las Vegas
   21: SERVUS,  // Katar
-  22: SERVUS,  // Japan (Suzuka)
-  23: SERVUS,  // Saudi-Arabien
-  24: ORF_TV,  // Abu Dhabi
+  22: ORF_TV,  // Abu Dhabi
 }
 
 function formatDate(dateStr) {

@@ -168,18 +168,20 @@
   gap: 0.35rem;
 }
 
-/* TV badge slot — first in the row */
+/* TV badge slot — anchored to the left edge of the shared column */
 .cal-tv-slot {
   flex-shrink: 0;
   display: flex;
   align-items: center;
 }
 
-/* Sprint badge slot — second, right after the TV badge */
+/* Sprint badge slot — pinned to the right edge of the shared column,
+   regardless of whether a TV badge is present next to it */
 .cal-sprint-slot {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 
 /* Normalize all three badge sizes to be identical */
