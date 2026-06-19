@@ -6,18 +6,52 @@ import { supabase } from '../lib/supabase'
  * - Browser Notification (App offen)
  * - Web Push via Edge Function (App geschlossen)
  * - Ton
+ * - App Icon Badge (neu)
  */
 export function useDraftNotifications({ isMyTurn, isDraftComplete, myName, profileId, raceWeekendId }) {
   const wasMyTurn = useRef(false)
 
+  // ✅ NEU: Badge-Hilfsfunktionen
+  const setBadge = (count = 1) => {
+    if ('setAppBadge' in navigator) {
+      navigator.setAppBadge(count).catch(() => {})
+    }
+  }
+
+  const clearBadge = () => {
+    // Variante 1: direkt über navigator (App ist offen)
+    if ('clearAppBadge' in navigator) {
+      navigator.clearAppBadge().catch(() => {})
+    }
+    // Variante 2: über Service Worker (sicherer, funktioniert auch im Hintergrund)
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_BADGE' })
+    }
+  }
+
   useEffect(() => {
-    if (isDraftComplete) { wasMyTurn.current = false; return }
+    // ✅ NEU: Draft fertig → Badge immer löschen
+    if (isDraftComplete) {
+      wasMyTurn.current = false
+      clearBadge()
+      return
+    }
 
     const justBecameMyTurn = isMyTurn && !wasMyTurn.current
     wasMyTurn.current = isMyTurn
+
+    // ✅ NEU: Nicht mehr mein Turn (ich habe gepickt) → Badge löschen
+    if (!isMyTurn) {
+      clearBadge()
+      return
+    }
+
     if (!justBecameMyTurn) return
 
     playPing()
+
+    // ✅ NEU: Badge setzen wenn ich dran bin und App offen ist
+    setBadge(1)
 
     // Browser Notification (App offen)
     if (Notification.permission === 'granted') {
@@ -35,6 +69,17 @@ export function useDraftNotifications({ isMyTurn, isDraftComplete, myName, profi
     // Web Push über Edge Function (für andere Geräte / App geschlossen)
     // Wird serverseitig getriggert wenn Picks sich ändern
   }, [isMyTurn, isDraftComplete])
+
+  // ✅ NEU: Badge löschen wenn App in den Vordergrund kommt und ich nicht dran bin
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isMyTurn) {
+        clearBadge()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [isMyTurn])
 }
 
 /**
@@ -61,6 +106,7 @@ export async function sendDraftPushToPlayer(profileId, playerName) {
         body: `${playerName}, mach deinen Pick im F1 Fantasy Draft!`,
         url: '/f1-fantasy/draft',
         tag: 'draft-turn',
+        badgeCount: 1, // ✅ NEU: Badge-Zahl mitschicken
       }
     })
   } catch (e) {

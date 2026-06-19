@@ -72,26 +72,52 @@ self.addEventListener('fetch', event => {
   event.respondWith(fetch(request).catch(() => new Response('', { status: 503 })))
 })
 
+// ── Hilfsfunktion: App Badge setzen ─────────────────────────────
+function setBadge(count = 1) {
+  if ('setAppBadge' in navigator) {
+    navigator.setAppBadge(count).catch(() => {})
+  }
+}
+
+// ── Hilfsfunktion: App Badge entfernen ──────────────────────────
+function clearBadge() {
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {})
+  }
+}
+
 // ── Push Notifications ───────────────────────────────────────────
 self.addEventListener('push', event => {
   if (!event.data) return
   let data = {}
   try { data = event.data.json() } catch { data = { title: 'F1 Fantasy', body: event.data.text() } }
+
   event.waitUntil(
-    self.registration.showNotification(data.title ?? '🏎️ F1 Fantasy TBE', {
-      body:    data.body    ?? 'Du hast eine neue Benachrichtigung.',
-      icon:    data.icon    ?? '/f1-fantasy/icons/icon-192.svg',
-      badge:   data.badge   ?? '/f1-fantasy/icons/icon-192.svg',
-      tag:     data.tag     ?? 'f1-fantasy',
-      data:    data.url ? { url: data.url } : {},
-      vibrate: [200, 100, 200],
-      requireInteraction: data.requireInteraction ?? false,
-    })
+    Promise.all([
+      // Benachrichtigung anzeigen
+      self.registration.showNotification(data.title ?? '🏎️ F1 Fantasy TBE', {
+        body:    data.body    ?? 'Du hast eine neue Benachrichtigung.',
+        icon:    data.icon    ?? '/f1-fantasy/icons/icon-192.svg',
+        badge:   data.badge   ?? '/f1-fantasy/icons/icon-192.svg',
+        tag:     data.tag     ?? 'f1-fantasy',
+        data:    data.url ? { url: data.url } : {},
+        vibrate: [200, 100, 200],
+        requireInteraction: data.requireInteraction ?? false,
+      }),
+
+      // ✅ NEU: App Icon Badge auf 1 setzen
+      new Promise(resolve => { setBadge(data.badgeCount ?? 1); resolve() })
+    ])
   )
 })
 
+// ── Notification Click ───────────────────────────────────────────
 self.addEventListener('notificationclick', event => {
   event.notification.close()
+
+  // ✅ NEU: Badge entfernen wenn Nutzer auf Notification tippt
+  clearBadge()
+
   const url = event.notification.data?.url ?? '/f1-fantasy/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
@@ -104,4 +130,15 @@ self.addEventListener('notificationclick', event => {
       if (self.clients.openWindow) return self.clients.openWindow(url)
     })
   )
+})
+
+// ── Message vom App empfangen (z.B. Badge löschen) ───────────────
+// Wird von useDraftNotifications.js aufgerufen wenn Nutzer gepickt hat
+self.addEventListener('message', event => {
+  if (event.data?.type === 'CLEAR_BADGE') {
+    clearBadge()
+  }
+  if (event.data?.type === 'SET_BADGE') {
+    setBadge(event.data.count ?? 1)
+  }
 })
