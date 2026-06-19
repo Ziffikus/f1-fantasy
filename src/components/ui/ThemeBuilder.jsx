@@ -15,6 +15,7 @@ const COLOR_FIELDS = [
   { key: '--text-primary',  label: 'Text' },
   { key: '--text-secondary',label: 'Text Sek.' },
   { key: '--text-muted',    label: 'Text Muted' },
+  { key: '--theme-color',   label: 'Statusleiste' },
 ]
 
 function makeId() {

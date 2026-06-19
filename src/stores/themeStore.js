@@ -22,6 +22,7 @@ export const PRESET_THEMES = [
       '--accent':        '#E8002D',
       '--accent-hover':  '#ff1a42',
       '--accent-dim':    'rgba(232,0,45,0.15)',
+      '--theme-color':   '#E8002D',
     }
   },
   {
@@ -41,6 +42,7 @@ export const PRESET_THEMES = [
       '--accent':        '#0066ff',
       '--accent-hover':  '#3385ff',
       '--accent-dim':    'rgba(0,102,255,0.15)',
+      '--theme-color':   '#0066ff',
     }
   },
   {
@@ -60,6 +62,7 @@ export const PRESET_THEMES = [
       '--accent':        '#00aaff',
       '--accent-hover':  '#33bbff',
       '--accent-dim':    'rgba(0,170,255,0.15)',
+      '--theme-color':   '#00aaff',
     }
   },
   {
@@ -79,6 +82,7 @@ export const PRESET_THEMES = [
       '--accent':        '#f0f0f0',
       '--accent-hover':  '#ffffff',
       '--accent-dim':    'rgba(240,240,240,0.1)',
+      '--theme-color':   '#0f0f0f',
     }
   },
 ]
@@ -92,6 +96,20 @@ export const DEFAULT_LIGHT_THEME_ID = 'sky-sports'
 function applyVars(vars) {
   const root = document.documentElement
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v))
+}
+
+// Setzt das <meta name="theme-color"> Tag dynamisch –
+// steuert die Statusleisten-/Adressleistenfarbe im Browser
+function applyThemeColor(vars) {
+  const color = vars['--theme-color']
+  if (!color) return
+  let meta = document.querySelector('meta[name="theme-color"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'theme-color'
+    document.head.appendChild(meta)
+  }
+  meta.setAttribute('content', color)
 }
 
 function getPreset(id) {
@@ -206,6 +224,7 @@ export const useThemeStore = create((set, get) => ({
     const theme = all.find(t => t.id === activeId) ?? PRESET_THEMES[0]
     document.documentElement.setAttribute('data-theme', mode)
     applyVars(theme.vars)
+    applyThemeColor(theme.vars)
   },
 
   // ── intern: localStorage ──────────────────────────────────
