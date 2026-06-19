@@ -7,36 +7,20 @@ import TrackMap from '../components/ui/TrackMap'
 import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'lucide-react'
 import './CalendarPage.css'
 
-// ── AT-TV Sender pro Rennen 2026 (Quelle: ServusTV / ORF) ─────
-// Keys = race_weekends.round aus Supabase (1–22). Bahrain und
-// Saudi-Arabien waren für 2026 ursprünglich geplant, wurden aber
-// abgesagt — daher lückenlos 1–22 statt 1–24.
+// ── AT-TV Sender (ServusTV / ORF) ──────────────────────────────
+// Der eigentliche Sender pro Rennen kommt jetzt aus Supabase
+// (race_weekends.tv_broadcaster, Werte 'ServusTV' oder 'ORF').
+// Diese Map liefert nur noch URL + Styling-Key zum jeweiligen Namen.
 const SERVUS = { name: 'ServusTV', url: 'https://www.servustv.com/sport/b/fia-formula-one-world-championship/aa-25hkbv8c52111/' }
 const ORF_TV = { name: 'ORF',      url: 'https://on.orf.at/sendereihe/7028409/formel-1' }
 
-const TV_BROADCASTER = {
-  1:  SERVUS,  // Australien
-  2:  ORF_TV,  // China
-  3:  SERVUS,  // Japan
-  4:  ORF_TV,  // Miami
-  5:  SERVUS,  // Kanada
-  6:  ORF_TV,  // Monaco
-  7:  ORF_TV,  // Barcelona-Catalunya
-  8:  SERVUS,  // Österreich
-  9:  ORF_TV,  // Großbritannien
-  10: SERVUS,  // Belgien
-  11: ORF_TV,  // Ungarn
-  12: SERVUS,  // Niederlande
-  13: SERVUS,  // Italien
-  14: ORF_TV,  // Madrid/Spanien
-  15: SERVUS,  // Aserbaidschan
-  16: ORF_TV,  // Singapur
-  17: SERVUS,  // USA (Austin)
-  18: ORF_TV,  // Mexiko
-  19: SERVUS,  // Brasilien (São Paulo)
-  20: ORF_TV,  // Las Vegas
-  21: SERVUS,  // Katar
-  22: ORF_TV,  // Abu Dhabi
+const TV_BROADCASTER_BY_NAME = {
+  ServusTV: SERVUS,
+  ORF: ORF_TV,
+}
+
+function getBroadcaster(w) {
+  return TV_BROADCASTER_BY_NAME[w.tv_broadcaster] ?? null
 }
 
 function formatDate(dateStr) {
@@ -486,6 +470,7 @@ export default function CalendarPage() {
     const isExpanded = expanded === w.id
     const isPast     = new Date(w.race_start) < now
     const isNext     = upcoming[0]?.id === w.id
+    const broadcaster = getBroadcaster(w)
 
     return (
       <div className={`cal-card ${isPast ? 'cal-card--past' : ''} ${isNext ? 'cal-card--next' : ''}`}>
@@ -506,9 +491,9 @@ export default function CalendarPage() {
           </span>
           <span className="cal-badges-right">
             <span className="cal-tv-slot">
-              {TV_BROADCASTER[w.round] && (
-                <span className={`cal-tv-badge cal-tv-badge--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}>
-                  {TV_BROADCASTER[w.round].name}
+              {broadcaster && (
+                <span className={`cal-tv-badge cal-tv-badge--${broadcaster.name.toLowerCase().replace(' ', '')}`}>
+                  {broadcaster.name}
                 </span>
               )}
             </span>
@@ -546,15 +531,15 @@ export default function CalendarPage() {
                 <span className="cal-circuit">
                   <Clock size={11} /> {w.circuit}
                 </span>
-                {TV_BROADCASTER[w.round] && (
+                {broadcaster && (
                   <a
-                    href={TV_BROADCASTER[w.round].url}
+                    href={broadcaster.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`cal-stream-link cal-stream-link--${TV_BROADCASTER[w.round].name.toLowerCase().replace(' ', '')}`}
+                    className={`cal-stream-link cal-stream-link--${broadcaster.name.toLowerCase().replace(' ', '')}`}
                     onClick={e => e.stopPropagation()}
                   >
-                    ▶ {TV_BROADCASTER[w.round].name} live
+                    ▶ {broadcaster.name} live
                   </a>
                 )}
               </div>
