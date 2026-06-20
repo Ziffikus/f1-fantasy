@@ -284,7 +284,12 @@
   .standings-col-pts  { width: 3.8rem; }
   .standings-col-live { width: 3.2rem; }
   .standings-col-icon { width: 2.2rem; }
-  .standings-col-hide-mobile { display: none; }
+  .standings-col-hide-mobile {
+    display: none;
+    width: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
   .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
   .standings-race-grid { grid-template-columns: repeat(5, minmax(3rem, 1fr)); }
 }
