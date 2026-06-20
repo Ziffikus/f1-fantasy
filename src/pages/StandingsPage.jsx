@@ -594,7 +594,7 @@ export default function StandingsPage() {
                 {/* Aufgeklappte Renn-Details */}
                 {expanded === player.profile_id && (
                   <tr key={`${player.profile_id}-detail`} className="standings-detail-row">
-                    <td colSpan={isLive ? 7 : 6}>
+                    <td colSpan={100}>
                       <div className="standings-race-grid">
                         {completedWeekends.map(w => {
                           const rp = matrix[player.profile_id]?.[w.round]
