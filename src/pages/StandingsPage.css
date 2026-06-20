@@ -212,12 +212,16 @@
   padding: 0.75rem !important;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
+  width: auto;
+  max-width: 0; /* zwingt die Zelle, sich an der Tabellenbreite zu orientieren statt am Grid-Inhalt (table-layout: fixed) */
+  overflow: hidden;
 }
 
 .standings-race-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(3.5rem, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .standings-race-cell {
@@ -229,7 +233,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.4rem 0.6rem;
-  min-width: 3.5rem;
+  min-width: 0;
   position: relative;
 }
 
@@ -295,7 +299,7 @@
   .standings-avatar { width: 1.7rem; height: 1.7rem; font-size: 0.7rem; }
   .standings-player { gap: 0.4rem; }
   .standings-name { font-size: 0.85rem; }
-  .standings-race-grid { grid-template-columns: repeat(5, minmax(3rem, 1fr)); }
+  .standings-race-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* ── Live Banner ─────────────────────────────────────────────── */
