@@ -103,53 +103,81 @@
   color: #CD7F32;
 }
 
-/* ── Table ──────────────────────────────────────────────────── */
-.standings-table-wrap {
-  padding: 0;
-  overflow: hidden;
+/* ── Grid-"Tabelle" ─────────────────────────────────────────────
+   Ersetzt <table>: Spaltenbreiten werden EINMAL zentral am Grid-
+   Container definiert. Kopf, Zeilen und der aufklappbare Detail-
+   block sind alle eigenständige Grid-Rows und können sich
+   gegenseitig nicht beeinflussen — anders als bei <table
+   layout: fixed>, wo jede neue Zeile/Zelle die Spaltenbreiten-
+   berechnung der gesamten Tabelle anstoßen kann.
+   ──────────────────────────────────────────────────────────── */
+.standings-grid {
+  display: grid;
+  grid-template-columns:
+    var(--col-rank, 2.6rem)
+    1fr
+    var(--col-pts, 5rem)
+    var(--col-icon, 2.8rem)
+    var(--col-icon-extra, 2.8rem)
+    var(--col-icon-extra, 2.8rem);
+}
+.standings-table-wrap--live .standings-grid {
+  grid-template-columns:
+    var(--col-rank, 2.6rem)
+    1fr
+    var(--col-pts, 5rem)
+    var(--col-live, 4rem)
+    var(--col-icon, 2.8rem)
+    var(--col-icon-extra, 2.8rem)
+    var(--col-icon-extra, 2.8rem);
 }
 
-.standings-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+.standings-grid-row {
+  display: contents;
 }
 
-/* Column widths — class-based so they stay correct regardless of
-   whether the live "Runde" column is present or not. */
-.standings-col-rank   { width: 2.6rem; }
-.standings-col-pts    { width: 5rem; }
-.standings-col-live   { width: 4rem; }
-.standings-col-icon   { width: 2.8rem; }
-/* .standings-col-player has no fixed width: it absorbs all remaining space */
-
-.standings-table thead tr {
-  border-bottom: 1px solid var(--border);
-}
-
-.standings-table th {
+.standings-grid-row > * {
   padding: 0.7rem 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.standings-grid-head {
   font-family: var(--font-display);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-  text-align: left;
+}
+.standings-grid-head > * {
+  border-bottom: 1px solid var(--border);
 }
 
+.standings-grid-group {
+  display: contents;
+}
+
+/* Column widths — class-based so they stay correct regardless of
+   whether the live "Runde" column is present or not. */
+.standings-col-rank   { justify-content: flex-start; }
+.standings-col-pts    { justify-content: flex-end; }
+.standings-col-live   { justify-content: flex-end; }
+.standings-col-icon   { justify-content: flex-end; }
+/* .standings-col-player has no fixed width: it absorbs all remaining space */
+
 .standings-row {
-  border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background var(--transition);
 }
-.standings-row:hover { background: var(--bg-elevated); }
-.standings-row--me { background: var(--accent-dim) !important; }
-.standings-row--expanded { background: var(--bg-elevated); }
-.standings-row:last-child { border-bottom: none; }
+.standings-row > * { border-bottom: 1px solid var(--border); }
+.standings-row:hover > * { background: var(--bg-elevated); }
+.standings-row--me > * { background: var(--accent-dim) !important; }
+.standings-row--expanded > * { background: var(--bg-elevated); }
 
-.standings-table td {
-  padding: 0.7rem 0.5rem;
+.standings-grid-group:last-child .standings-row:not(.standings-row--expanded) > * { border-bottom: none; }
+
+.standings-grid-row > * {
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
@@ -208,7 +236,13 @@
 }
 
 /* ── Detail row ─────────────────────────────────────────────── */
-.standings-detail-row td {
+.standings-table-wrap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.standings-detail-row {
+  grid-column: 1 / -1;
   padding: 0.75rem !important;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
@@ -287,17 +321,19 @@
   .podium-block-1 { height: 60px; }
   .podium-block-2 { height: 42px; }
   .podium-block-3 { height: 30px; }
-  .standings-col-rank { width: 1.9rem; }
-  .standings-col-pts  { width: 3.4rem; }
-  .standings-col-live { width: 2.8rem; }
-  .standings-col-icon { width: 1.8rem; }
-  .standings-col-hide-mobile {
-    display: none;
-    width: 0 !important;
-    padding: 0 !important;
-    border: none !important;
+  .standings-grid {
+    --col-rank: 1.9rem;
+    --col-pts: 3.4rem;
+    --col-live: 2.8rem;
+    --col-icon: 1.8rem;
+    --col-icon-extra: 0rem;
   }
-  .standings-table th, .standings-table td { padding: 0.6rem 0.3rem; }
+  .standings-col-hide-mobile {
+    visibility: hidden;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+  .standings-grid-row > * { padding: 0.6rem 0.3rem; }
   .standings-col-player { padding-left: 0.4rem !important; }
   .standings-avatar { width: 1.7rem; height: 1.7rem; font-size: 0.7rem; }
   .standings-player { gap: 0.4rem; }

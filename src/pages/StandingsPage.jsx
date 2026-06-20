@@ -524,109 +524,104 @@ export default function StandingsPage() {
       )}
 
       {/* Vollständige Tabelle */}
-      <div className="card standings-table-wrap">
-        <table className="standings-table">
-          <thead>
-            <tr>
-              <th className="standings-col-rank">#</th>
-              <th className="standings-col-player">Spieler</th>
-              <th className="standings-col-pts" title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</th>
-              {isLive && <th title="Aktuelle Runde" className="standings-col-live standings-live-col" style={{ textAlign: 'right' }}>Runde</th>}
-              <th className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
-              <th className="standings-col-icon standings-col-hide-mobile" title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></th>
-              <th className="standings-col-icon standings-col-hide-mobile" title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></th>
-            </tr>
-          </thead>
-          <tbody>
-            {liveStandings.map((player, i) => (
-              <>
-                <tr
-                  key={player.profile_id}
-                  className={`standings-row ${player.profile_id === profile?.id ? 'standings-row--me' : ''} ${expanded === player.profile_id ? 'standings-row--expanded' : ''}`}
-                  onClick={() => setExpanded(expanded === player.profile_id ? null : player.profile_id)}
-                >
-                  <td className="standings-col-rank">
-                    <span className={`pos-badge ${i < 3 ? `pos-${i+1}` : ''}`}
-                      style={i >= 3 ? { background: 'var(--bg-elevated)', color: 'var(--text-muted)', width: '2rem', height: '2rem' } : {}}>
-                      {i + 1}
-                    </span>
-                  </td>
-                  <td className="standings-col-player">
-                    <div className="standings-player">
-                      <div className="standings-avatar">
-                        {player.avatar_url
-                          ? <img src={player.avatar_url} alt={player.display_name} />
-                          : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: 0, flex: 1 }}>
-                        <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
-                          {player.display_name}
-                          {gamingChamp === player.profile_id && <span title="Gaming Champion"> 🎮</span>}
-                        </span>
-                        {player.profile_id === profile?.id && <span className="dashboard-you" style={{ flexShrink: 0, fontSize: '0.7rem' }}>(du)</span>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="standings-col-pts standings-pts-cell" style={{ textAlign: 'right' }}>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {hasHalfPoints ? fmtPtsPadded(player.live_total) : fmtPts(player.live_total)}
-                    </span>
-                    {isLive && player.live_total !== player.total_points && (
-                      <span className="standings-pts-diff" style={{
-                        color: player.live_total < player.total_points ? 'var(--color-success, #4ade80)' : 'var(--color-danger, #f87171)',
-                        fontSize: '0.7rem', marginLeft: '0.3rem'
-                      }}>
-                        {player.live_total < player.total_points ? '▼' : '▲'}
-                        {fmtPts(Math.abs(player.live_total - player.total_points))}
-                      </span>
-                    )}
-                  </td>
-                  {isLive && (
-                    <td className="standings-col-live standings-live-col standings-live-pts">
-                      {getLiveRoundPoints(player.profile_id) ?? '…'}
-                    </td>
-                  )}
-                  <td className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</td>
-                  <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.second_places}</td>
-                  <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.third_places}</td>
-                </tr>
+      <div className={`card standings-table-wrap ${isLive ? 'standings-table-wrap--live' : ''}`}>
+        <div className="standings-grid">
+          {/* Kopfzeile */}
+          <div className="standings-grid-row standings-grid-head">
+            <div className="standings-col-rank">#</div>
+            <div className="standings-col-player">Spieler</div>
+            <div className="standings-col-pts" title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</div>
+            {isLive && <div title="Aktuelle Runde" className="standings-col-live standings-live-col" style={{ textAlign: 'right' }}>Runde</div>}
+            <div className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></div>
+            <div className="standings-col-icon standings-col-hide-mobile" title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></div>
+            <div className="standings-col-icon standings-col-hide-mobile" title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></div>
+          </div>
 
-                {/* Aufgeklappte Renn-Details */}
-                {expanded === player.profile_id && (
-                  <tr key={`${player.profile_id}-detail`} className="standings-detail-row">
-                    <td colSpan={isLive ? 7 : 6}>
-                      <div className="standings-race-grid">
-                        {completedWeekends.map(w => {
-                          const rp = matrix[player.profile_id]?.[w.round]
-                          const isLiveRound = isLive && liveWeekend?.id === w.id
-                          const livePts = isLiveRound ? getLiveRoundPoints(player.profile_id) : null
-                          return (
-                            <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}>
-                              <FlagIcon emoji={w.flag_emoji} size={20} className="standings-race-flag" />
-                              <span className="standings-race-city">{w.city}</span>
-                              <span className="standings-race-pts">
-                                {isLiveRound && livePts !== null
-                                  ? <><span className="standings-live-dot" style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#ef4444', marginRight: 3 }} />{livePts}</>
-                                  : rp ? fmtPts(rp.total_points) : '–'
-                                }
-                              </span>
-                              {rp?.weekend_rank === 1 && !isLiveRound && <span className="standings-race-trophy">🏆</span>}
-                            </div>
-                          )
-                        })}
-                        {completedWeekends.length === 0 && (
-                          <p className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem' }}>
-                            Noch keine Rennen gewertet.
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+          {liveStandings.map((player, i) => (
+            <div key={player.profile_id} className="standings-grid-group">
+              <div
+                className={`standings-grid-row standings-row ${player.profile_id === profile?.id ? 'standings-row--me' : ''} ${expanded === player.profile_id ? 'standings-row--expanded' : ''}`}
+                onClick={() => setExpanded(expanded === player.profile_id ? null : player.profile_id)}
+              >
+                <div className="standings-col-rank">
+                  <span className={`pos-badge ${i < 3 ? `pos-${i+1}` : ''}`}
+                    style={i >= 3 ? { background: 'var(--bg-elevated)', color: 'var(--text-muted)', width: '2rem', height: '2rem' } : {}}>
+                    {i + 1}
+                  </span>
+                </div>
+                <div className="standings-col-player">
+                  <div className="standings-player">
+                    <div className="standings-avatar">
+                      {player.avatar_url
+                        ? <img src={player.avatar_url} alt={player.display_name} />
+                        : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: 0, flex: 1 }}>
+                      <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
+                        {player.display_name}
+                        {gamingChamp === player.profile_id && <span title="Gaming Champion"> 🎮</span>}
+                      </span>
+                      {player.profile_id === profile?.id && <span className="dashboard-you" style={{ flexShrink: 0, fontSize: '0.7rem' }}>(du)</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="standings-col-pts standings-pts-cell" style={{ textAlign: 'right' }}>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {hasHalfPoints ? fmtPtsPadded(player.live_total) : fmtPts(player.live_total)}
+                  </span>
+                  {isLive && player.live_total !== player.total_points && (
+                    <span className="standings-pts-diff" style={{
+                      color: player.live_total < player.total_points ? 'var(--color-success, #4ade80)' : 'var(--color-danger, #f87171)',
+                      fontSize: '0.7rem', marginLeft: '0.3rem'
+                    }}>
+                      {player.live_total < player.total_points ? '▼' : '▲'}
+                      {fmtPts(Math.abs(player.live_total - player.total_points))}
+                    </span>
+                  )}
+                </div>
+                {isLive && (
+                  <div className="standings-col-live standings-live-col standings-live-pts">
+                    {getLiveRoundPoints(player.profile_id) ?? '…'}
+                  </div>
                 )}
-              </>
-            ))}
-          </tbody>
-        </table>
+                <div className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</div>
+                <div className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.second_places}</div>
+                <div className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.third_places}</div>
+              </div>
+
+              {/* Aufgeklappte Renn-Details — eigenständige Grid-Row, beeinflusst die Spaltenbreiten der Zeilen nicht */}
+              {expanded === player.profile_id && (
+                <div className="standings-detail-row">
+                  <div className="standings-race-grid">
+                    {completedWeekends.map(w => {
+                      const rp = matrix[player.profile_id]?.[w.round]
+                      const isLiveRound = isLive && liveWeekend?.id === w.id
+                      const livePts = isLiveRound ? getLiveRoundPoints(player.profile_id) : null
+                      return (
+                        <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}>
+                          <FlagIcon emoji={w.flag_emoji} size={20} className="standings-race-flag" />
+                          <span className="standings-race-city">{w.city}</span>
+                          <span className="standings-race-pts">
+                            {isLiveRound && livePts !== null
+                              ? <><span className="standings-live-dot" style={{ width: 6, height: 6, display: 'inline-block', borderRadius: '50%', background: '#ef4444', marginRight: 3 }} />{livePts}</>
+                              : rp ? fmtPts(rp.total_points) : '–'
+                            }
+                          </span>
+                          {rp?.weekend_rank === 1 && !isLiveRound && <span className="standings-race-trophy">🏆</span>}
+                        </div>
+                      )
+                    })}
+                    {completedWeekends.length === 0 && (
+                      <p className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem' }}>
+                        Noch keine Rennen gewertet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Position History Chart */}
