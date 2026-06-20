@@ -280,17 +280,21 @@
   .podium-block-1 { height: 60px; }
   .podium-block-2 { height: 42px; }
   .podium-block-3 { height: 30px; }
-  .standings-col-rank { width: 2.1rem; }
-  .standings-col-pts  { width: 3.8rem; }
-  .standings-col-live { width: 3.2rem; }
-  .standings-col-icon { width: 2.2rem; }
+  .standings-col-rank { width: 1.9rem; }
+  .standings-col-pts  { width: 3.4rem; }
+  .standings-col-live { width: 2.8rem; }
+  .standings-col-icon { width: 1.8rem; }
   .standings-col-hide-mobile {
     display: none;
     width: 0 !important;
     padding: 0 !important;
     border: none !important;
   }
-  .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
+  .standings-table th, .standings-table td { padding: 0.6rem 0.3rem; }
+  .standings-col-player { padding-left: 0.4rem !important; }
+  .standings-avatar { width: 1.7rem; height: 1.7rem; font-size: 0.7rem; }
+  .standings-player { gap: 0.4rem; }
+  .standings-name { font-size: 0.85rem; }
   .standings-race-grid { grid-template-columns: repeat(5, minmax(3rem, 1fr)); }
 }
 

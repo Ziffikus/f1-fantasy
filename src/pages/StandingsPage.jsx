@@ -532,9 +532,9 @@ export default function StandingsPage() {
               <th className="standings-col-player">Spieler</th>
               <th className="standings-col-pts" title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</th>
               {isLive && <th title="Aktuelle Runde" className="standings-col-live standings-live-col" style={{ textAlign: 'right' }}>Runde</th>}
-              <th className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
               <th className="standings-col-icon standings-col-hide-mobile" title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></th>
               <th className="standings-col-icon standings-col-hide-mobile" title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></th>
+              <th className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
             </tr>
           </thead>
           <tbody>
@@ -586,9 +586,9 @@ export default function StandingsPage() {
                       {getLiveRoundPoints(player.profile_id) ?? '…'}
                     </td>
                   )}
-                  <td className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</td>
                   <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.second_places}</td>
                   <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.third_places}</td>
+                  <td className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</td>
                 </tr>
 
                 {/* Aufgeklappte Renn-Details */}
