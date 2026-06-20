@@ -37,6 +37,40 @@ function fmtPtsPadded(val) {
   return Number(val).toFixed(1)
 }
 
+// ── Flaggen-Emoji → ISO-Ländercode ──────────────────────────────
+// Windows (v.a. Chrome/Edge) rendert Flaggen-Emojis (Regional Indicator
+// Symbols) häufig nicht als Flaggen-Icon, sondern nur als zwei Buchstaben.
+// Deshalb laden wir echte Flaggen-Bilder, die auf allen Plattformen
+// identisch aussehen – inkl. Windows.
+function flagEmojiToCode(emoji) {
+  if (!emoji) return null
+  const chars = Array.from(emoji)
+  if (chars.length !== 2) return null
+  const letters = chars.map(c => {
+    const point = c.codePointAt(0) - 127397
+    return point >= 65 && point <= 90 ? String.fromCharCode(point) : null
+  })
+  if (letters.some(l => !l)) return null
+  return letters.join('').toLowerCase()
+}
+
+function FlagIcon({ emoji, size = 20, className = '' }) {
+  const code = flagEmojiToCode(emoji)
+  if (!code) return <span className={className}>{emoji}</span>
+  const h = Math.round(size * 0.75)
+  return (
+    <img
+      src={`https://flagcdn.com/${size}x${h}/${code}.png`}
+      srcSet={`https://flagcdn.com/${size * 2}x${h * 2}/${code}.png 2x`}
+      width={size}
+      height={h}
+      alt={code.toUpperCase()}
+      loading="lazy"
+      className={`standings-flag-img ${className}`}
+    />
+  )
+}
+
 // ── Palette for chart lines ───────────────────────────────────
 const CHART_COLORS = [
   '#FFD700', '#60a5fa', '#f472b6', '#34d399', '#fb923c',
@@ -213,17 +247,23 @@ function PositionChart({ completedWeekends, matrix, standings, myId }) {
           <text x={PAD.left - 8} y={PAD.top - 6} textAnchor="end" className="chart-axis-hint">↑ weniger</text>
 
           {/* X-axis flags */}
-          {sortedRounds.map((w, ri) => (
-            <text
-              key={w.id}
-              x={xScale(ri)}
-              y={H - PAD.bottom + 14}
-              textAnchor="middle"
-              className="chart-flag-label"
-            >
-              {w.flag_emoji}
-            </text>
-          ))}
+          {sortedRounds.map((w, ri) => {
+            const code = flagEmojiToCode(w.flag_emoji)
+            const x = xScale(ri)
+            const y = H - PAD.bottom + 4
+            return code ? (
+              <image
+                key={w.id}
+                href={`https://flagcdn.com/20x15/${code}.png`}
+                x={x - 9} y={y} width={18} height={13}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            ) : (
+              <text key={w.id} x={x} y={y + 10} textAnchor="middle" className="chart-flag-label">
+                {w.flag_emoji}
+              </text>
+            )
+          })}
           {sortedRounds.map((w, ri) => (
             <text
               key={`city-${w.id}`}
@@ -331,7 +371,7 @@ function PositionChart({ completedWeekends, matrix, standings, myId }) {
             }}
           >
             <div className="chart-tooltip-header">
-              {tooltip.round.flag_emoji} {tooltip.round.city} · R{tooltip.round.round}
+              <FlagIcon emoji={tooltip.round.flag_emoji} size={14} className="chart-tooltip-flag" /> {tooltip.round.city} · R{tooltip.round.round}
             </div>
             <div className="chart-tooltip-rule">kumulierte Pkt (weniger = besser)</div>
             {tooltip.entries.map((e, i) => (
@@ -488,13 +528,13 @@ export default function StandingsPage() {
         <table className="standings-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Spieler</th>
-              <th title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</th>
-              {isLive && <th title="Aktuelle Runde" className="standings-live-col">Runde</th>}
-              <th title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
-              <th title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></th>
-              <th title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></th>
+              <th className="standings-col-rank">#</th>
+              <th className="standings-col-player">Spieler</th>
+              <th className="standings-col-pts" title="Gesamtpunkte" style={{ textAlign: 'right' }}>Pkt</th>
+              {isLive && <th title="Aktuelle Runde" className="standings-col-live standings-live-col" style={{ textAlign: 'right' }}>Runde</th>}
+              <th className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></th>
+              <th className="standings-col-icon standings-col-hide-mobile" title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></th>
+              <th className="standings-col-icon standings-col-hide-mobile" title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></th>
             </tr>
           </thead>
           <tbody>
@@ -505,20 +545,20 @@ export default function StandingsPage() {
                   className={`standings-row ${player.profile_id === profile?.id ? 'standings-row--me' : ''} ${expanded === player.profile_id ? 'standings-row--expanded' : ''}`}
                   onClick={() => setExpanded(expanded === player.profile_id ? null : player.profile_id)}
                 >
-                  <td>
+                  <td className="standings-col-rank">
                     <span className={`pos-badge ${i < 3 ? `pos-${i+1}` : ''}`}
                       style={i >= 3 ? { background: 'var(--bg-elevated)', color: 'var(--text-muted)', width: '2rem', height: '2rem' } : {}}>
                       {i + 1}
                     </span>
                   </td>
-                  <td>
+                  <td className="standings-col-player">
                     <div className="standings-player">
                       <div className="standings-avatar">
                         {player.avatar_url
                           ? <img src={player.avatar_url} alt={player.display_name} />
                           : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: 0, flex: 1 }}>
                         <span className="standings-name standings-name--link" onClick={() => navigate(`/spieler/${player.profile_id}`)}>
                           {player.display_name}
                           {gamingChamp === player.profile_id && <span title="Gaming Champion"> 🎮</span>}
@@ -527,7 +567,7 @@ export default function StandingsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="standings-pts-cell" style={{ textAlign: 'right' }}>
+                  <td className="standings-col-pts standings-pts-cell" style={{ textAlign: 'right' }}>
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {hasHalfPoints ? fmtPtsPadded(player.live_total) : fmtPts(player.live_total)}
                     </span>
@@ -542,13 +582,13 @@ export default function StandingsPage() {
                     )}
                   </td>
                   {isLive && (
-                    <td className="standings-live-col standings-live-pts">
+                    <td className="standings-col-live standings-live-col standings-live-pts">
                       {getLiveRoundPoints(player.profile_id) ?? '…'}
                     </td>
                   )}
-                  <td style={{ textAlign: 'right' }}>{player.wins}</td>
-                  <td style={{ textAlign: 'right' }}>{player.second_places}</td>
-                  <td style={{ textAlign: 'right' }}>{player.third_places}</td>
+                  <td className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</td>
+                  <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.second_places}</td>
+                  <td className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.third_places}</td>
                 </tr>
 
                 {/* Aufgeklappte Renn-Details */}
@@ -562,7 +602,7 @@ export default function StandingsPage() {
                           const livePts = isLiveRound ? getLiveRoundPoints(player.profile_id) : null
                           return (
                             <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}>
-                              <span className="standings-race-flag">{w.flag_emoji}</span>
+                              <FlagIcon emoji={w.flag_emoji} size={20} className="standings-race-flag" />
                               <span className="standings-race-city">{w.city}</span>
                               <span className="standings-race-pts">
                                 {isLiveRound && livePts !== null

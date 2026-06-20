@@ -112,7 +112,16 @@
 .standings-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
+
+/* Column widths — class-based so they stay correct regardless of
+   whether the live "Runde" column is present or not. */
+.standings-col-rank   { width: 2.6rem; }
+.standings-col-pts    { width: 5rem; }
+.standings-col-live   { width: 4rem; }
+.standings-col-icon   { width: 2.8rem; }
+/* .standings-col-player has no fixed width: it absorbs all remaining space */
 
 .standings-table thead tr {
   border-bottom: 1px solid var(--border);
@@ -128,9 +137,6 @@
   color: var(--text-muted);
   text-align: left;
 }
-
-.standings-table th:first-child { width: 2.5rem; }
-.standings-table th:last-child { width: 2rem; }
 
 .standings-row {
   border-bottom: 1px solid var(--border);
@@ -184,6 +190,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .standings-pts-cell {
@@ -231,7 +238,14 @@
   background: rgba(255,215,0,0.06);
 }
 
-.standings-race-flag { font-size: 1rem; }
+.standings-flag-img {
+  display: inline-block;
+  border-radius: 2px;
+  vertical-align: middle;
+  object-fit: cover;
+}
+.standings-race-flag { /* sizing handled by .standings-flag-img / FlagIcon size prop */ }
+.chart-tooltip-flag { vertical-align: -2px; margin-right: 1px; }
 .standings-race-city {
   font-size: 0.6rem;
   font-family: var(--font-display);
@@ -266,19 +280,12 @@
   .podium-block-1 { height: 60px; }
   .podium-block-2 { height: 42px; }
   .podium-block-3 { height: 30px; }
-  .standings-table { table-layout: fixed; width: 100%; }
-  .standings-table th:first-child,
-  .standings-table td:first-child { width: 2.2rem; }
-  .standings-table th:nth-child(2),
-  .standings-table td:nth-child(2) { width: auto; }
-  .standings-table th:nth-child(3),
-  .standings-table td:nth-child(3) { width: 4rem; }
-  .standings-table th:nth-child(5),
-  .standings-table td:nth-child(5),
-  .standings-table th:nth-child(6),
-  .standings-table td:nth-child(6) { display: none; }
+  .standings-col-rank { width: 2.1rem; }
+  .standings-col-pts  { width: 3.8rem; }
+  .standings-col-live { width: 3.2rem; }
+  .standings-col-icon { width: 2.2rem; }
+  .standings-col-hide-mobile { display: none; }
   .standings-table th, .standings-table td { padding: 0.6rem 0.35rem; }
-  .standings-name { max-width: 5rem; }
   .standings-race-grid { grid-template-columns: repeat(5, minmax(3rem, 1fr)); }
 }
 
