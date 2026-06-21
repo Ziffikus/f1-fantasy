@@ -765,8 +765,8 @@ export default function ArcadeRace({ onClose }) {
           )}
           {hasGhost && (
             <button
-              className="arcade-btn"
-              style={{fontSize:'0.7rem', padding:'0.2rem 0.5rem', opacity: showGhost ? 1 : 0.45, touchAction:'none'}}
+              className="arcade-hud-ghost-toggle"
+              style={{opacity: showGhost ? 1 : 0.45, touchAction:'none'}}
               onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowGhost(v=>!v)}}
             >{showGhost ? '👻 AN' : '👻 AUS'}</button>
           )}
