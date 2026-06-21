@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
-import { ALL_TRACKS } from './tracks'
+import { useRaceWeekends } from '../../hooks/useRaceWeekends'
+import { ALL_TRACKS, getTrackUnlockStatus, getCurrentTrackId } from './tracks'
 import './MonacoTraining.css'
 
 // ── Mathematische Kurvenglättung (Catmull-Rom-Spline) ────────────────────────
@@ -70,9 +71,30 @@ async function withRetry(fn, retries = 3, delayMs = 800) {
 }
 
 export default function ArcadeRace({ onClose }) {
+  // ── Saisonkalender (für automatische Track-Freischaltung) ───────────────────
+  const { weekends, loading: weekendsLoading } = useRaceWeekends()
+  const trackUnlockStatus = useMemo(() => getTrackUnlockStatus(weekends), [weekends])
+  const currentTrackId    = useMemo(() => getCurrentTrackId(weekends), [weekends])
+
   // ── Track-Auswahl ──────────────────────────────────────────────────────────
   const [selectedTrackId, setSelectedTrackId] = useState(ALL_TRACKS[0]?.id)
+  const [autoSelected, setAutoSelected] = useState(false)
+
+  // Sobald die Wochenenden geladen sind, einmalig auf den aktuell freigeschalteten
+  // Track springen (außer der Spieler hat zwischenzeitlich schon manuell gewählt).
+  useEffect(() => {
+    if (weekendsLoading || autoSelected || !currentTrackId) return
+    setSelectedTrackId(currentTrackId)
+    setAutoSelected(true)
+  }, [weekendsLoading, autoSelected, currentTrackId])
+
   const track = ALL_TRACKS.find(t => t.id === selectedTrackId) ?? ALL_TRACKS[0]
+
+  function selectTrack(id) {
+    const status = trackUnlockStatus[id]
+    if (status && !status.unlocked) return // gesperrt – Klick ignorieren
+    setSelectedTrackId(id)
+  }
 
   // Aus dem Track-Objekt abgeleitete Konstanten
   const RAW         = track.points
@@ -797,25 +819,40 @@ export default function ArcadeRace({ onClose }) {
           <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
             <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Strecke</div>
             <div style={{display:'grid', gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)', gap:'0.5rem'}}>
-              {ALL_TRACKS.map(t => (
-                <button key={t.id}
-                  onClick={() => setSelectedTrackId(t.id)}
-                  style={{
-                    all:'unset', boxSizing:'border-box',
-                    display:'block', width:'100%',
-                    padding:'0.85rem 0.5rem',
-                    fontSize:'0.9rem', fontWeight:800,
-                    fontFamily:"'Barlow Condensed', sans-serif",
-                    letterSpacing:'0.05em', textTransform:'uppercase',
-                    textAlign:'center', cursor:'pointer',
-                    borderRadius:'8px',
-                    border: selectedTrackId === t.id ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
-                    background: selectedTrackId === t.id ? 'rgba(232,196,64,0.15)' : '#1e1e2a',
-                    color: selectedTrackId === t.id ? '#e8c440' : '#8888a0',
-                    transition:'all 0.15s',
-                  }}
-                >{t.emoji ?? '🏎️'} {t.name}</button>
-              ))}
+              {ALL_TRACKS.map(t => {
+                const status = trackUnlockStatus[t.id]
+                const isLocked = status && !status.unlocked
+                return (
+                  <button key={t.id}
+                    onClick={() => selectTrack(t.id)}
+                    disabled={isLocked}
+                    title={isLocked ? `Freigeschaltet ab ${new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit', year:'numeric' })}` : undefined}
+                    style={{
+                      all:'unset', boxSizing:'border-box',
+                      display:'flex', flexDirection:'column', alignItems:'center', gap:'0.15rem',
+                      width:'100%',
+                      padding:'0.85rem 0.5rem',
+                      fontSize:'0.9rem', fontWeight:800,
+                      fontFamily:"'Barlow Condensed', sans-serif",
+                      letterSpacing:'0.05em', textTransform:'uppercase',
+                      textAlign:'center', cursor: isLocked ? 'not-allowed' : 'pointer',
+                      borderRadius:'8px',
+                      border: selectedTrackId === t.id ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
+                      background: isLocked ? '#17171f' : (selectedTrackId === t.id ? 'rgba(232,196,64,0.15)' : '#1e1e2a'),
+                      color: isLocked ? '#45455a' : (selectedTrackId === t.id ? '#e8c440' : '#8888a0'),
+                      opacity: isLocked ? 0.6 : 1,
+                      transition:'all 0.15s',
+                    }}
+                  >
+                    <span>{isLocked ? '🔒' : (t.emoji ?? '🏎️')} {t.name}</span>
+                    {isLocked && status?.unlockAt && (
+                      <span style={{fontSize:'0.6rem', fontWeight:600, letterSpacing:'0.03em', color:'#55556a'}}>
+                        ab {new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit' })}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
