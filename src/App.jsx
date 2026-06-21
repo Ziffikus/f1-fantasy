@@ -23,6 +23,7 @@ const GamingPage        = lazy(() => import('./pages/GamingPage'))
 
 // Layout
 import Layout from './components/ui/Layout'
+import F1Tire from './components/ui/Tire'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
@@ -36,8 +37,7 @@ function ProtectedRoute({ children }) {
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1rem' }}>
-      <div className="spinner" />
-      {showReload && (
+      <F1Tire size={48} />
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Dauert länger als erwartet…</p>
           <button className="btn btn-secondary" style={{ fontSize: '0.82rem' }} onClick={() => window.location.reload()}>
@@ -61,7 +61,7 @@ function AdminRoute({ children }) {
 function LoadingFallback() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-      <div className="spinner" />
+      <F1Tire size={32} />
     </div>
   )
 }

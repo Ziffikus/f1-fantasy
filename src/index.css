@@ -204,16 +204,19 @@ a:hover { color: var(--accent-hover); }
 .font-display  { font-family: var(--font-display); }
 .uppercase     { text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* ── Loading Spinner ────────────────────────────────────────── */
+/* ── Loading Spinner: F1 Reifen ────────────────────────────── */
 .spinner {
+  display: inline-flex;
   width: 1.5rem;
   height: 1.5rem;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.spinner svg { width: 100%; height: 100%; }
+
+.f1-tire-rotor {
+  transform-origin: 36px 36px;
+  animation: f1-tire-spin 0.9s linear infinite;
+}
+@keyframes f1-tire-spin { to { transform: rotate(360deg); } }
 
 /* ── Page transitions ───────────────────────────────────────── */
 .page-enter {
