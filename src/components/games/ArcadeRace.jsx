@@ -128,7 +128,11 @@ export default function ArcadeRace({ onClose }) {
   const [ghostDelta,     setGhostDelta]     = useState(null)
   const [finishedSectors, setFinishedSectors] = useState(() => Array(N_SECTORS).fill(null))
   const [showGhost,       setShowGhost]       = useState(true)
+  const [showFps,         setShowFps]         = useState(false)
+  const fpsRef            = useRef(0)      // aktueller FPS-Wert (kein Re-render nötig)
+  const fpsFramesRef      = useRef([])     // Ring-Buffer der letzten Frame-Timestamps
   const showGhostRef = useRef(true)
+  const showFpsRef   = useRef(false)
   const [selectedEntry,   setSelectedEntry]   = useState(0)
   const selectedEntryRef  = useRef(0)
   const [trainMode,       setTrainMode]       = useState('qualifying')
@@ -550,6 +554,14 @@ export default function ArcadeRace({ onClose }) {
       // Absolut sicheres 'dt': Unabhängig von Rundenstopps läuft das Spiel stabil weiter
       const dt = Math.min((ts-lastTS)/1000, 0.05)
       lastTS = ts
+
+      // ── FPS-Messung (gleitender Schnitt über 30 Frames) ──────────────────
+      const frames = fpsFramesRef.current
+      frames.push(ts)
+      if (frames.length > 30) frames.shift()
+      if (frames.length >= 2) {
+        fpsRef.current = Math.round((frames.length - 1) / ((frames[frames.length - 1] - frames[0]) / 1000))
+      }
       camX = car.x; camY = car.y
 
       // RADIKALE VEREINFACHUNG: Wenn racing aktiv ist, läuft die Uhr bedingungslos ab sofort mit!
@@ -562,7 +574,10 @@ export default function ArcadeRace({ onClose }) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
         const maxSpd=855, acc=665, steer=2.6
-        
+
+        // Position VOR der Physik merken (für präzise Ziellinien-Interpolation)
+        const prevCar = { x: car.x, y: car.y }
+
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
@@ -616,7 +631,33 @@ export default function ArcadeRace({ onClose }) {
           if (!lapStarted) {
             lapStarted = true; startTimeMs = ts; lastSector = 0
           } else if (startTimeMs && lapTime > 2) {
-            const lapMs = Math.round(ts - startTimeMs)
+            // ── Präzise Ziellinie-Interpolation ───────────────────────────
+            // Statt einfach 'ts' zu nehmen (= Frame NACH der Überquerung),
+            // berechnen wir den exakten Bruchteil innerhalb des letzten dt,
+            // zu dem das Auto die Startlinie tatsächlich überquert hat.
+            // Dazu projizieren wir vorherige und aktuelle Auto-Position auf
+            // den Normalvektor der Startlinie und interpolieren linear.
+            let preciseMs = Math.round(ts - startTimeMs)
+            try {
+              const sa = TRK[START_SEG], sb = TRK[(START_SEG + 1) % N]
+              // Normalvektor der Startlinie (senkrecht zur Fahrtrichtung)
+              const lx = sb[0] - sa[0], ly = sb[1] - sa[1]
+              const len = Math.sqrt(lx * lx + ly * ly)
+              if (len > 0) {
+                const nx = -ly / len, ny = lx / len // Normalvektor
+                // Signed-Distanz: positiv = vor der Linie, negativ = dahinter
+                const prevDist = (prevCar.x - sa[0]) * nx + (prevCar.y - sa[1]) * ny
+                const currDist = (car.x     - sa[0]) * nx + (car.y     - sa[1]) * ny
+                if (prevDist !== currDist) {
+                  // Anteil des dt, bei dem Distanz = 0 (= Linienüberquerung)
+                  const frac = Math.max(0, Math.min(1, prevDist / (prevDist - currDist)))
+                  const dtMs = dt * 1000
+                  preciseMs = Math.round(ts - startTimeMs - dtMs * (1 - frac))
+                }
+              }
+            } catch (_) { /* Fallback auf ts bei unerwarteten Fehlern */ }
+
+            const lapMs = preciseMs
             if (lapMs < bestLapMs) {
               bestLapMs = lapMs
               saveGhost(currentRecording, [...currentSectorMs, lapMs])
@@ -651,6 +692,22 @@ export default function ArcadeRace({ onClose }) {
 
       ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
       drawWorld(); if (showGhostRef.current) drawGhost(); drawCar(); drawBufferWarning(); drawMinimap()
+
+      // ── FPS-Overlay (nur wenn aktiviert) ───────────────────────────────
+      if (showFpsRef.current) {
+        const fps = fpsRef.current
+        const color = fps >= 55 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171'
+        ctx.save()
+        ctx.font = 'bold 13px monospace'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'top'
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'
+        ctx.fillRect(8, 8, 68, 22)
+        ctx.fillStyle = color
+        ctx.fillText(`${fps} FPS`, 14, 12)
+        ctx.restore()
+      }
+
       rafRef.current=requestAnimationFrame(loop)
     }
 
@@ -668,6 +725,7 @@ export default function ArcadeRace({ onClose }) {
   }, [gameState])
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
+  useEffect(() => { showFpsRef.current   = showFps   }, [showFps])
   useEffect(() => { selectedEntryRef.current = selectedEntry }, [selectedEntry])
   useEffect(() => { trainModeRef.current = trainMode }, [trainMode])
 
@@ -770,6 +828,11 @@ export default function ArcadeRace({ onClose }) {
               onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowGhost(v=>!v)}}
             >{showGhost ? '👻 AN' : '👻 AUS'}</button>
           )}
+          <button
+            className="arcade-hud-ghost-toggle"
+            style={{opacity: showFps ? 1 : 0.35, touchAction:'none'}}
+            onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowFps(v=>!v)}}
+          >FPS</button>
         </div>
       )}
 
