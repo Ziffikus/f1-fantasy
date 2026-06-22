@@ -649,6 +649,12 @@ export default function ArcadeRace({ onClose }) {
 
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
           const elapsed = ghostStartOffset + (ts - startTimeMs)
+          // Ersten Frame einfrieren: Ghost bleibt bei t=0 bis elapsed > t des ersten Frames
+          // Verhindert dass lineare Interpolation die Beschleunigung von 0 weg verfälscht
+          const firstFrameT = ghostFrames[0].t ?? 0
+          if (elapsed <= firstFrameT) {
+            ghostCar = { ...ghostFrames[0], angle: ghostFrames[0].angle ?? ghostFrames[0].a }
+          } else {
           while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
             ghostIdx++
           }
@@ -672,6 +678,7 @@ export default function ArcadeRace({ onClose }) {
           } else {
             ghostCar = { ...f0, angle: f0.angle ?? f0.a }
           }
+          } // end else (elapsed > firstFrameT)
         }
 
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
