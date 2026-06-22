@@ -642,7 +642,26 @@ export default function ArcadeRace({ onClose }) {
           while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
             ghostIdx++
           }
-          ghostCar = { ...ghostFrames[ghostIdx] }
+          // Interpolation zwischen aktuellem und nächstem Ghost-Frame
+          const f0 = ghostFrames[ghostIdx]
+          const f1 = ghostFrames[ghostIdx + 1]
+          if (f1) {
+            const t0 = f0.t ?? ghostIdx * 16
+            const t1 = f1.t ?? (ghostIdx + 1) * 16
+            const span = t1 - t0
+            const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - t0) / span)) : 0
+            // Winkel-Interpolation über kürzesten Weg (vermeidet 359°→1° Sprung)
+            let da = ((f1.angle ?? f1.a) - (f0.angle ?? f0.a))
+            if (da >  Math.PI) da -= Math.PI * 2
+            if (da < -Math.PI) da += Math.PI * 2
+            ghostCar = {
+              x:     f0.x + (f1.x - f0.x) * frac,
+              y:     f0.y + (f1.y - f0.y) * frac,
+              angle: (f0.angle ?? f0.a) + da * frac,
+            }
+          } else {
+            ghostCar = { ...f0, angle: f0.angle ?? f0.a }
+          }
         }
 
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
@@ -652,8 +671,11 @@ export default function ArcadeRace({ onClose }) {
           if (car.speed>bufCap) car.speed=Math.max(bufCap,car.speed-1800*dt)
         } else if (dist>OUTER_LIMIT) {
           inBuffer=false
-          const push=(dist-OUTER_LIMIT)/dist
-          car.x+=(cx-car.x)*push; car.y+=(cy-car.y)*push; car.speed*=Math.pow(0.72, dt*60)
+          // Push: dt-skaliert damit Kraft framerate-unabhängig ist
+          const pushStrength = Math.min(1, (dist-OUTER_LIMIT)/dist * 60 * dt)
+          car.x+=(cx-car.x)*pushStrength; car.y+=(cy-car.y)*pushStrength
+          // Abbremsen: exakte Exponentialformel statt pow(0.72, dt*60)
+          car.speed *= Math.exp(Math.log(0.72) * 60 * dt)
         } else { inBuffer=false }
 
         const curSector = getSectorForSeg(seg, N)
