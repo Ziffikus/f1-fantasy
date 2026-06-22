@@ -608,7 +608,7 @@ export default function ArcadeRace({ onClose }) {
     function loop(ts) {
       if (!lastTS) lastTS = ts
       // Absolut sicheres 'dt': Unabhängig von Rundenstopps läuft das Spiel stabil weiter
-      const dt = Math.min((ts-lastTS)/1000, 0.05)
+      const dt = Math.min((ts-lastTS)/1000, 0.033)
       lastTS = ts
 
       // ── FPS-Messung (gleitender Schnitt über 30 Frames) ──────────────────
@@ -640,12 +640,16 @@ export default function ArcadeRace({ onClose }) {
         const recT = startTimeMs !== null ? ts - startTimeMs : 0
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
 
+        const speedPrev = car.speed
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
         if (right) car.angle += steer*sf*dt
-        car.x += Math.cos(car.angle)*car.speed*dt
-        car.y += Math.sin(car.angle)*car.speed*dt
+        // Trapez-Integration: Durchschnitt aus speed vor und nach Beschleunigung
+        // eliminiert den Euler-Forward-Fehler bei unterschiedlichen Framerates
+        const speedAvg = (speedPrev + car.speed) / 2
+        car.x += Math.cos(car.angle)*speedAvg*dt
+        car.y += Math.sin(car.angle)*speedAvg*dt
 
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
           const elapsed = ghostStartOffset + (ts - startTimeMs)
