@@ -410,9 +410,16 @@ export default function ArcadeRace({ onClose }) {
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
-        ghostIdx = findNearestGhostFrame(car.x, car.y)
-        ghostCar = { ...ghostFrames[ghostIdx] }
-        ghostStartOffset = ghostFrames[ghostIdx].t ?? ghostIdx * 16
+        if (trainModeRef.current === 'qualifying') {
+          // Qualifying: Ghost immer von Anfang, kein Offset
+          ghostIdx = 0
+          ghostStartOffset = 0
+          ghostCar = { ...ghostFrames[0], angle: ghostFrames[0].angle ?? ghostFrames[0].a }
+        } else {
+          ghostIdx = findNearestGhostFrame(car.x, car.y)
+          ghostCar = { ...ghostFrames[ghostIdx], angle: ghostFrames[ghostIdx].angle ?? ghostFrames[ghostIdx].a }
+          ghostStartOffset = ghostFrames[ghostIdx].t ?? ghostIdx * 16
+        }
       }
     }
 
@@ -613,9 +620,11 @@ export default function ArcadeRace({ onClose }) {
       }
       camX = car.x; camY = car.y
 
-      // RADIKALE VEREINFACHUNG: Wenn racing aktiv ist, läuft die Uhr bedingungslos ab sofort mit!
+      // Uhr starten: exakt im ersten Frame wo racing=true wird
       if (racing && startTimeMs === null) {
-        startTimeMs = ts;
+        startTimeMs = ts
+        // Ghost-Startzeit auf denselben Moment synchronisieren
+        ghostStartOffset = 0
       }
 
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
