@@ -113,6 +113,10 @@ export default function ArcadeRace({ onClose }) {
   const gameRef    = useRef(null)
   const rafRef     = useRef(null)
   const { profile } = useAuthStore()
+  const profileRef  = useRef(profile)   // immer aktueller Wert in rAF-Closures
+  const ghostDataRef = useRef(null)     // In-Memory-Fallback falls localStorage gesperrt
+
+  useEffect(() => { profileRef.current = profile }, [profile])
 
   const [gameState,      setGameState]      = useState('idle')
   const [countdown,      setCountdown]      = useState(3)
@@ -144,6 +148,7 @@ export default function ArcadeRace({ onClose }) {
     loadLeaderboard()
     trySyncPendingScore()
     loadGhostFromSupabase()
+    maybeFinalizeRanking()
     // Reset game state on track change
     setGameState('idle')
     setBestLap(null)
@@ -153,6 +158,53 @@ export default function ArcadeRace({ onClose }) {
     setGhostDelta(null)
     setSelectedEntry(0)
   }, [track.id])
+
+  // Prüft ob der Countdown für den aktuellen Track abgelaufen ist und
+  // triggert einmalig die Edge Function zum Berechnen der finalen Rangliste.
+  async function maybeFinalizeRanking() {
+    const status = trackUnlockStatus[track.id]
+    // Nur wenn der Track ein Wochenende hat und der Countdown abgelaufen ist
+    if (!status?.weekend || !status?.unlockAt) return
+    if (new Date() < new Date(status.unlockAt)) return
+
+    try {
+      // Prüfen ob bereits finalisiert (track_rankings_log)
+      const { data: log } = await supabase
+        .from('track_rankings_log')
+        .select('finalized_at')
+        .eq('track_id', track.id)
+        .maybeSingle()
+      if (log) return // bereits finalisiert, nichts tun
+
+      // Edge Function triggern
+      const { data: { session } } = await supabase.auth.getSession()
+      const jwt = session?.access_token
+      if (!jwt) return // nicht eingeloggt, kein Trigger
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize-track-ranking`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ track_id: track.id }),
+        }
+      )
+      if (!res.ok) {
+        console.warn('[Ranking] Edge Function Fehler:', res.status)
+        return
+      }
+      const result = await res.json()
+      if (result.success || result.already_finalized) {
+        // Rangliste neu laden damit Ränge direkt sichtbar sind
+        loadLeaderboard()
+      }
+    } catch (err) {
+      console.warn('[Ranking] maybeFinalizeRanking Fehler:', err)
+    }
+  }
 
   // Lädt Ghost aus Supabase (eingeloggt) oder localStorage (Fallback)
   async function loadGhostFromSupabase() {
@@ -168,11 +220,10 @@ export default function ArcadeRace({ onClose }) {
             .eq('track_id', track.id)
             .maybeSingle()
           if (!error && data?.frames?.length) {
+            const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [] }
+            ghostDataRef.current = payload
             try {
-              localStorage.setItem(GHOST_KEY, JSON.stringify({
-                frames: data.frames,
-                sectorMs: data.sector_ms ?? [],
-              }))
+              localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
             } catch {}
             setHasGhost(true)
             return
@@ -351,16 +402,30 @@ export default function ArcadeRace({ onClose }) {
     function loadGhost() {
       try {
         const raw = localStorage.getItem(GHOST_KEY)
-        if (!raw) return
-        const data = JSON.parse(raw)
-        // Unterstützt beide Formate: {x,y,angle,t} (alt) und {x,y,a,t} (komprimiert)
+        if (raw) {
+          const data = JSON.parse(raw)
+          ghostDataRef.current = data
+          ghostFrames = (data.frames ?? []).map(f => ({
+            x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
+          }))
+          ghostSectorMs  = data.sectorMs  ?? Array(N_SECTORS).fill(null)
+          ghostIdx = 0
+          ghostCar = ghostFrames.length > 0 ? { ...ghostFrames[0] } : null
+          return
+        }
+      } catch (e) {
+        console.warn('[Ghost] localStorage lesen fehlgeschlagen:', e)
+      }
+      // In-Memory-Fallback (z.B. Chrome privat oder localStorage gesperrt)
+      if (ghostDataRef.current) {
+        const data = ghostDataRef.current
         ghostFrames = (data.frames ?? []).map(f => ({
           x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
         }))
-        ghostSectorMs  = data.sectorMs  ?? Array(N_SECTORS).fill(null)
+        ghostSectorMs = data.sectorMs ?? Array(N_SECTORS).fill(null)
         ghostIdx = 0
         ghostCar = ghostFrames.length > 0 ? { ...ghostFrames[0] } : null
-      } catch {}
+      }
     }
 
     function saveGhost(frames, sectorMs) {
@@ -371,14 +436,23 @@ export default function ArcadeRace({ onClose }) {
         a: Math.round(f.angle * 10000) / 10000,
         t: Math.round(f.t),
       }))
-      // 1. Immer localStorage (synchron, sofort verfügbar beim nächsten Start)
+      const payload = { frames: compact, sectorMs }
+
+      // 1. In-Memory (immer, kein Fehler möglich)
+      ghostDataRef.current = payload
+
+      // 2. localStorage (kann auf Chrome privat/iOS gesperrt sein)
       try {
-        localStorage.setItem(GHOST_KEY, JSON.stringify({ frames: compact, sectorMs }))
-      } catch {}
-      // 2. Supabase (async, geräteübergreifend) – nur wenn eingeloggt
-      if (profile?.id) {
+        localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
+      } catch (e) {
+        console.warn('[Ghost] localStorage schreiben fehlgeschlagen (privater Modus?):', e)
+      }
+
+      // 3. Supabase (async, geräteübergreifend) – profileRef statt profile-Closure
+      const pid = profileRef.current?.id
+      if (pid) {
         supabase.from('ghost_laps').upsert({
-          profile_id:  profile.id,
+          profile_id:  pid,
           track_id:    track.id,
           lap_time_ms: sectorMs[sectorMs.length - 1] ?? 0,
           sector_ms:   sectorMs,
