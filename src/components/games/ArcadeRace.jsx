@@ -143,11 +143,7 @@ export default function ArcadeRace({ onClose }) {
   useEffect(() => {
     loadLeaderboard()
     trySyncPendingScore()
-    try {
-      const g = localStorage.getItem(GHOST_KEY)
-      if (g) setHasGhost(true)
-      else setHasGhost(false)
-    } catch {}
+    loadGhostFromSupabase()
     // Reset game state on track change
     setGameState('idle')
     setBestLap(null)
@@ -157,6 +153,36 @@ export default function ArcadeRace({ onClose }) {
     setGhostDelta(null)
     setSelectedEntry(0)
   }, [track.id])
+
+  // Lädt Ghost aus Supabase (eingeloggt) oder localStorage (Fallback)
+  async function loadGhostFromSupabase() {
+    if (profile?.id) {
+      try {
+        const { data } = await supabase
+          .from('ghost_laps')
+          .select('frames, sector_ms, lap_time_ms')
+          .eq('profile_id', profile.id)
+          .eq('track_id', track.id)
+          .maybeSingle()
+        if (data?.frames?.length) {
+          // Supabase-Ghost in localStorage spiegeln, damit der rAF-Loop
+          // synchron darauf zugreifen kann (loadGhost() läuft synchron im Loop)
+          try {
+            localStorage.setItem(GHOST_KEY, JSON.stringify({
+              frames: data.frames,
+              sectorMs: data.sector_ms ?? [],
+            }))
+          } catch {}
+          setHasGhost(true)
+          return
+        }
+      } catch {}
+    }
+    // Fallback: nur localStorage prüfen
+    try {
+      setHasGhost(!!localStorage.getItem(GHOST_KEY))
+    } catch { setHasGhost(false) }
+  }
 
   async function loadLeaderboard() {
     const { data } = await supabase
@@ -313,7 +339,10 @@ export default function ArcadeRace({ onClose }) {
         const raw = localStorage.getItem(GHOST_KEY)
         if (!raw) return
         const data = JSON.parse(raw)
-        ghostFrames    = data.frames    ?? []
+        // Unterstützt beide Formate: {x,y,angle,t} (alt) und {x,y,a,t} (komprimiert)
+        ghostFrames = (data.frames ?? []).map(f => ({
+          x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
+        }))
         ghostSectorMs  = data.sectorMs  ?? Array(N_SECTORS).fill(null)
         ghostIdx = 0
         ghostCar = ghostFrames.length > 0 ? { ...ghostFrames[0] } : null
@@ -321,9 +350,29 @@ export default function ArcadeRace({ onClose }) {
     }
 
     function saveGhost(frames, sectorMs) {
+      // Frames komprimieren: Koordinaten auf 2 Dezimalstellen, angle auf 4
+      const compact = frames.map(f => ({
+        x: Math.round(f.x * 100) / 100,
+        y: Math.round(f.y * 100) / 100,
+        a: Math.round(f.angle * 10000) / 10000,
+        t: Math.round(f.t),
+      }))
+      // 1. Immer localStorage (synchron, sofort verfügbar beim nächsten Start)
       try {
-        localStorage.setItem(GHOST_KEY, JSON.stringify({ frames, sectorMs }))
+        localStorage.setItem(GHOST_KEY, JSON.stringify({ frames: compact, sectorMs }))
       } catch {}
+      // 2. Supabase (async, geräteübergreifend) – nur wenn eingeloggt
+      if (profile?.id) {
+        supabase.from('ghost_laps').upsert({
+          profile_id:  profile.id,
+          track_id:    track.id,
+          lap_time_ms: sectorMs[sectorMs.length - 1] ?? 0,
+          sector_ms:   sectorMs,
+          frames:      compact,
+        }, { onConflict: 'profile_id,track_id' }).then(({ error }) => {
+          if (error) console.warn('[Ghost] Supabase save failed:', error.message)
+        })
+      }
     }
 
     loadGhost()
