@@ -636,15 +636,16 @@ export default function ArcadeRace({ onClose }) {
         // Position VOR der Physik merken (für präzise Ziellinien-Interpolation)
         const prevCar = { x: car.x, y: car.y }
 
+        // Ghost-Frame VOR der Physik aufzeichnen: t=0 entspricht exakt der Startposition
+        const recT = startTimeMs !== null ? ts - startTimeMs : 0
+        currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
+
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
         const sf = Math.min(1, Math.abs(car.speed)/400)
         if (left)  car.angle -= steer*sf*dt
         if (right) car.angle += steer*sf*dt
         car.x += Math.cos(car.angle)*car.speed*dt
         car.y += Math.sin(car.angle)*car.speed*dt
-
-        const recT = startTimeMs !== null ? ts - startTimeMs : 0
-        currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
 
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
           const elapsed = ghostStartOffset + (ts - startTimeMs)
