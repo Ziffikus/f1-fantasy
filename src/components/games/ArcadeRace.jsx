@@ -157,26 +157,30 @@ export default function ArcadeRace({ onClose }) {
   // Lädt Ghost aus Supabase (eingeloggt) oder localStorage (Fallback)
   async function loadGhostFromSupabase() {
     if (profile?.id) {
-      try {
-        const { data } = await supabase
-          .from('ghost_laps')
-          .select('frames, sector_ms, lap_time_ms')
-          .eq('profile_id', profile.id)
-          .eq('track_id', track.id)
-          .maybeSingle()
-        if (data?.frames?.length) {
-          // Supabase-Ghost in localStorage spiegeln, damit der rAF-Loop
-          // synchron darauf zugreifen kann (loadGhost() läuft synchron im Loop)
-          try {
-            localStorage.setItem(GHOST_KEY, JSON.stringify({
-              frames: data.frames,
-              sectorMs: data.sector_ms ?? [],
-            }))
-          } catch {}
-          setHasGhost(true)
-          return
-        }
-      } catch {}
+      const maxRetries = 3
+      const baseDelay  = 600
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('ghost_laps')
+            .select('frames, sector_ms, lap_time_ms')
+            .eq('profile_id', profile.id)
+            .eq('track_id', track.id)
+            .maybeSingle()
+          if (!error && data?.frames?.length) {
+            try {
+              localStorage.setItem(GHOST_KEY, JSON.stringify({
+                frames: data.frames,
+                sectorMs: data.sector_ms ?? [],
+              }))
+            } catch {}
+            setHasGhost(true)
+            return
+          }
+          if (!error) break // kein Fehler, aber kein Ghost → kein Retry nötig
+        } catch {}
+        if (attempt < maxRetries) await new Promise(r => setTimeout(r, baseDelay * attempt))
+      }
     }
     // Fallback: nur localStorage prüfen
     try {
@@ -185,14 +189,24 @@ export default function ArcadeRace({ onClose }) {
   }
 
   async function loadLeaderboard() {
-    const { data } = await supabase
-      .from('game_highscores')
-      .select('lap_time_ms, profiles(display_name, avatar_url)')
-      .eq('game', 'monaco_training')
-      .eq('track', track.id)
-      .order('lap_time_ms', { ascending: true })
-      .limit(10)
-    setLeaderboard(data ?? [])
+    const maxRetries = 4
+    const baseDelay  = 600
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('game_highscores')
+          .select('lap_time_ms, profiles(display_name, avatar_url)')
+          .eq('game', 'monaco_training')
+          .eq('track', track.id)
+          .order('lap_time_ms', { ascending: true })
+          .limit(10)
+        if (!error && data) {
+          setLeaderboard(data)
+          return
+        }
+      } catch {}
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, baseDelay * attempt))
+    }
   }
 
   function savePendingScore(lapTimeMs) {
