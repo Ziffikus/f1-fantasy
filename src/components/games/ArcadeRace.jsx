@@ -148,6 +148,8 @@ export default function ArcadeRace({ onClose }) {
   const [finishedSectors, setFinishedSectors] = useState(() => Array(N_SECTORS).fill(null))
   const [showGhost,       setShowGhost]       = useState(true)
   const [showFps,         setShowFps]         = useState(false)
+  const [ghostSectors,    setGhostSectors]    = useState([])
+  const [ghostLapMs,      setGhostLapMs]      = useState(null)
   const fpsRef            = useRef(0)      // aktueller FPS-Wert (kein Re-render nötig)
   const fpsFramesRef      = useRef([])     // Ring-Buffer der letzten Frame-Timestamps
   const showGhostRef = useRef(true)
@@ -172,6 +174,8 @@ export default function ArcadeRace({ onClose }) {
     setFinishedSectors(Array(N_SECTORS).fill(null))
     setGhostDelta(null)
     setSelectedEntry(0)
+    setGhostSectors([])
+    setGhostLapMs(null)
   }, [track.id])
 
   // Prüft ob der Countdown für den aktuellen Track abgelaufen ist und
@@ -246,6 +250,11 @@ export default function ArcadeRace({ onClose }) {
             localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
           } catch {}
           setHasGhost(true)
+          if (data.lap_time_ms) {
+            setBestLap(prev => (!prev || data.lap_time_ms < prev) ? data.lap_time_ms : prev)
+            setGhostLapMs(data.lap_time_ms)
+          }
+          setGhostSectors(data.sector_ms ?? [])
           gameRef.current?.reloadGhost?.()  // Game-Loop über neue Ghost-Daten informieren
           return
         } catch (err) {
@@ -256,7 +265,18 @@ export default function ArcadeRace({ onClose }) {
     }
     // Fallback: nur localStorage prüfen
     try {
-      setHasGhost(!!localStorage.getItem(GHOST_KEY))
+      const raw = localStorage.getItem(GHOST_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setHasGhost(true)
+        if (parsed.lapTimeMs) {
+          setBestLap(prev => (!prev || parsed.lapTimeMs < prev) ? parsed.lapTimeMs : prev)
+          setGhostLapMs(parsed.lapTimeMs)
+        }
+        setGhostSectors(parsed.sectorMs ?? [])
+      } else {
+        setHasGhost(false)
+      }
     } catch { setHasGhost(false) }
   }
 
@@ -963,7 +983,16 @@ export default function ArcadeRace({ onClose }) {
               )}
 
               <div className="monaco-sector-breakdown">
+                {ghostSectors.length > 0 && (
+                  <div style={{display:'grid',gridTemplateColumns:'2rem 1fr 1fr 3.2rem',gap:'0 0.4rem',marginBottom:'0.3rem',opacity:0.55,fontSize:'0.6rem',letterSpacing:'0.08em',textTransform:'uppercase'}}>
+                    <span/>
+                    <span style={{textAlign:'right',fontWeight:700}}>Du</span>
+                    <span style={{textAlign:'right',fontWeight:700,color:'rgba(100,181,246,0.9)'}}>👻 Ghost</span>
+                    <span/>
+                  </div>
+                )}
                 {Array.from({length: N_SECTORS}, (_, i) => {
+                  // Spieler-Sektordauer berechnen
                   let duration = null
                   if (i === 0) {
                     duration = finishedSectors[0] ?? null
@@ -972,19 +1001,53 @@ export default function ArcadeRace({ onClose }) {
                     const prev = finishedSectors[i - 1]
                     if (cur != null && prev != null) duration = cur - prev
                   } else {
-                    // letzter Sektor: Rundenzeit minus letzten Sektorgrenz-Timestamp
                     const prev = finishedSectors[i - 1]
                     if (totalTime && prev != null) duration = totalTime - prev
+                  }
+                  // Ghost-Sektordauer berechnen
+                  let ghostDur = null
+                  if (ghostSectors.length > 0) {
+                    if (i === 0) {
+                      ghostDur = ghostSectors[0] ?? null
+                    } else if (i < N_SECTORS - 1) {
+                      const cur  = ghostSectors[i]
+                      const prev = ghostSectors[i - 1]
+                      if (cur != null && prev != null) ghostDur = cur - prev
+                    } else {
+                      const prev = ghostSectors[N_SECTORS - 2]
+                      if (ghostLapMs != null && prev != null) ghostDur = ghostLapMs - prev
+                    }
+                  }
+                  const delta = (duration != null && ghostDur != null) ? duration - ghostDur : null
+                  const dColor = delta == null ? 'transparent' : delta < 0 ? '#4ade80' : '#f87171'
+
+                  if (ghostSectors.length > 0) {
+                    return (
+                      <div key={i} style={{display:'grid',gridTemplateColumns:'2rem 1fr 1fr 3.2rem',gap:'0 0.4rem',alignItems:'center',padding:'0.22rem 0',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                        <span className="monaco-sector-label">S{i+1}</span>
+                        <span className="monaco-sector-value" style={{textAlign:'right'}}>{duration != null ? formatSectorTime(duration) : '--'}</span>
+                        <span style={{fontFamily:'monospace',fontSize:'0.8rem',textAlign:'right',color:'rgba(100,181,246,0.75)'}}>{ghostDur != null ? formatSectorTime(ghostDur) : '--'}</span>
+                        <span style={{fontFamily:'monospace',fontSize:'0.7rem',textAlign:'right',color:dColor,fontWeight:700}}>{delta != null ? formatDelta(delta) : ''}</span>
+                      </div>
+                    )
                   }
                   return (
                     <div key={i} className="monaco-sector-item">
                       <span className="monaco-sector-label">S{i+1}</span>
-                      <span className="monaco-sector-value">
-                        {duration != null ? formatSectorTime(duration) : '--'}
-                      </span>
+                      <span className="monaco-sector-value">{duration != null ? formatSectorTime(duration) : '--'}</span>
                     </div>
                   )
                 })}
+                {ghostLapMs && (
+                  <div style={{display:'grid',gridTemplateColumns:'2rem 1fr 1fr 3.2rem',gap:'0 0.4rem',alignItems:'center',padding:'0.3rem 0 0',marginTop:'0.1rem',borderTop:'1px solid rgba(255,255,255,0.12)'}}>
+                    <span style={{fontSize:'0.65rem',color:'var(--text-muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em'}}>Ges.</span>
+                    <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,textAlign:'right',color:'#fff'}}>{formatTime(totalTime)}</span>
+                    <span style={{fontFamily:'monospace',fontSize:'0.82rem',textAlign:'right',color:'rgba(100,181,246,0.75)'}}>{formatTime(ghostLapMs)}</span>
+                    <span style={{fontFamily:'monospace',fontSize:'0.7rem',textAlign:'right',color: totalTime < ghostLapMs ? '#4ade80' : totalTime > ghostLapMs ? '#f87171' : 'transparent',fontWeight:700}}>
+                      {formatDelta(totalTime - ghostLapMs)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8'}}>⏳ Speichern…</div>}
@@ -1014,7 +1077,7 @@ export default function ArcadeRace({ onClose }) {
         )}
       </div>
 
-      {(gameState==='racing' || gameState==='finished') && (
+      {(gameState==='racing' || gameState==='finished' || gameState==='countdown') && (
         <div className="arcade-hud-bar monaco-hud-bar">
           <div className="arcade-hud-bar-time">
             <span className="arcade-hud-bar-label">Zeit</span>
