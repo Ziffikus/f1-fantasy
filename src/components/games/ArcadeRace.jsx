@@ -69,6 +69,13 @@ function formatDelta(ms) {
   return (rounded >= 0 ? '+' : '') + secs + 's'
 }
 
+function formatSectorTime(ms) {
+  if (ms == null) return '--'
+  const secs   = Math.floor(ms / 1000)
+  const millis = String(Math.floor(ms % 1000)).padStart(3, '0')
+  return `${secs}.${millis}`
+}
+
 async function withRetry(fn, retries = 3, delayMs = 800) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try { return { ok: true, result: await fn() } } catch {
@@ -335,7 +342,6 @@ export default function ArcadeRace({ onClose }) {
   const startGame = useCallback(() => {
     setGameState('countdown')
     setCountdown(3)
-    setBestLap(null)
     setTotalTime(0)
     setSaved(false)
     setSaveError(false)
@@ -957,14 +963,28 @@ export default function ArcadeRace({ onClose }) {
               )}
 
               <div className="monaco-sector-breakdown">
-                {Array.from({length: N_SECTORS}, (_, i) => (
-                  <div key={i} className="monaco-sector-item">
-                    <span className="monaco-sector-label">S{i+1}</span>
-                    <span className="monaco-sector-value">
-                      {finishedSectors[i] != null ? formatTime(finishedSectors[i]) : '--'}
-                    </span>
-                  </div>
-                ))}
+                {Array.from({length: N_SECTORS}, (_, i) => {
+                  let duration = null
+                  if (i === 0) {
+                    duration = finishedSectors[0] ?? null
+                  } else if (i < N_SECTORS - 1) {
+                    const cur  = finishedSectors[i]
+                    const prev = finishedSectors[i - 1]
+                    if (cur != null && prev != null) duration = cur - prev
+                  } else {
+                    // letzter Sektor: Rundenzeit minus letzten Sektorgrenz-Timestamp
+                    const prev = finishedSectors[i - 1]
+                    if (totalTime && prev != null) duration = totalTime - prev
+                  }
+                  return (
+                    <div key={i} className="monaco-sector-item">
+                      <span className="monaco-sector-label">S{i+1}</span>
+                      <span className="monaco-sector-value">
+                        {duration != null ? formatSectorTime(duration) : '--'}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
 
               {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8'}}>⏳ Speichern…</div>}
