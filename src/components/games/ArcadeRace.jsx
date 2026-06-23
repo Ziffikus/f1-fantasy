@@ -469,6 +469,7 @@ export default function ArcadeRace({ onClose }) {
     let ghostStartOffset = 0
     let lapStarted = true, prevSeg = START_SEG, lastTS = null
     let inBuffer = false, racing = false, finishedRef = false
+    let accumulator = 0   // fixer Physik-Accumulator für deterministischen Zeitschritt
     let startTimeMs = null, bestLapSaved = null
     let sectorStartMs = Array(N_SECTORS).fill(null)
     let currentSectorMs = Array(N_SECTORS).fill(null)
@@ -493,7 +494,7 @@ export default function ArcadeRace({ onClose }) {
       car.angle = segAngle(entrySeg); car.speed = START_SPEED
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
-      startTimeMs = null; inBuffer = false; finishedRef = false
+      startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
       currentRecording = []; lastSector = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
@@ -720,21 +721,19 @@ export default function ArcadeRace({ onClose }) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
         const maxSpd=855, acc=665, steer=2.6
-        const STEP = 1/60  // fixer Physik-Sub-Step
+        const STEP = 1/60  // fixer Physik-Zeitschritt (16.67 ms)
 
-        // Sub-Steps: frameDt wird in Steps von max. 1/60s aufgeteilt
-        // → Physik ist framerate-unabhängig, kein Zeitverlust bei gedrosseltem rAF
-        let remaining = frameDt
-        while (remaining > 0) {
-          const dt = Math.min(remaining, STEP)
-          remaining -= dt
+        // Accumulator-Pattern: übrige Zeit bleibt erhalten und wird zum nächsten Frame addiert.
+        // dt ist immer exakt STEP → vollständig deterministisch auf allen Geräten/Framerates.
+        accumulator += frameDt
+        let stepsRan = 0
+        while (accumulator >= STEP) {
+          accumulator -= STEP
+          stepsRan++
+          const dt = STEP
 
         // Position VOR der Physik merken (für präzise Ziellinien-Interpolation)
         const prevCar = { x: car.x, y: car.y }
-
-        // Ghost-Frame VOR der Physik aufzeichnen: t=0 entspricht exakt der Startposition
-        const recT = startTimeMs !== null ? ts - startTimeMs : 0
-        currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
 
         const speedPrev = car.speed
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
@@ -746,40 +745,6 @@ export default function ArcadeRace({ onClose }) {
         const speedAvg = (speedPrev + car.speed) / 2
         car.x += Math.cos(car.angle)*speedAvg*dt
         car.y += Math.sin(car.angle)*speedAvg*dt
-
-        if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs)
-          // Ersten Frame einfrieren: Ghost bleibt bei t=0 bis elapsed > t des ersten Frames
-          // Verhindert dass lineare Interpolation die Beschleunigung von 0 weg verfälscht
-          const firstFrameT = ghostFrames[0].t ?? 0
-          if (elapsed <= firstFrameT) {
-            ghostCar = { ...ghostFrames[0], angle: ghostFrames[0].angle ?? ghostFrames[0].a }
-          } else {
-          while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
-            ghostIdx++
-          }
-          // Interpolation zwischen aktuellem und nächstem Ghost-Frame
-          const f0 = ghostFrames[ghostIdx]
-          const f1 = ghostFrames[ghostIdx + 1]
-          if (f1) {
-            const t0 = f0.t ?? ghostIdx * 16
-            const t1 = f1.t ?? (ghostIdx + 1) * 16
-            const span = t1 - t0
-            const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - t0) / span)) : 0
-            // Winkel-Interpolation über kürzesten Weg (vermeidet 359°→1° Sprung)
-            let da = ((f1.angle ?? f1.a) - (f0.angle ?? f0.a))
-            if (da >  Math.PI) da -= Math.PI * 2
-            if (da < -Math.PI) da += Math.PI * 2
-            ghostCar = {
-              x:     f0.x + (f1.x - f0.x) * frac,
-              y:     f0.y + (f1.y - f0.y) * frac,
-              angle: (f0.angle ?? f0.a) + da * frac,
-            }
-          } else {
-            ghostCar = { ...f0, angle: f0.angle ?? f0.a }
-          }
-          } // end else (elapsed > firstFrameT)
-        }
 
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
         if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
@@ -793,63 +758,67 @@ export default function ArcadeRace({ onClose }) {
           car.speed *= Math.exp(Math.log(0.72) * 60 * dt)
         } else { inBuffer=false }
 
-        // Ziellinie + Sektor — nur im letzten Sub-Step prüfen (remaining===0)
-        if (remaining === 0) {
-          const atStart  = seg >= START_SEG - 2 && seg <= START_SEG + 2
-          const wasStart = prevSeg >= START_SEG - 2 && prevSeg <= START_SEG + 2
+        // Ziellinie + Sektor — läuft bei jedem Step (kein remaining-Guard nötig)
+        const atStart  = seg >= START_SEG - 2 && seg <= START_SEG + 2
+        const wasStart = prevSeg >= START_SEG - 2 && prevSeg <= START_SEG + 2
 
-          const curSector = getSectorForSeg(seg, N)
-          if (lapStarted && startTimeMs !== null) {
-            if (curSector !== lastSector && curSector > lastSector && curSector > 0 && curSector <= N_SECTORS - 1) {
-              const elapsed = ts - startTimeMs
-              const ghostElapsed = ghostSectorMs[curSector - 1]
-              currentSectorMs[curSector - 1] = elapsed
-              if (ghostElapsed !== null) setGhostDelta(elapsed - ghostElapsed)
-              setSectorTimes(prev => { const n = [...prev]; n[curSector - 1] = elapsed; return n })
-            }
-            lastSector = curSector
+        const curSector = getSectorForSeg(seg, N)
+        if (lapStarted && startTimeMs !== null) {
+          if (curSector !== lastSector && curSector > lastSector && curSector > 0 && curSector <= N_SECTORS - 1) {
+            const elapsed = ts - startTimeMs
+            const ghostElapsed = ghostSectorMs[curSector - 1]
+            currentSectorMs[curSector - 1] = elapsed
+            if (ghostElapsed !== null) setGhostDelta(elapsed - ghostElapsed)
+            setSectorTimes(prev => { const n = [...prev]; n[curSector - 1] = elapsed; return n })
           }
-
-          if (!wasStart && atStart) {
-            if (!lapStarted) {
-              lapStarted = true; startTimeMs = ts; lastSector = 0
-            } else if (startTimeMs && lapTime > 2) {
-              let preciseMs = Math.round(ts - startTimeMs)
-              try {
-                const sa = TRK[START_SEG], sb = TRK[(START_SEG + 1) % N]
-                const lx = sb[0] - sa[0], ly = sb[1] - sa[1]
-                const len = Math.sqrt(lx * lx + ly * ly)
-                if (len > 0) {
-                  const nx = -ly / len, ny = lx / len
-                  const prevDist = (prevCar.x - sa[0]) * nx + (prevCar.y - sa[1]) * ny
-                  const currDist = (car.x     - sa[0]) * nx + (car.y     - sa[1]) * ny
-                  if (prevDist !== currDist) {
-                    const frac = Math.max(0, Math.min(1, prevDist / (prevDist - currDist)))
-                    preciseMs = Math.round(ts - startTimeMs - dt * 1000 * (1 - frac))
-                  }
-                }
-              } catch (_) {}
-
-              const lapMs = preciseMs
-              if (lapMs < bestLapMs) {
-                bestLapMs = lapMs
-                saveGhost(currentRecording, [...currentSectorMs, lapMs])
-                setHasGhost(true)
-              }
-              setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
-              setTotalTime(lapMs)
-              finishedRef = true
-              setGameState('finished')
-              setFinishedSectors([...currentSectorMs])
-              if (bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
-                bestLapSaved = bestLapMs
-                if (trainModeRef.current === 'qualifying') saveHighscore(bestLapMs)
-              }
-            }
-          }
-          prevSeg = seg
+          lastSector = curSector
         }
+
+        if (!wasStart && atStart) {
+          if (!lapStarted) {
+            lapStarted = true; startTimeMs = ts; lastSector = 0
+          } else if (startTimeMs && lapTime > 2) {
+            let preciseMs = Math.round(ts - startTimeMs)
+            try {
+              const sa = TRK[START_SEG], sb = TRK[(START_SEG + 1) % N]
+              const lx = sb[0] - sa[0], ly = sb[1] - sa[1]
+              const len = Math.sqrt(lx * lx + ly * ly)
+              if (len > 0) {
+                const nx = -ly / len, ny = lx / len
+                const prevDist = (prevCar.x - sa[0]) * nx + (prevCar.y - sa[1]) * ny
+                const currDist = (car.x     - sa[0]) * nx + (car.y     - sa[1]) * ny
+                if (prevDist !== currDist) {
+                  const frac = Math.max(0, Math.min(1, prevDist / (prevDist - currDist)))
+                  preciseMs = Math.round(ts - startTimeMs - dt * 1000 * (1 - frac))
+                }
+              }
+            } catch (_) {}
+
+            const lapMs = preciseMs
+            if (lapMs < bestLapMs) {
+              bestLapMs = lapMs
+              saveGhost(currentRecording, [...currentSectorMs, lapMs])
+              setHasGhost(true)
+            }
+            setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
+            setTotalTime(lapMs)
+            finishedRef = true
+            setGameState('finished')
+            setFinishedSectors([...currentSectorMs])
+            if (bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
+              bestLapSaved = bestLapMs
+              if (trainModeRef.current === 'qualifying') saveHighscore(bestLapMs)
+            }
+          }
+        }
+        prevSeg = seg
         } // end sub-step while loop
+
+        // Aufnahme: nur wenn Physik gelaufen ist (kein leerer Frame bei >60fps)
+        if (stepsRan > 0) {
+          const recT = startTimeMs !== null ? ts - startTimeMs : 0
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
+        }
 
         // Ghost-Update: einmal pro Frame (außerhalb Sub-Steps)
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
