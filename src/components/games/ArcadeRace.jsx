@@ -227,17 +227,23 @@ export default function ArcadeRace({ onClose }) {
             .eq('profile_id', profile.id)
             .eq('track_id', track.id)
             .maybeSingle()
-          if (!error && data?.frames?.length) {
-            const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [], lapTimeMs: data.lap_time_ms ?? null }
-            ghostDataRef.current = payload
-            try {
-              localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
-            } catch {}
-            setHasGhost(true)
-            return
+          if (error) throw error  // explizit werfen → retry
+          if (!data) break        // kein Eintrag → kein Retry, zu localStorage
+          if (!data.frames?.length) {
+            console.warn('[Ghost] Supabase-Eintrag hat keine Frames – übersprungen')
+            break
           }
-          if (!error) break // kein Fehler, aber kein Ghost → kein Retry nötig
-        } catch {}
+          const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [], lapTimeMs: data.lap_time_ms ?? null }
+          ghostDataRef.current = payload
+          try {
+            localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
+          } catch {}
+          setHasGhost(true)
+          gameRef.current?.reloadGhost?.()  // Game-Loop über neue Ghost-Daten informieren
+          return
+        } catch (err) {
+          console.warn(`[Ghost] Supabase Versuch ${attempt}/${maxRetries} fehlgeschlagen:`, err?.message ?? err)
+        }
         if (attempt < maxRetries) await new Promise(r => setTimeout(r, baseDelay * attempt))
       }
     }
@@ -529,6 +535,11 @@ export default function ArcadeRace({ onClose }) {
 
     gameRef.current = {
       resetCar,
+      reloadGhost: () => {
+        // Wird von loadGhostFromSupabase aufgerufen nachdem Daten async ankommen
+        const ms = loadGhost()
+        if (ms < bestLapMs) bestLapMs = ms
+      },
       get racing() { return racing },
       set racing(v) { racing = v },
       touches: { left: false, right: false },
