@@ -982,28 +982,25 @@ export default function ArcadeRace({ onClose }) {
                 </div>
               )}
 
-              <div className="monaco-sector-breakdown">
-                {Array.from({length: N_SECTORS}, (_, i) => {
-                  // Spieler-Sektordauer
+              {(() => {
+                // Alle Sektor-Daten vorberechnen
+                const rows = Array.from({length: N_SECTORS}, (_, i) => {
                   let duration = null
                   if (i === 0) {
                     duration = finishedSectors[0] ?? null
                   } else if (i < N_SECTORS - 1) {
-                    const cur  = finishedSectors[i]
-                    const prev = finishedSectors[i - 1]
+                    const cur = finishedSectors[i], prev = finishedSectors[i - 1]
                     if (cur != null && prev != null) duration = cur - prev
                   } else {
                     const prev = finishedSectors[i - 1]
                     if (totalTime && prev != null) duration = totalTime - prev
                   }
-                  // Ghost-Sektordauer
                   let ghostDur = null
                   if (ghostSectors.length > 0) {
                     if (i === 0) {
                       ghostDur = ghostSectors[0] ?? null
                     } else if (i < N_SECTORS - 1) {
-                      const cur  = ghostSectors[i]
-                      const prev = ghostSectors[i - 1]
+                      const cur = ghostSectors[i], prev = ghostSectors[i - 1]
                       if (cur != null && prev != null) ghostDur = cur - prev
                     } else {
                       const prev = ghostSectors[N_SECTORS - 2]
@@ -1011,44 +1008,54 @@ export default function ArcadeRace({ onClose }) {
                     }
                   }
                   const delta = (duration != null && ghostDur != null) ? duration - ghostDur : null
-                  const dColor = delta == null ? 'transparent' : delta < 0 ? '#4ade80' : '#f87171'
-                  return (
-                    <div key={i} style={{display:'flex',flexDirection:'column',gap:'0.05rem',padding:'0.35rem 0',borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none'}}>
-                      {/* Eigene Zeit */}
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <span style={{fontSize:'0.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)'}}>S{i+1}</span>
-                        <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'#fff'}}>{duration != null ? formatSectorTime(duration) : '--'}</span>
-                      </div>
-                      {/* Ghost-Zeit */}
-                      {ghostDur != null && (
-                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingLeft:'0.6rem'}}>
-                          <span style={{fontSize:'0.7rem',color:'rgba(100,181,246,0.55)'}}>👻</span>
-                          <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                            <span style={{fontFamily:'monospace',fontSize:'0.8rem',color:'rgba(100,181,246,0.7)'}}>{formatSectorTime(ghostDur)}</span>
-                            <span style={{fontFamily:'monospace',fontSize:'0.72rem',fontWeight:700,color:dColor,minWidth:'3.5rem',textAlign:'right'}}>{delta != null ? formatDelta(delta) : ''}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                {/* Gesamtzeile */}
-                {ghostLapMs != null && (
-                  <div style={{display:'flex',flexDirection:'column',gap:'0.05rem',padding:'0.35rem 0',borderTop:'1px solid rgba(255,255,255,0.15)',marginTop:'0.1rem'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                      <span style={{fontSize:'0.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)'}}>Gesamt</span>
-                      <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'#fff'}}>{formatTime(totalTime)}</span>
-                    </div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingLeft:'0.6rem'}}>
-                      <span style={{fontSize:'0.7rem',color:'rgba(100,181,246,0.55)'}}>👻</span>
-                      <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                        <span style={{fontFamily:'monospace',fontSize:'0.8rem',color:'rgba(100,181,246,0.7)'}}>{formatTime(ghostLapMs)}</span>
-                        <span style={{fontFamily:'monospace',fontSize:'0.72rem',fontWeight:700,color: totalTime < ghostLapMs ? '#4ade80' : totalTime > ghostLapMs ? '#f87171' : 'transparent',minWidth:'3.5rem',textAlign:'right'}}>{formatDelta(totalTime - ghostLapMs)}</span>
-                      </div>
-                    </div>
+                  return { label: `S${i+1}`, duration, ghostDur, delta }
+                })
+                const hasGhost = ghostSectors.length > 0 && ghostLapMs != null
+                const totalDelta = hasGhost ? totalTime - ghostLapMs : null
+
+                // Spalten: Label | Spieler | Ghost | Delta
+                const cols = hasGhost
+                  ? '2rem 1fr 1fr 3.4rem'
+                  : '2rem 1fr'
+
+                const labelStyle = {fontSize:'0.6rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',paddingTop:'0.05rem'}
+                const playerStyle = {fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'#fff',textAlign:'right'}
+                const ghostStyle  = {fontFamily:'monospace',fontSize:'0.88rem',color:'rgba(100,181,246,0.8)',textAlign:'right'}
+                const deltaStyle  = (d) => ({fontFamily:'monospace',fontSize:'0.75rem',fontWeight:700,textAlign:'right',color: d == null ? 'transparent' : d < 0 ? '#4ade80' : '#f87171'})
+                const divider     = {gridColumn:'1/-1',height:'1px',background:'rgba(255,255,255,0.08)',margin:'0.15rem 0'}
+                const thStyle     = {fontSize:'0.58rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'rgba(255,255,255,0.3)',textAlign:'right',paddingBottom:'0.1rem'}
+
+                return (
+                  <div style={{display:'grid',gridTemplateColumns:cols,columnGap:'0.7rem',rowGap:'0.4rem',width:'100%',paddingTop:'0.5rem'}}>
+                    {/* Header */}
+                    {hasGhost && (<>
+                      <span/>
+                      <span style={{...thStyle}}>Du</span>
+                      <span style={{...thStyle,color:'rgba(100,181,246,0.5)'}}>👻</span>
+                      <span/>
+                    </>)}
+
+                    {/* Sektoren */}
+                    {rows.map(({label, duration, ghostDur, delta}) => (<>
+                      <span key={label+'l'} style={labelStyle}>{label}</span>
+                      <span key={label+'p'} style={playerStyle}>{duration != null ? formatSectorTime(duration) : '--'}</span>
+                      {hasGhost && <span key={label+'g'} style={ghostStyle}>{ghostDur != null ? formatSectorTime(ghostDur) : '--'}</span>}
+                      {hasGhost && <span key={label+'d'} style={deltaStyle(delta)}>{delta != null ? formatDelta(delta) : ''}</span>}
+                    </>))}
+
+                    {/* Trennlinie */}
+                    {hasGhost && <div key="div" style={divider}/>}
+
+                    {/* Gesamtzeile */}
+                    {hasGhost && (<>
+                      <span style={labelStyle}>Ges.</span>
+                      <span style={playerStyle}>{formatSectorTime(totalTime)}</span>
+                      <span style={ghostStyle}>{formatSectorTime(ghostLapMs)}</span>
+                      <span style={deltaStyle(totalDelta)}>{totalDelta != null ? formatDelta(totalDelta) : ''}</span>
+                    </>)}
                   </div>
-                )}
-              </div>
+                )
+              })()}
 
               {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8'}}>⏳ Speichern…</div>}
               {!saving && saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
