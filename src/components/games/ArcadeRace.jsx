@@ -61,6 +61,14 @@ function formatTime(ms) {
   return `${mins}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`
 }
 
+function formatDelta(ms) {
+  const rounded = Math.round(ms)
+  const abs = Math.abs(rounded)
+  if (abs < 1000) return (rounded >= 0 ? '+' : '') + rounded + 'ms'
+  const secs = (rounded / 1000).toFixed(1)
+  return (rounded >= 0 ? '+' : '') + secs + 's'
+}
+
 async function withRetry(fn, retries = 3, delayMs = 800) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try { return { ok: true, result: await fn() } } catch {
@@ -220,7 +228,7 @@ export default function ArcadeRace({ onClose }) {
             .eq('track_id', track.id)
             .maybeSingle()
           if (!error && data?.frames?.length) {
-            const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [] }
+            const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [], lapTimeMs: data.lap_time_ms ?? null }
             ghostDataRef.current = payload
             try {
               localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
@@ -400,18 +408,26 @@ export default function ArcadeRace({ onClose }) {
     let ghostSectorMs = Array(N_SECTORS).fill(null)
 
     function loadGhost() {
+      function processFrames(data) {
+        let frames = (data.frames ?? []).map(f => ({
+          x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
+        }))
+        // Deduplizieren: Frames mit identischem t entfernen
+        // (passiert bei alten Aufnahmen die noch mit Sub-Step-Bug aufgezeichnet wurden)
+        frames = frames.filter((f, i) => i === 0 || f.t !== frames[i - 1].t)
+        return frames
+      }
+
       try {
         const raw = localStorage.getItem(GHOST_KEY)
         if (raw) {
           const data = JSON.parse(raw)
           ghostDataRef.current = data
-          ghostFrames = (data.frames ?? []).map(f => ({
-            x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
-          }))
-          ghostSectorMs  = data.sectorMs  ?? Array(N_SECTORS).fill(null)
+          ghostFrames    = processFrames(data)
+          ghostSectorMs  = data.sectorMs ?? Array(N_SECTORS).fill(null)
           ghostIdx = 0
           ghostCar = ghostFrames.length > 0 ? { ...ghostFrames[0] } : null
-          return
+          return data.lapTimeMs ?? Infinity
         }
       } catch (e) {
         console.warn('[Ghost] localStorage lesen fehlgeschlagen:', e)
@@ -419,13 +435,13 @@ export default function ArcadeRace({ onClose }) {
       // In-Memory-Fallback (z.B. Chrome privat oder localStorage gesperrt)
       if (ghostDataRef.current) {
         const data = ghostDataRef.current
-        ghostFrames = (data.frames ?? []).map(f => ({
-          x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
-        }))
+        ghostFrames   = processFrames(data)
         ghostSectorMs = data.sectorMs ?? Array(N_SECTORS).fill(null)
         ghostIdx = 0
         ghostCar = ghostFrames.length > 0 ? { ...ghostFrames[0] } : null
+        return data.lapTimeMs ?? Infinity
       }
+      return Infinity
     }
 
     function saveGhost(frames, sectorMs) {
@@ -436,7 +452,8 @@ export default function ArcadeRace({ onClose }) {
         a: Math.round(f.angle * 10000) / 10000,
         t: Math.round(f.t),
       }))
-      const payload = { frames: compact, sectorMs }
+      const lapTimeMs = sectorMs[sectorMs.length - 1] ?? null
+      const payload = { frames: compact, sectorMs, lapTimeMs }
 
       // 1. In-Memory (immer, kein Fehler möglich)
       ghostDataRef.current = payload
@@ -454,7 +471,7 @@ export default function ArcadeRace({ onClose }) {
         supabase.from('ghost_laps').upsert({
           profile_id:  pid,
           track_id:    track.id,
-          lap_time_ms: sectorMs[sectorMs.length - 1] ?? 0,
+          lap_time_ms: lapTimeMs ?? 0,
           sector_ms:   sectorMs,
           frames:      compact,
         }, { onConflict: 'profile_id,track_id' }).then(({ error }) => {
@@ -463,9 +480,7 @@ export default function ArcadeRace({ onClose }) {
       }
     }
 
-    loadGhost()
-
-    let lapTime = 0, bestLapMs = Infinity
+    let lapTime = 0, bestLapMs = loadGhost()   // Ghost-Zeit als initiale Bestzeit
     let ghostStartOffset = 0
     let lapStarted = true, prevSeg = START_SEG, lastTS = null
     let inBuffer = false, racing = false, finishedRef = false
@@ -900,7 +915,7 @@ export default function ArcadeRace({ onClose }) {
   function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
 
   const deltaColor = ghostDelta === null ? '#fff' : ghostDelta < 0 ? '#4ade80' : '#f87171'
-  const deltaText  = ghostDelta === null ? '' : (ghostDelta < 0 ? '-' : '+') + formatTime(Math.abs(ghostDelta))
+  const deltaText  = ghostDelta === null ? '' : formatDelta(ghostDelta)
 
   return (
     <div className="arcade-root monaco-root">
@@ -985,7 +1000,7 @@ export default function ArcadeRace({ onClose }) {
           {ghostDelta !== null && showGhost && (
             <div className="monaco-ghost-delta">
               <span className="arcade-hud-bar-label">vs Ghost</span>
-              <span className="arcade-hud-bar-value" style={{color: deltaColor, fontSize:'1rem'}}>{deltaText}</span>
+              <span className="arcade-hud-bar-value" style={{color: deltaColor}}>{deltaText}</span>
             </div>
           )}
           {hasGhost && (
