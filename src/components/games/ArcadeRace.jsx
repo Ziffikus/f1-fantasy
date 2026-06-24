@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useRaceWeekends } from '../../hooks/useRaceWeekends'
 import { ALL_TRACKS, getTrackUnlockStatus, getCurrentTrackId } from './tracks'
-import './MonacoTraining.css'
+import './ArcadeRace.css'
 
 // ── Mathematische Kurvenglättung (Catmull-Rom-Spline) ────────────────────────
 
@@ -1112,18 +1112,17 @@ export default function ArcadeRace({ onClose }) {
         )}
 
         {gameState==='finished' && (
-          <div className="arcade-overlay" style={{padding:'0.5rem',overflowY:'hidden',justifyContent:'center',alignItems:'center'}}>
-            <div className="arcade-finish-card monaco-finish-card" style={{width:'min(360px,96vw)',padding:'0.75rem',gap:'0.4rem',boxSizing:'border-box'}}>
-              {/* Titel + Zeiten: eine kompakte Zeile */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.3rem 0.75rem',width:'100%',marginBottom:'0.25rem'}}>
-                <div style={{display:'flex',flexDirection:'column'}}>
-                  <span style={{fontSize:'0.55rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>🏁 RUNDENZEIT</span>
-                  <span style={{fontFamily:'monospace',fontSize:'1.05rem',fontWeight:800,color:'#4ade80'}}>{formatTime(totalTime)}</span>
+          <div className="arcade-overlay arcade-overlay--finish">
+            <div className="arcade-finish-card">
+              <div className="arcade-finish-times">
+                <div className="arcade-finish-time-col">
+                  <span className="arcade-hud-bar-label">🏁 RUNDENZEIT</span>
+                  <span className="arcade-finish-time-value">{formatTime(totalTime)}</span>
                 </div>
                 {bestLap && (
-                  <div style={{display:'flex',flexDirection:'column'}}>
-                    <span style={{fontSize:'0.55rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>BESTZEIT</span>
-                    <span style={{fontFamily:'monospace',fontSize:'1.05rem',fontWeight:800,color:'#4ade80'}}>{formatTime(bestLap)}</span>
+                  <div className="arcade-finish-time-col">
+                    <span className="arcade-hud-bar-label">BESTZEIT</span>
+                    <span className="arcade-finish-time-value">{formatTime(bestLap)}</span>
                   </div>
                 )}
               </div>
@@ -1158,30 +1157,25 @@ export default function ArcadeRace({ onClose }) {
                 const hasGhost = ghostSectors.length > 0 && ghostLapMs != null
                 const totalDelta = hasGhost ? totalTime - ghostLapMs : null
                 const cols = hasGhost ? '2.2rem 1fr 1fr 3.2rem' : '2.2rem 1fr'
-                const lbl = {fontSize:'0.6rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',display:'flex',alignItems:'center'}
-                const num = {fontFamily:'monospace',fontSize:'0.9rem',fontWeight:700,color:'#fff',textAlign:'right'}
-                const ghost = {fontFamily:'monospace',fontSize:'0.9rem',color:'rgba(100,181,246,0.85)',textAlign:'right'}
-                const dstyle = (d) => ({fontFamily:'monospace',fontSize:'0.78rem',fontWeight:700,textAlign:'right',color:d==null?'transparent':d<0?'#4ade80':'#f87171'})
-                const th = {fontSize:'0.58rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'rgba(255,255,255,0.3)',textAlign:'right'}
-                const divider = {gridColumn:'1/-1',height:'1px',background:'rgba(255,255,255,0.08)',margin:'0.1rem 0'}
+                const dstyle = (d) => ({color:d==null?'transparent':d<0?'#4ade80':'#f87171'})
                 return (
-                  <div style={{display:'grid',gridTemplateColumns:cols,columnGap:'0.5rem',rowGap:'0.3rem',width:'100%',borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:'0.4rem'}}>
-                    {hasGhost && <><span/><span style={th}>Du</span><span style={{...th,color:'rgba(100,181,246,0.5)'}}>👻</span><span/></>}
+                  <div className="arcade-finish-sectors" style={{gridTemplateColumns:cols}}>
+                    {hasGhost && <><span/><span className="arcade-sector-th">Du</span><span className="arcade-sector-th arcade-sector-th--ghost">👻</span><span/></>}
                     {rows.map(({label,duration,ghostDur,delta}) => (
                       <React.Fragment key={label}>
-                        <span style={lbl}>{label}</span>
-                        <span style={num}>{duration!=null?formatSectorTime(duration):'--'}</span>
-                        {hasGhost && <span style={ghost}>{ghostDur!=null?formatSectorTime(ghostDur):'--'}</span>}
-                        {hasGhost && <span style={dstyle(delta)}>{delta!=null?formatDelta(delta):''}</span>}
+                        <span className="arcade-sector-lbl">{label}</span>
+                        <span className="arcade-sector-num">{duration!=null?formatSectorTime(duration):'--'}</span>
+                        {hasGhost && <span className="arcade-sector-ghost">{ghostDur!=null?formatSectorTime(ghostDur):'--'}</span>}
+                        {hasGhost && <span className="arcade-sector-delta" style={dstyle(delta)}>{delta!=null?formatDelta(delta):''}</span>}
                       </React.Fragment>
                     ))}
-                    {hasGhost && <div style={divider}/>}
+                    {hasGhost && <div className="arcade-sector-divider"/>}
                     {hasGhost && (
                       <React.Fragment>
-                        <span style={lbl}>Ges.</span>
-                        <span style={{...num,fontWeight:900}}>{formatSectorTime(totalTime)}</span>
-                        <span style={{...ghost}}>{formatSectorTime(ghostLapMs)}</span>
-                        <span style={dstyle(totalDelta)}>{totalDelta!=null?formatDelta(totalDelta):''}</span>
+                        <span className="arcade-sector-lbl">Ges.</span>
+                        <span className="arcade-sector-num arcade-sector-num--total">{formatSectorTime(totalTime)}</span>
+                        <span className="arcade-sector-ghost">{formatSectorTime(ghostLapMs)}</span>
+                        <span className="arcade-sector-delta" style={dstyle(totalDelta)}>{totalDelta!=null?formatDelta(totalDelta):''}</span>
                       </React.Fragment>
                     )}
                   </div>
@@ -1189,16 +1183,16 @@ export default function ArcadeRace({ onClose }) {
               })()}
 
               {/* Speicher-Status + Nochmal-Button: kompakt unten */}
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.3rem',paddingTop:'0.4rem',width:'100%'}}>
-                {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8',fontSize:'0.8rem'}}>⏳ Speichern…</div>}
-                {!saving && saved && <div className="arcade-finish-saved" style={{fontSize:'0.8rem'}}>✅ Neuer Rekord gespeichert!</div>}
+              <div className="arcade-finish-footer">
+                {saving && <div className="arcade-finish-saved arcade-finish-saved--muted">⏳ Speichern…</div>}
+                {!saving && saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
                 {!saving && saveError && (
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.25rem'}}>
-                    <div className="arcade-finish-saved" style={{color:'#f87171',fontSize:'0.8rem'}}>❌ Speichern fehlgeschlagen</div>
-                    <button className="btn" style={{fontSize:'0.75rem',padding:'0.25rem 0.75rem'}} onClick={retrySave}>🔄 Nochmal</button>
+                  <div className="arcade-finish-error">
+                    <div className="arcade-finish-saved arcade-finish-saved--error">❌ Speichern fehlgeschlagen</div>
+                    <button className="btn" onClick={retrySave}>🔄 Nochmal</button>
                   </div>
                 )}
-                <button className="btn btn-primary" onClick={startGame} style={{width:'100%',marginTop:'0.1rem'}}>Nochmal</button>
+                <button className="btn btn-primary arcade-finish-replay-btn" onClick={startGame}>Nochmal</button>
               </div>
             </div>
           </div>
@@ -1219,29 +1213,29 @@ export default function ArcadeRace({ onClose }) {
       </div>
 
       {(gameState==='racing' || gameState==='finished' || gameState==='countdown') && (
-        <div className="arcade-hud-bar monaco-hud-bar" style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',columnGap:'0.5rem',padding:'0.3rem 0.6rem',alignItems:'center'}}>
-          <div style={{display:'flex',flexDirection:'column',lineHeight:1.1}}>
-            <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>ZEIT</span>
-            <span className="arcade-hud-bar-value" style={{fontSize:'1rem',fontWeight:800,fontFamily:'monospace'}}>
+        <div className="arcade-hud-bar">
+          <div className="arcade-hud-col">
+            <span className="arcade-hud-bar-label">ZEIT</span>
+            <span className="arcade-hud-bar-value">
               {currentLapTime !== null ? formatTime(currentLapTime) : '--:--.---'}
             </span>
           </div>
-          <div style={{display:'flex',flexDirection:'column',lineHeight:1.1}}>
-            <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>BEST</span>
-            <span className="arcade-hud-bar-value arcade-hud-bar-value--green" style={{fontSize:'1rem',fontWeight:800,fontFamily:'monospace'}}>
+          <div className="arcade-hud-col">
+            <span className="arcade-hud-bar-label">BEST</span>
+            <span className="arcade-hud-bar-value arcade-hud-bar-value--green">
               {bestLap ? formatTime(bestLap) : '--:--.---'}
             </span>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:'0.2rem',alignItems:'flex-end'}}>
+          <div className="arcade-hud-buttons">
             {hasGhost && (
-              <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45,touchAction:'none',fontSize:'0.65rem',padding:'0.15rem 0.35rem'}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
+              <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
             )}
-            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35,touchAction:'none',fontSize:'0.65rem',padding:'0.15rem 0.35rem'}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
+            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
           </div>
           {ghostDelta !== null && showGhost && (
-            <div style={{gridColumn:'1/-1',display:'flex',alignItems:'center',gap:'0.4rem',paddingTop:'0.15rem',borderTop:'1px solid rgba(255,255,255,0.07)',marginTop:'0.1rem'}}>
-              <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>VS GHOST</span>
-              <span style={{fontFamily:'monospace',fontSize:'0.85rem',fontWeight:800,color:deltaColor}}>{deltaText}</span>
+            <div className="arcade-hud-ghost-row">
+              <span className="arcade-hud-bar-label">VS GHOST</span>
+              <span className="arcade-hud-delta-value" style={{color:deltaColor}}>{deltaText}</span>
             </div>
           )}
         </div>
@@ -1283,44 +1277,24 @@ export default function ArcadeRace({ onClose }) {
       </div>
 
       {/* ── Persistente Strecken- & Modus-Auswahl ── */}
-      <div style={{
-        width:'100%', maxWidth:'720px',
-        background:'#16161f', border:'1px solid rgba(255,255,255,0.08)',
-        borderRadius:'8px', padding:'1.25rem',
-        display:'flex', flexDirection:'column', gap:'1.25rem',
-      }}>
+      <div className="arcade-settings-wrap">
         {ALL_TRACKS.length > 1 && (
-          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-            <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Strecke</div>
-            <div style={{display:'grid', gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)', gap:'0.5rem'}}>
+          <div className="arcade-settings-section">
+            <div className="arcade-settings-label">Strecke</div>
+            <div className="arcade-settings-grid" style={{gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)'}}>
               {ALL_TRACKS.map(t => {
                 const status = trackUnlockStatus[t.id]
                 const isLocked = status && !status.unlocked
                 return (
                   <button key={t.id}
+                    className={`arcade-settings-btn${selectedTrackId === t.id ? ' arcade-settings-btn--active-yellow' : ''}`}
                     onClick={() => selectTrack(t.id)}
                     disabled={isLocked}
                     title={isLocked ? `Freigeschaltet ab ${new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit', year:'numeric' })}` : undefined}
-                    style={{
-                      all:'unset', boxSizing:'border-box',
-                      display:'flex', flexDirection:'column', alignItems:'center', gap:'0.15rem',
-                      width:'100%',
-                      padding:'0.85rem 0.5rem',
-                      fontSize:'0.9rem', fontWeight:800,
-                      fontFamily:"'Barlow Condensed', sans-serif",
-                      letterSpacing:'0.05em', textTransform:'uppercase',
-                      textAlign:'center', cursor: isLocked ? 'not-allowed' : 'pointer',
-                      borderRadius:'8px',
-                      border: selectedTrackId === t.id ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
-                      background: isLocked ? '#17171f' : (selectedTrackId === t.id ? 'rgba(232,196,64,0.15)' : '#1e1e2a'),
-                      color: isLocked ? '#45455a' : (selectedTrackId === t.id ? '#e8c440' : '#8888a0'),
-                      opacity: isLocked ? 0.6 : 1,
-                      transition:'all 0.15s',
-                    }}
                   >
                     <span>{isLocked ? '🔒' : (t.emoji ?? '🏎️')} {t.name}</span>
                     {isLocked && status?.unlockAt && (
-                      <span style={{fontSize:'0.6rem', fontWeight:600, letterSpacing:'0.03em', color:'#55556a'}}>
+                      <span className="arcade-settings-btn-sub">
                         ab {new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit' })}
                       </span>
                     )}
@@ -1331,52 +1305,26 @@ export default function ArcadeRace({ onClose }) {
           </div>
         )}
 
-        <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-          <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Modus</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
+        <div className="arcade-settings-section">
+          <div className="arcade-settings-label">Modus</div>
+          <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
             {[['qualifying','🏆 Qualifying'],['section','🔧 Abschnitt']].map(([mode, label]) => (
               <button key={mode}
+                className={`arcade-settings-btn${trainMode === mode ? ' arcade-settings-btn--active-red' : ''}`}
                 onClick={() => { setTrainMode(mode); if(mode==='qualifying') setSelectedEntry(0) }}
-                style={{
-                  all:'unset', boxSizing:'border-box',
-                  display:'block', width:'100%',
-                  padding:'0.85rem 0.5rem',
-                  fontSize:'0.9rem', fontWeight:800,
-                  fontFamily:"'Barlow Condensed', sans-serif",
-                  letterSpacing:'0.05em', textTransform:'uppercase',
-                  textAlign:'center', cursor:'pointer',
-                  borderRadius:'8px',
-                  border: trainMode === mode ? '2px solid #E8002D' : '1px solid rgba(255,255,255,0.08)',
-                  background: trainMode === mode ? 'rgba(232,0,45,0.15)' : '#1e1e2a',
-                  color: trainMode === mode ? '#E8002D' : '#8888a0',
-                  transition:'all 0.15s',
-                }}
               >{label}</button>
             ))}
           </div>
         </div>
 
         {trainMode==='section' && ENTRY_POINTS.length > 0 && (
-          <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-            <div style={{fontSize:'0.65rem',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'#55556a'}}>Einstiegspunkt</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
+          <div className="arcade-settings-section">
+            <div className="arcade-settings-label">Einstiegspunkt</div>
+            <div className="arcade-settings-grid" style={{gridTemplateColumns:'1fr 1fr'}}>
               {ENTRY_POINTS.map((ep, i) => (
                 <button key={i}
+                  className={`arcade-settings-btn${selectedEntry === i ? ' arcade-settings-btn--active-yellow' : ''}`}
                   onClick={() => setSelectedEntry(i)}
-                  style={{
-                    all:'unset', boxSizing:'border-box',
-                    display:'block', width:'100%',
-                    padding:'0.85rem 0.5rem',
-                    fontSize:'0.9rem', fontWeight:800,
-                    fontFamily:"'Barlow Condensed', sans-serif",
-                    letterSpacing:'0.05em', textTransform:'uppercase',
-                    textAlign:'center', cursor:'pointer',
-                    borderRadius:'8px',
-                    border: selectedEntry === i ? '2px solid #e8c440' : '1px solid rgba(255,255,255,0.08)',
-                    background: selectedEntry === i ? 'rgba(232,196,64,0.15)' : '#1e1e2a',
-                    color: selectedEntry === i ? '#e8c440' : '#8888a0',
-                    transition:'all 0.15s',
-                  }}
                 >{ep.emoji} {ep.label}</button>
               ))}
             </div>
@@ -1384,7 +1332,7 @@ export default function ArcadeRace({ onClose }) {
         )}
 
         {trainMode==='qualifying' && (
-          <p style={{fontSize:'0.72rem',color:'#55556a',margin:0}}>
+          <p className="arcade-settings-hint">
             Start/Ziel bei {ENTRY_POINTS[0]?.emoji ?? '①'} · vollständige Runde
           </p>
         )}
