@@ -1226,8 +1226,11 @@ export default function ArcadeRace({ onClose }) {
           <div className="arcade-hud-col">
             <span className="arcade-hud-bar-label">ZEIT</span>
             <span className="arcade-hud-bar-value">
-              {currentLapTime !== null ? formatTime(currentLapTime) : '--:--.---'}
+              {gameState === 'finished' ? formatTime(totalTime) : currentLapTime !== null ? formatTime(currentLapTime) : '--:--.---'}
             </span>
+            {ghostDelta !== null && showGhost && (
+              <span className="arcade-hud-delta-inline" style={{color:deltaColor}}>{deltaText}</span>
+            )}
           </div>
           <div className="arcade-hud-col">
             <span className="arcade-hud-bar-label">BEST</span>
@@ -1241,12 +1244,6 @@ export default function ArcadeRace({ onClose }) {
             )}
             <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
           </div>
-          {ghostDelta !== null && showGhost && (
-            <div className="arcade-hud-ghost-row">
-              <span className="arcade-hud-bar-label">VS GHOST</span>
-              <span className="arcade-hud-delta-value" style={{color:deltaColor}}>{deltaText}</span>
-            </div>
-          )}
         </div>
       )}
 

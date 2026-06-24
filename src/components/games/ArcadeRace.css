@@ -254,8 +254,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  flex-wrap: wrap;
-  row-gap: 0.25rem;
+  flex-wrap: nowrap;
   overflow: hidden;
 }
 
@@ -289,27 +288,20 @@
   color: #4ade80;
 }
 
+/* Ghost-Delta direkt unter der Zeitanzeige – kein Zeilenumbruch */
+.arcade-hud-delta-inline {
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 .arcade-hud-buttons {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   flex-shrink: 0;
-}
-
-.arcade-hud-ghost-row {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.05rem;
-  width: 4.5rem;
-  flex-shrink: 0;
-}
-
-.arcade-hud-delta-value {
-  font-family: monospace;
-  font-size: 1rem;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .arcade-hud-ghost-toggle {
