@@ -480,14 +480,20 @@ export default function ArcadeRace({ onClose }) {
         // Deduplizieren: Frames mit identischem t entfernen
         frames = frames.filter((f, i) => i === 0 || f.t !== frames[i - 1].t)
 
-        // Re-timestampen: egal wie der Ghost aufgenommen wurde (alter Bug,
-        // physicsElapsedMs, Wall-Clock-Jitter) — wir verteilen die Frames
-        // gleichmäßig auf die gespeicherte Gesamtzeit. So ist der Abstand
-        // zwischen je zwei Frames immer identisch → kein Ruckeln beim Playback.
+        // Alten Ghosts haben einen t=0-Frame mit der stehenden Startposition
+        // (aufgenommen bevor der erste Physik-Step lief). Den wegwerfen —
+        // er verfälscht das Re-timestamping und macht den Ghost einen Step zu spät.
+        if (frames.length > 1 && frames[0].t === 0 && frames[1].t > 0) {
+          frames = frames.slice(1)
+        }
+
+        // Re-timestampen: alle Ghosts (alt und neu) auf gleichmäßige physicsElapsedMs-
+        // Schritte normalisieren. Erster Frame = step, letzter Frame = lapTimeMs.
+        // Damit ist Playback (physicsElapsedMs im Sub-Step-Loop) immer synchron.
         const totalMs = data.lapTimeMs
         if (frames.length > 1 && totalMs > 0) {
           const step = totalMs / frames.length
-          frames = frames.map((f, i) => ({ ...f, t: Math.round(i * step) }))
+          frames = frames.map((f, i) => ({ ...f, t: Math.round((i + 1) * step) }))
         }
         return frames
       }
@@ -564,7 +570,6 @@ export default function ArcadeRace({ onClose }) {
     let currentSectorMs = Array(N_SECTORS).fill(null)
     let lastSector = 0
     let physicsElapsedMs = 0  // Physik-Zeit in ms (deterministisch, unabhängig von Framerate)
-    let ghostElapsedMs   = 0  // Ghost-Playback-Zeit: Wall-Clock, gecappt auf 250ms/Frame
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -586,7 +591,7 @@ export default function ArcadeRace({ onClose }) {
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
-      currentRecording = []; lastSector = 0; physicsElapsedMs = 0; ghostElapsedMs = 0
+      currentRecording = []; lastSector = 0; physicsElapsedMs = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
@@ -1087,57 +1092,39 @@ export default function ArcadeRace({ onClose }) {
         }
         prevSeg = seg
 
-        // ── Ghost-Aufnahme: interpolierter Wall-Clock-Timestamp pro Sub-Step ──
-        // ts ist der Frame-Timestamp. Bei mehreren Sub-Steps pro Frame wird der
-        // Timestamp gleichmäßig rückwärts interpoliert (Step 0 = ältester).
-        // So hat jeder Frame einen eindeutigen, gleichmäßigen Zeitstempel —
-        // identisch zur ghostElapsedMs-Zeitbasis beim Playback.
+        // ── Ghost-Aufnahme & Playback: beide im Sub-Step-Loop mit physicsElapsedMs ──
+        // physicsElapsedMs wächst exakt um STEP*1000 pro Sub-Step — deterministisch,
+        // framerate-unabhängig. Aufnahme und Wiedergabe laufen auf derselben Zeitachse.
         if (lapStarted && startTimeMs !== null) {
-          // stepsRan ist nach dem letzten Step der Zähler; wir rechnen rückwärts:
-          // aktueller Step ist stepsRan-ter Step dieses Frames.
-          const stepT = Math.round(ts - startTimeMs - (stepsRan - 1) * STEP * 1000)
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.max(0, stepT) })
-        }
+          physicsElapsedMs += STEP * 1000
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: physicsElapsedMs })
 
-        } // end sub-step while loop
-
-        // Ghost-Update: einmal pro Frame (außerhalb Sub-Steps)
-        if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
-          // ghostElapsedMs läuft auf Wall-Clock-Basis (frameDt ist bereits auf 250ms gecappt).
-          // Das ist korrekt: Ghost wurde in Echtzeit aufgenommen, also muss er auch in
-          // Echtzeit abgespielt werden – unabhängig davon wie viele Physik-Sub-Steps pro
-          // Frame liefen (auf 120Hz wären das 2 Steps → physicsElapsedMs liefe doppelt schnell).
-          ghostElapsedMs += frameDt * 1000
-          const rawElapsed = ghostStartOffset + ghostElapsedMs
-          const lastGhostT = ghostFrames[ghostIdx]?.t ?? 0
-          const elapsed = Math.min(rawElapsed, lastGhostT + frameDt * 1000 + STEP * 1000 * 4)
-          const firstFrameT = ghostFrames[0].t ?? 0
-          if (elapsed <= firstFrameT) {
-            ghostCar = { ...ghostFrames[0], angle: ghostFrames[0].angle ?? ghostFrames[0].a }
-          } else {
-            while (ghostIdx < ghostFrames.length - 1 && (ghostFrames[ghostIdx + 1].t ?? (ghostIdx + 1) * 16) <= elapsed) {
+          // Ghost-Playback im selben Sub-Step: Ghost-Position für physicsElapsedMs berechnen
+          if (ghostFrames.length > 0) {
+            const elapsed = ghostStartOffset + physicsElapsedMs
+            while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
               ghostIdx++
             }
             const f0 = ghostFrames[ghostIdx]
             const f1 = ghostFrames[ghostIdx + 1]
             if (f1) {
-              const t0 = f0.t ?? ghostIdx * 16
-              const t1 = f1.t ?? (ghostIdx + 1) * 16
-              const span = t1 - t0
-              const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - t0) / span)) : 0
-              let da = ((f1.angle ?? f1.a) - (f0.angle ?? f0.a))
+              const span = f1.t - f0.t
+              const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - f0.t) / span)) : 0
+              let da = (f1.angle - f0.angle)
               if (da >  Math.PI) da -= Math.PI * 2
               if (da < -Math.PI) da += Math.PI * 2
               ghostCar = {
                 x:     f0.x + (f1.x - f0.x) * frac,
                 y:     f0.y + (f1.y - f0.y) * frac,
-                angle: (f0.angle ?? f0.a) + da * frac,
+                angle: f0.angle + da * frac,
               }
             } else {
-              ghostCar = { ...f0, angle: f0.angle ?? f0.a }
+              ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
             }
           }
         }
+
+        } // end sub-step while loop
 
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
