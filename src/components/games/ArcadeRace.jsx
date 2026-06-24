@@ -1112,22 +1112,23 @@ export default function ArcadeRace({ onClose }) {
         )}
 
         {gameState==='finished' && (
-          <div className="arcade-overlay" style={{overflowY:'auto',alignItems:'flex-start',paddingTop:'0.5rem',paddingBottom:'0.5rem'}}>
-            <div className="arcade-finish-card monaco-finish-card" style={{maxHeight:'calc(100dvh - 1rem)',overflowY:'auto',width:'min(340px,92vw)'}}>
-              <div className="arcade-finish-title">🏁 Ziel!</div>
-              <div className="arcade-finish-row">
-                <span>Rundenzeit</span>
-                <span style={{color:'#4ade80'}}>{formatTime(totalTime)}</span>
-              </div>
-              {bestLap && (
-                <div className="arcade-finish-row">
-                  <span>Bestzeit</span>
-                  <span style={{color:'#4ade80'}}>{formatTime(bestLap)}</span>
+          <div className="arcade-overlay" style={{padding:'0.5rem',overflowY:'hidden',justifyContent:'center',alignItems:'center'}}>
+            <div className="arcade-finish-card monaco-finish-card" style={{width:'min(360px,96vw)',padding:'0.75rem',gap:'0.4rem',boxSizing:'border-box'}}>
+              {/* Titel + Zeiten: eine kompakte Zeile */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.3rem 0.75rem',width:'100%',marginBottom:'0.25rem'}}>
+                <div style={{display:'flex',flexDirection:'column'}}>
+                  <span style={{fontSize:'0.55rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>🏁 RUNDENZEIT</span>
+                  <span style={{fontFamily:'monospace',fontSize:'1.05rem',fontWeight:800,color:'#4ade80'}}>{formatTime(totalTime)}</span>
                 </div>
-              )}
+                {bestLap && (
+                  <div style={{display:'flex',flexDirection:'column'}}>
+                    <span style={{fontSize:'0.55rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>BESTZEIT</span>
+                    <span style={{fontFamily:'monospace',fontSize:'1.05rem',fontWeight:800,color:'#4ade80'}}>{formatTime(bestLap)}</span>
+                  </div>
+                )}
+              </div>
 
               {(() => {
-                // Alle Sektor-Daten vorberechnen
                 const rows = Array.from({length: N_SECTORS}, (_, i) => {
                   let duration = null
                   if (i === 0) {
@@ -1156,60 +1157,49 @@ export default function ArcadeRace({ onClose }) {
                 })
                 const hasGhost = ghostSectors.length > 0 && ghostLapMs != null
                 const totalDelta = hasGhost ? totalTime - ghostLapMs : null
-
-                // Spalten: Label | Spieler | Ghost | Delta
-                const cols = hasGhost
-                  ? '2rem 1fr 1fr 3.4rem'
-                  : '2rem 1fr'
-
-                const labelStyle = {fontSize:'0.6rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',paddingTop:'0.05rem'}
-                const playerStyle = {fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'#fff',textAlign:'right'}
-                const ghostStyle  = {fontFamily:'monospace',fontSize:'0.88rem',color:'rgba(100,181,246,0.8)',textAlign:'right'}
-                const deltaStyle  = (d) => ({fontFamily:'monospace',fontSize:'0.75rem',fontWeight:700,textAlign:'right',color: d == null ? 'transparent' : d < 0 ? '#4ade80' : '#f87171'})
-                const divider     = {gridColumn:'1/-1',height:'1px',background:'rgba(255,255,255,0.08)',margin:'0.15rem 0'}
-                const thStyle     = {fontSize:'0.58rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'rgba(255,255,255,0.3)',textAlign:'right',paddingBottom:'0.1rem'}
-
+                const cols = hasGhost ? '2.2rem 1fr 1fr 3.2rem' : '2.2rem 1fr'
+                const lbl = {fontSize:'0.6rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',display:'flex',alignItems:'center'}
+                const num = {fontFamily:'monospace',fontSize:'0.9rem',fontWeight:700,color:'#fff',textAlign:'right'}
+                const ghost = {fontFamily:'monospace',fontSize:'0.9rem',color:'rgba(100,181,246,0.85)',textAlign:'right'}
+                const dstyle = (d) => ({fontFamily:'monospace',fontSize:'0.78rem',fontWeight:700,textAlign:'right',color:d==null?'transparent':d<0?'#4ade80':'#f87171'})
+                const th = {fontSize:'0.58rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'rgba(255,255,255,0.3)',textAlign:'right'}
+                const divider = {gridColumn:'1/-1',height:'1px',background:'rgba(255,255,255,0.08)',margin:'0.1rem 0'}
                 return (
-                  <div style={{display:'grid',gridTemplateColumns:cols,columnGap:'0.7rem',rowGap:'0.4rem',width:'100%',paddingTop:'0.5rem'}}>
-                    {/* Header */}
-                    {hasGhost && (<>
-                      <span/>
-                      <span style={{...thStyle}}>Du</span>
-                      <span style={{...thStyle,color:'rgba(100,181,246,0.5)'}}>👻</span>
-                      <span/>
-                    </>)}
-
-                    {/* Sektoren */}
-                    {rows.map(({label, duration, ghostDur, delta}) => (<>
-                      <span key={label+'l'} style={labelStyle}>{label}</span>
-                      <span key={label+'p'} style={playerStyle}>{duration != null ? formatSectorTime(duration) : '--'}</span>
-                      {hasGhost && <span key={label+'g'} style={ghostStyle}>{ghostDur != null ? formatSectorTime(ghostDur) : '--'}</span>}
-                      {hasGhost && <span key={label+'d'} style={deltaStyle(delta)}>{delta != null ? formatDelta(delta) : ''}</span>}
-                    </>))}
-
-                    {/* Trennlinie */}
-                    {hasGhost && <div key="div" style={divider}/>}
-
-                    {/* Gesamtzeile */}
-                    {hasGhost && (<>
-                      <span style={labelStyle}>Ges.</span>
-                      <span style={playerStyle}>{formatSectorTime(totalTime)}</span>
-                      <span style={ghostStyle}>{formatSectorTime(ghostLapMs)}</span>
-                      <span style={deltaStyle(totalDelta)}>{totalDelta != null ? formatDelta(totalDelta) : ''}</span>
-                    </>)}
+                  <div style={{display:'grid',gridTemplateColumns:cols,columnGap:'0.5rem',rowGap:'0.3rem',width:'100%',borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:'0.4rem'}}>
+                    {hasGhost && <><span/><span style={th}>Du</span><span style={{...th,color:'rgba(100,181,246,0.5)'}}>👻</span><span/></>}
+                    {rows.map(({label,duration,ghostDur,delta}) => (
+                      <React.Fragment key={label}>
+                        <span style={lbl}>{label}</span>
+                        <span style={num}>{duration!=null?formatSectorTime(duration):'--'}</span>
+                        {hasGhost && <span style={ghost}>{ghostDur!=null?formatSectorTime(ghostDur):'--'}</span>}
+                        {hasGhost && <span style={dstyle(delta)}>{delta!=null?formatDelta(delta):''}</span>}
+                      </React.Fragment>
+                    ))}
+                    {hasGhost && <div style={divider}/>}
+                    {hasGhost && (
+                      <React.Fragment>
+                        <span style={lbl}>Ges.</span>
+                        <span style={{...num,fontWeight:900}}>{formatSectorTime(totalTime)}</span>
+                        <span style={{...ghost}}>{formatSectorTime(ghostLapMs)}</span>
+                        <span style={dstyle(totalDelta)}>{totalDelta!=null?formatDelta(totalDelta):''}</span>
+                      </React.Fragment>
+                    )}
                   </div>
                 )
               })()}
 
-              {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8'}}>⏳ Speichern…</div>}
-              {!saving && saved && <div className="arcade-finish-saved">✅ Neuer Rekord gespeichert!</div>}
-              {!saving && saveError && (
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.3rem'}}>
-                  <div className="arcade-finish-saved" style={{color:'#f87171'}}>❌ Speichern fehlgeschlagen</div>
-                  <button className="btn" style={{fontSize:'0.75rem',padding:'0.25rem 0.75rem'}} onClick={retrySave}>🔄 Nochmal</button>
-                </div>
-              )}
-              <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.75rem'}}>Nochmal</button>
+              {/* Speicher-Status + Nochmal-Button: kompakt unten */}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.3rem',paddingTop:'0.4rem',width:'100%'}}>
+                {saving && <div className="arcade-finish-saved" style={{color:'#94a3b8',fontSize:'0.8rem'}}>⏳ Speichern…</div>}
+                {!saving && saved && <div className="arcade-finish-saved" style={{fontSize:'0.8rem'}}>✅ Neuer Rekord gespeichert!</div>}
+                {!saving && saveError && (
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.25rem'}}>
+                    <div className="arcade-finish-saved" style={{color:'#f87171',fontSize:'0.8rem'}}>❌ Speichern fehlgeschlagen</div>
+                    <button className="btn" style={{fontSize:'0.75rem',padding:'0.25rem 0.75rem'}} onClick={retrySave}>🔄 Nochmal</button>
+                  </div>
+                )}
+                <button className="btn btn-primary" onClick={startGame} style={{width:'100%',marginTop:'0.1rem'}}>Nochmal</button>
+              </div>
             </div>
           </div>
         )}
@@ -1229,37 +1219,31 @@ export default function ArcadeRace({ onClose }) {
       </div>
 
       {(gameState==='racing' || gameState==='finished' || gameState==='countdown') && (
-        <div className="arcade-hud-bar monaco-hud-bar">
-          <div className="arcade-hud-bar-time">
-            <span className="arcade-hud-bar-label">Zeit</span>
-            <span className="arcade-hud-bar-value">
+        <div className="arcade-hud-bar monaco-hud-bar" style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',columnGap:'0.5rem',padding:'0.3rem 0.6rem',alignItems:'center'}}>
+          <div style={{display:'flex',flexDirection:'column',lineHeight:1.1}}>
+            <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>ZEIT</span>
+            <span className="arcade-hud-bar-value" style={{fontSize:'1rem',fontWeight:800,fontFamily:'monospace'}}>
               {currentLapTime !== null ? formatTime(currentLapTime) : '--:--.---'}
             </span>
           </div>
-          {bestLap && (
-            <div className="arcade-hud-bar-best">
-              <span className="arcade-hud-bar-label">Best</span>
-              <span className="arcade-hud-bar-value arcade-hud-bar-value--green">{formatTime(bestLap)}</span>
-            </div>
-          )}
+          <div style={{display:'flex',flexDirection:'column',lineHeight:1.1}}>
+            <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>BEST</span>
+            <span className="arcade-hud-bar-value arcade-hud-bar-value--green" style={{fontSize:'1rem',fontWeight:800,fontFamily:'monospace'}}>
+              {bestLap ? formatTime(bestLap) : '--:--.---'}
+            </span>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.2rem',alignItems:'flex-end'}}>
+            {hasGhost && (
+              <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45,touchAction:'none',fontSize:'0.65rem',padding:'0.15rem 0.35rem'}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
+            )}
+            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35,touchAction:'none',fontSize:'0.65rem',padding:'0.15rem 0.35rem'}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
+          </div>
           {ghostDelta !== null && showGhost && (
-            <div className="monaco-ghost-delta">
-              <span className="arcade-hud-bar-label">vs Ghost</span>
-              <span className="arcade-hud-bar-value" style={{color: deltaColor}}>{deltaText}</span>
+            <div style={{gridColumn:'1/-1',display:'flex',alignItems:'center',gap:'0.4rem',paddingTop:'0.15rem',borderTop:'1px solid rgba(255,255,255,0.07)',marginTop:'0.1rem'}}>
+              <span className="arcade-hud-bar-label" style={{fontSize:'0.55rem'}}>VS GHOST</span>
+              <span style={{fontFamily:'monospace',fontSize:'0.85rem',fontWeight:800,color:deltaColor}}>{deltaText}</span>
             </div>
           )}
-          {hasGhost && (
-            <button
-              className="arcade-hud-ghost-toggle"
-              style={{opacity: showGhost ? 1 : 0.45, touchAction:'none'}}
-              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowGhost(v=>!v)}}
-            >{showGhost ? '👻 AN' : '👻 AUS'}</button>
-          )}
-          <button
-            className="arcade-hud-ghost-toggle"
-            style={{opacity: showFps ? 1 : 0.35, touchAction:'none'}}
-            onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowFps(v=>!v)}}
-          >FPS</button>
         </div>
       )}
 
