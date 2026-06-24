@@ -479,12 +479,6 @@ export default function ArcadeRace({ onClose }) {
         }))
         // Deduplizieren: Frames mit identischem t entfernen
         frames = frames.filter((f, i) => i === 0 || f.t !== frames[i - 1].t)
-
-        // Alter Ghost-Bug: erster Frame hat t=0 mit stehender Startposition —
-        // vor dem ersten Physik-Step aufgenommen. Wegwerfen.
-        if (frames.length > 1 && frames[0].t === 0) {
-          frames = frames.slice(1)
-        }
         return frames
       }
 
@@ -980,8 +974,10 @@ export default function ArcadeRace({ onClose }) {
       // Uhr starten: exakt im ersten Frame wo racing=true wird
       if (racing && startTimeMs === null) {
         startTimeMs = ts
-        // Ghost-Startzeit auf denselben Moment synchronisieren
         ghostStartOffset = 0
+        // t=0-Frame: Startposition bevor erstes Sub-Step — spiegelt altes Ghost-Format
+        // und stellt sicher dass Ghost-Interpolation korrekt von Position 0 beginnt.
+        currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: 0 })
       }
 
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
