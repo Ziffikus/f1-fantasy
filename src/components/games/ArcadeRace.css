@@ -1,9 +1,21 @@
+/* ═══════════════════════════════════════════════════════════════
+   ArcadeRace.css
+   Alle Stile für ArcadeRace.jsx – kein MonacoTraining.css mehr.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Root ────────────────────────────────────────────────────── */
 .arcade-root {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
   align-items: center;
   padding: 0;
+}
+
+@media (max-width: 600px) {
+  .arcade-root {
+    gap: 0.4rem;
+  }
 }
 
 /* ── Game Canvas ─────────────────────────────────────────────── */
@@ -17,9 +29,6 @@
 }
 
 @media (max-width: 600px) {
-  .arcade-root {
-    gap: 0.4rem;
-  }
   .arcade-game-wrap {
     border-radius: 0;
     border-left: none;
@@ -37,36 +46,200 @@
   background: #1a1a2e;
 }
 
-/* ── Edit-Mode Buttons (oben rechts im Canvas) ───────────────── */
-.arcade-edit-buttons {
+/* ── Overlays ────────────────────────────────────────────────── */
+.arcade-overlay {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  inset: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  pointer-events: all;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
 }
 
-.arcade-edit-btn {
-  padding: 4px 10px;
-  border-radius: 5px;
-  font-size: 11px;
+.arcade-overlay--finish {
+  align-items: center;
+  overflow-y: auto;
+}
+
+/* ── Countdown ───────────────────────────────────────────────── */
+.arcade-countdown {
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(232, 0, 45, 0.8);
+  animation: arcade-pulse 0.9s ease-in-out;
+}
+
+@keyframes arcade-pulse {
+  0%   { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Start-Card ──────────────────────────────────────────────── */
+.arcade-start-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 200px;
+}
+
+.arcade-start-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.arcade-ghost-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.arcade-controls-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+/* ── Finish-Card ─────────────────────────────────────────────── */
+.arcade-finish-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 240px;
+  max-width: 360px;
+  width: 100%;
+}
+
+.arcade-finish-times {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.arcade-finish-time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.arcade-finish-time-value {
+  font-family: monospace;
+  font-size: 1.5rem;
   font-weight: 700;
-  cursor: pointer;
-  border: 1.5px solid #e8c440;
-  background: rgba(0,0,0,0.65);
-  color: #e8c440;
+  color: #fff;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
 }
-.arcade-edit-btn--active {
-  background: #e8c440;
-  color: #1a1a2e;
+
+/* ── Sector-Tabelle im Finish-Card ───────────────────────────── */
+.arcade-finish-sectors {
+  display: grid;
+  gap: 0.3rem 0.6rem;
+  align-items: center;
+  width: 100%;
 }
-.arcade-edit-btn--delete {
-  border-color: #555;
-  color: #aaa;
+
+.arcade-sector-th {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.arcade-sector-th--ghost {
+  color: #a78bfa;
+}
+
+.arcade-sector-lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.arcade-sector-num {
+  font-family: monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  text-align: right;
+}
+
+.arcade-sector-num--total {
+  color: #facc15;
+}
+
+.arcade-sector-ghost {
+  font-family: monospace;
+  font-size: 0.88rem;
+  color: #a78bfa;
+  text-align: right;
+}
+
+.arcade-sector-delta {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.arcade-sector-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--border);
+  margin: 0.1rem 0;
+}
+
+/* ── Finish-Footer ───────────────────────────────────────────── */
+.arcade-finish-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.arcade-finish-saved {
+  font-size: 0.78rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.arcade-finish-saved--muted {
+  color: var(--text-muted);
+}
+
+.arcade-finish-saved--error {
+  color: #f87171;
+}
+
+.arcade-finish-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.arcade-finish-replay-btn {
+  margin-top: 0.25rem;
 }
 
 /* ── HUD-Leiste unter dem Canvas ─────────────────────────────── */
@@ -86,8 +259,7 @@
   overflow: hidden;
 }
 
-.arcade-hud-bar-time,
-.arcade-hud-bar-best {
+.arcade-hud-col {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -117,13 +289,27 @@
   color: #4ade80;
 }
 
-.monaco-ghost-delta {
+.arcade-hud-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.arcade-hud-ghost-row {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.05rem;
   width: 4.5rem;
   flex-shrink: 0;
+}
+
+.arcade-hud-delta-value {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .arcade-hud-ghost-toggle {
@@ -151,13 +337,6 @@
 }
 
 @media (max-width: 480px) {
-  .arcade-hud-ghost-toggle {
-    font-size: 0.62rem;
-    padding: 0.25rem 0.4rem;
-  }
-}
-
-@media (max-width: 480px) {
   .arcade-hud-bar {
     gap: 0.6rem;
     padding: 0.3rem 0.5rem;
@@ -168,6 +347,10 @@
   .arcade-hud-bar-label {
     font-size: 0.55rem;
   }
+  .arcade-hud-ghost-toggle {
+    font-size: 0.62rem;
+    padding: 0.25rem 0.4rem;
+  }
 }
 
 @media (max-width: 380px) {
@@ -177,84 +360,6 @@
   .arcade-hud-bar-value {
     font-size: 0.82rem;
   }
-}
-
-/* ── Overlays ────────────────────────────────────────────────── */
-.arcade-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.65);
-}
-
-.arcade-countdown {
-  font-family: var(--font-display);
-  font-size: 5rem;
-  font-weight: 900;
-  color: #fff;
-  text-shadow: 0 0 30px rgba(232,0,45,0.8);
-  animation: pulse 0.9s ease-in-out;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.arcade-start-card,
-.arcade-finish-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.5rem 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  min-width: 200px;
-}
-
-.arcade-start-title,
-.arcade-finish-title {
-  font-family: var(--font-display);
-  font-size: 1.8rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-}
-
-.arcade-start-sub {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.arcade-controls-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  background: var(--bg-elevated);
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-}
-
-.arcade-finish-row {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  gap: 1rem;
-}
-
-.arcade-finish-row span:last-child {
-  font-family: monospace;
-  font-weight: 700;
-}
-
-.arcade-finish-saved {
-  font-size: 0.78rem;
-  color: #4ade80;
-  font-weight: 600;
 }
 
 /* ── Touch Controls ──────────────────────────────────────────── */
@@ -306,35 +411,81 @@
   font-size: 1.5rem;
 }
 
-.arcade-btn--gas {
-  background: rgba(232,0,45,0.15);
-  border-color: rgba(232,0,45,0.4);
-  color: var(--accent);
-  width: 88px;
-  font-size: 0.75rem;
-}
-
-/* ── Reset-Button (mittig, prominent) ───────────────────────── */
 .arcade-btn--reset {
   width: 76px;
   height: 68px;
   font-size: 1.7rem;
-  border-color: rgba(255,255,255,0.25);
-  color: rgba(255,255,255,0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
   flex-shrink: 0;
 }
 
 .arcade-btn--reset:active {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.5);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
   color: #fff;
 }
 
-/* ── Persistente Einstellungen (unter Leaderboard) ──────────── */
-.arcade-settings {
+/* ── Leaderboard ─────────────────────────────────────────────── */
+.arcade-leaderboard {
   width: 100%;
   max-width: 720px;
-  padding: 1.25rem 1.25rem;
+  padding: 1rem 1.25rem;
+}
+
+.arcade-lb-title {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.arcade-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius);
+  border-bottom: 1px solid var(--border);
+}
+
+.arcade-lb-row:last-child {
+  border-bottom: none;
+}
+
+.arcade-lb-row--gold {
+  background: rgba(255, 200, 0, 0.06);
+}
+
+.arcade-lb-rank {
+  min-width: 2rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.arcade-lb-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.arcade-lb-time {
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* ── Einstellungen (Strecke / Modus / Einstiegspunkt) ────────── */
+.arcade-settings-wrap {
+  width: 100%;
+  max-width: 720px;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -377,72 +528,79 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
 }
 
-.arcade-settings-btn:hover {
-  border-color: rgba(255,255,255,0.25);
+.arcade-settings-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.25);
   color: var(--text-primary);
 }
 
+.arcade-settings-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .arcade-settings-btn--active-yellow {
-  background: rgba(232,196,64,0.12);
+  background: rgba(232, 196, 64, 0.12);
   border-color: #e8c440;
   color: #e8c440;
 }
 
-.arcade-settings-btn--active-blue {
-  background: rgba(232,0,45,0.12);
+.arcade-settings-btn--active-red {
+  background: rgba(232, 0, 45, 0.12);
   border-color: var(--accent);
   color: var(--accent);
 }
-.arcade-leaderboard {
-  width: 100%;
-  max-width: 720px;
-  padding: 1rem 1.25rem;
-}
 
-.arcade-lb-title {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.arcade-settings-btn-sub {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
-  margin-bottom: 0.75rem;
+  text-transform: none;
 }
 
-.arcade-lb-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 0.5rem;
-  border-radius: var(--radius);
-  border-bottom: 1px solid var(--border);
-}
-
-.arcade-lb-row:last-child { border-bottom: none; }
-
-.arcade-lb-row--gold {
-  background: rgba(255,200,0,0.06);
-}
-
-.arcade-lb-rank {
-  min-width: 2rem;
-  font-size: 0.9rem;
+.arcade-settings-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
   text-align: center;
 }
 
-.arcade-lb-name {
-  flex: 1;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
+/* ── Edit-Mode Buttons (oben rechts im Canvas) ───────────────── */
+.arcade-edit-buttons {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  pointer-events: all;
 }
 
-.arcade-lb-time {
-  font-family: monospace;
-  font-size: 0.85rem;
+.arcade-edit-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text-secondary);
+  cursor: pointer;
+  border: 1.5px solid #e8c440;
+  background: rgba(0, 0, 0, 0.65);
+  color: #e8c440;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.arcade-edit-btn--active {
+  background: #e8c440;
+  color: #1a1a2e;
+}
+
+.arcade-edit-btn--delete {
+  border-color: #555;
+  color: #aaa;
 }

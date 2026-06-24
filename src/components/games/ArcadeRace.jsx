@@ -1071,6 +1071,10 @@ export default function ArcadeRace({ onClose }) {
         ctx.restore()
       }
 
+      // Nach dem Zieldurchfahrt: Loop stoppen – Canvas bleibt eingefroren,
+      // das Finish-Overlay (React) liegt darüber.
+      if (finishedRef) return
+
       rafRef.current=requestAnimationFrame(loop)
     }
 
@@ -1099,7 +1103,7 @@ export default function ArcadeRace({ onClose }) {
   const deltaText  = ghostDelta === null ? '' : formatDelta(ghostDelta)
 
   return (
-    <div className="arcade-root monaco-root">
+    <div className="arcade-root">
       <div className="arcade-game-wrap">
         <canvas ref={canvasRef} width={GAME_W} height={GAME_H} className="arcade-canvas" />
 
@@ -1200,10 +1204,10 @@ export default function ArcadeRace({ onClose }) {
 
         {gameState==='idle' && (
           <div className="arcade-overlay">
-            <div className="arcade-start-card monaco-start-card">
+            <div className="arcade-start-card">
               <div className="arcade-start-title">🏎️ {track.name}</div>
-              {hasGhost && <p className="monaco-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
-              {!hasGhost && <p className="monaco-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
+              {hasGhost && <p className="arcade-ghost-hint">👻 Ghost geladen – schlag deine Bestzeit!</p>}
+              {!hasGhost && <p className="arcade-ghost-hint">Erste Runde wird als Ghost gespeichert.</p>}
               <div className="arcade-controls-hint">← → Lenken &nbsp;·&nbsp; Leertaste / ↺ Reset</div>
 
               <button className="btn btn-primary" onClick={startGame} style={{marginTop:'0.5rem'}}>START</button>
