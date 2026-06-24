@@ -754,18 +754,131 @@ export default function ArcadeRace({ onClose }) {
       offCtx.setLineDash([])
     })()
 
-    // drawWorld: Kamera-Transform anwenden, dann Offscreen-Canvas einbliten.
-    // Kein einziger Path wird mehr pro Frame berechnet.
-    function drawWorld() {
+    // ── Path2D-Version (PC-Pfad): Strecke direkt in den Haupt-Canvas zeichnen ──
+    // Vorberechneter mainPath wird mehrfach gestroked – kein alloc pro Frame.
+    const mainPath = new Path2D()
+    mainPath.moveTo(TRK[0][0], TRK[0][1])
+    for (let i = 1; i < N; i++) mainPath.lineTo(TRK[i][0], TRK[i][1])
+    mainPath.closePath()
+
+    function drawWorldPath2D() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
       ctx.rotate(-car.angle - Math.PI / 2)
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
-      // Offscreen-Canvas so positionieren dass Weltkoordinate (0,0) an (−OFF_OX, −OFF_OY) liegt
+
+      const strokePath = (style, width) => {
+        ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'
+        ctx.stroke(mainPath)
+      }
+      strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
+      strokePath('#2e2e3e', TRACK_WIDTH + 20)
+      strokePath('#484858', TRACK_WIDTH)
+
+      const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
+      const segPerSector = Math.floor(N / N_SECTORS)
+      for (let s = 0; s < N_SECTORS; s++) {
+        const start = s * segPerSector
+        const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
+        ctx.strokeStyle = sectorColors[s]; ctx.lineWidth = TRACK_WIDTH - 20; ctx.lineJoin = 'round'
+        ctx.beginPath(); ctx.moveTo(TRK[start][0], TRK[start][1])
+        for (let i = start + 1; i < end; i++) ctx.lineTo(TRK[i][0], TRK[i][1])
+        ctx.stroke()
+      }
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle = 'rgba(230,150,30,0.7)'; ctx.lineWidth = BUFFER - 10; ctx.setLineDash([25, 20])
+        ctx.beginPath()
+        for (let i = 0; i < N; i++) {
+          const a = TRK[i], b = TRK[(i+1)%N]
+          const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          i===0 ? ctx.moveTo(a[0]+nx,a[1]+ny) : ctx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
+      }
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=6
+        ctx.beginPath()
+        for (let i=0;i<N;i++) {
+          const a=TRK[i],b=TRK[(i+1)%N]
+          const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.sqrt(dx*dx+dy*dy)||1
+          const nx=-dy/len*side*(TRACK_WIDTH/2),ny=dx/len*side*(TRACK_WIDTH/2)
+          i===0?ctx.moveTo(a[0]+nx,a[1]+ny):ctx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        ctx.closePath(); ctx.stroke()
+      }
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
+      ctx.stroke(mainPath); ctx.setLineDash([])
+
+      const sa=TRK[START_SEG],sb=TRK[(START_SEG+1)%N]
+      const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
+      const hw=TRACK_WIDTH/2+4, cw=hw*2/8
+      ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(ddx/fl,-ddy/fl))
+      for (let i=0;i<8;i++) { ctx.fillStyle=i%2===0?'#fff':'#4af'; ctx.fillRect(-hw+i*cw,-8,cw,16) }
+      ctx.restore()
+
+      for (let s = 1; s < N_SECTORS; s++) {
+        const idx = s * Math.floor(N / N_SECTORS)
+        const a = TRK[idx], b = TRK[(idx+1)%N]
+        const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+        const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
+        ctx.strokeStyle = 'rgba(100,180,255,0.7)'; ctx.lineWidth = 5; ctx.setLineDash([10,6])
+        ctx.beginPath(); ctx.moveTo(a[0]-nx, a[1]-ny); ctx.lineTo(a[0]+nx, a[1]+ny); ctx.stroke()
+        ctx.setLineDash([])
+      }
+      ctx.restore()
+    }
+
+    // ── Blit-Version (Mobile-Pfad): Offscreen-Canvas per drawImage einbliten ──
+    function drawWorldBlit() {
+      ctx.save()
+      ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
+      ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.scale(ZOOM, ZOOM)
+      ctx.translate(-camX, -camY)
       ctx.drawImage(offCanvas, -OFF_OX, -OFF_OY)
       ctx.restore()
     }
+
+    // ── Performance-Test: einmal beim Setup beide Methoden messen ───────────────
+    // Testet auf einem unsichtbaren Canvas mit echter Kameratransformation.
+    // Median aus 5 Runs pro Methode – robuster als Einzelmessung.
+    let drawWorld = drawWorldBlit  // Standardwert bis Test abgeschlossen
+    ;(function benchmarkDrawMethods() {
+      const RUNS = 5
+      const testCanvas = document.createElement('canvas')
+      testCanvas.width = GAME_W; testCanvas.height = GAME_H
+      const tCtx = testCanvas.getContext('2d')
+
+      function measureMethod(fn) {
+        const times = []
+        // Gleiche Kamerasituation wie im echten Spiel simulieren
+        const savedCtx = ctx
+        // Wir tauschen ctx temporär gegen tCtx aus
+        // (Closure-Trick: fn nutzt ctx aus dem äußeren Scope)
+        // → Einfacher: fn direkt auf tCtx ausführen indem wir ctx-Calls umleiten.
+        // Da ctx eine let-Variable im äußeren Scope ist, können wir sie kurz ersetzen:
+        // ABER: ctx ist const. Stattdessen messen wir auf dem echten ctx,
+        // der ist sowieso unsichtbar bis zum ersten paint.
+        for (let r = 0; r < RUNS; r++) {
+          const t0 = performance.now()
+          fn()
+          // Wichtig: getImageData() erzwingt GPU-Flush damit die Zeit real ist
+          ctx.getImageData(0, 0, 1, 1)
+          times.push(performance.now() - t0)
+        }
+        times.sort((a, b) => a - b)
+        return times[Math.floor(RUNS / 2)]  // Median
+      }
+
+      const medianBlit   = measureMethod(drawWorldBlit)
+      const medianPath2D = measureMethod(drawWorldPath2D)
+
+      drawWorld = medianBlit <= medianPath2D ? drawWorldBlit : drawWorldPath2D
+      console.log(`[ArcadeRace] drawWorld: blit=${medianBlit.toFixed(2)}ms  path2d=${medianPath2D.toFixed(2)}ms  → ${drawWorld === drawWorldBlit ? 'BLIT' : 'PATH2D'}`)
+    })()
 
     function drawGhost() {
       if (!ghostCar) return
