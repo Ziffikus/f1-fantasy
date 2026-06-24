@@ -480,20 +480,10 @@ export default function ArcadeRace({ onClose }) {
         // Deduplizieren: Frames mit identischem t entfernen
         frames = frames.filter((f, i) => i === 0 || f.t !== frames[i - 1].t)
 
-        // Alten Ghosts haben einen t=0-Frame mit der stehenden Startposition
-        // (aufgenommen bevor der erste Physik-Step lief). Den wegwerfen —
-        // er verfälscht das Re-timestamping und macht den Ghost einen Step zu spät.
-        if (frames.length > 1 && frames[0].t === 0 && frames[1].t > 0) {
+        // Alter Ghost-Bug: erster Frame hat t=0 mit stehender Startposition —
+        // vor dem ersten Physik-Step aufgenommen. Wegwerfen.
+        if (frames.length > 1 && frames[0].t === 0) {
           frames = frames.slice(1)
-        }
-
-        // Re-timestampen: alle Ghosts (alt und neu) auf gleichmäßige physicsElapsedMs-
-        // Schritte normalisieren. Erster Frame = step, letzter Frame = lapTimeMs.
-        // Damit ist Playback (physicsElapsedMs im Sub-Step-Loop) immer synchron.
-        const totalMs = data.lapTimeMs
-        if (frames.length > 1 && totalMs > 0) {
-          const step = totalMs / frames.length
-          frames = frames.map((f, i) => ({ ...f, t: Math.round((i + 1) * step) }))
         }
         return frames
       }
@@ -569,7 +559,6 @@ export default function ArcadeRace({ onClose }) {
     let sectorStartMs = Array(N_SECTORS).fill(null)
     let currentSectorMs = Array(N_SECTORS).fill(null)
     let lastSector = 0
-    let physicsElapsedMs = 0  // Physik-Zeit in ms (deterministisch, unabhängig von Framerate)
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -591,7 +580,7 @@ export default function ArcadeRace({ onClose }) {
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
-      currentRecording = []; lastSector = 0; physicsElapsedMs = 0
+      currentRecording = []; lastSector = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
@@ -1092,39 +1081,39 @@ export default function ArcadeRace({ onClose }) {
         }
         prevSeg = seg
 
-        // ── Ghost-Aufnahme & Playback: beide im Sub-Step-Loop mit physicsElapsedMs ──
-        // physicsElapsedMs wächst exakt um STEP*1000 pro Sub-Step — deterministisch,
-        // framerate-unabhängig. Aufnahme und Wiedergabe laufen auf derselben Zeitachse.
-        if (lapStarted && startTimeMs !== null) {
-          physicsElapsedMs += STEP * 1000
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: physicsElapsedMs })
+        } // end sub-step while loop
 
-          // Ghost-Playback im selben Sub-Step: Ghost-Position für physicsElapsedMs berechnen
-          if (ghostFrames.length > 0) {
-            const elapsed = ghostStartOffset + physicsElapsedMs
-            while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
-              ghostIdx++
-            }
-            const f0 = ghostFrames[ghostIdx]
-            const f1 = ghostFrames[ghostIdx + 1]
-            if (f1) {
-              const span = f1.t - f0.t
-              const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - f0.t) / span)) : 0
-              let da = (f1.angle - f0.angle)
-              if (da >  Math.PI) da -= Math.PI * 2
-              if (da < -Math.PI) da += Math.PI * 2
-              ghostCar = {
-                x:     f0.x + (f1.x - f0.x) * frac,
-                y:     f0.y + (f1.y - f0.y) * frac,
-                angle: f0.angle + da * frac,
-              }
-            } else {
-              ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
-            }
-          }
+        // ── Ghost-Aufnahme: einmal pro Frame, Wall-Clock seit Rennstart ──
+        // Nicht im Sub-Step-Loop (würde bei 2 Steps/Frame Duplikate mit gleichem t erzeugen).
+        // Einmal pro Frame = dieselbe Rate wie der Playback → kein Ruckeln, kein Offset.
+        if (lapStarted && startTimeMs !== null && stepsRan > 0) {
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.round(ts - startTimeMs) })
         }
 
-        } // end sub-step while loop
+        // ── Ghost-Playback: Wall-Clock seit Rennstart, einmal pro Frame ──
+        // Außerhalb der Sub-Steps damit ghostCar pro Frame genau einmal gesetzt wird.
+        if (ghostFrames.length > 0 && startTimeMs !== null) {
+          const elapsed = ghostStartOffset + (ts - startTimeMs)
+          while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
+            ghostIdx++
+          }
+          const f0 = ghostFrames[ghostIdx]
+          const f1 = ghostFrames[ghostIdx + 1]
+          if (f1) {
+            const span = f1.t - f0.t
+            const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - f0.t) / span)) : 0
+            let da = (f1.angle - f0.angle)
+            if (da >  Math.PI) da -= Math.PI * 2
+            if (da < -Math.PI) da += Math.PI * 2
+            ghostCar = {
+              x:     f0.x + (f1.x - f0.x) * frac,
+              y:     f0.y + (f1.y - f0.y) * frac,
+              angle: f0.angle + da * frac,
+            }
+          } else {
+            ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
+          }
+        }
 
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
