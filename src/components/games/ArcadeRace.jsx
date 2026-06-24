@@ -521,6 +521,7 @@ export default function ArcadeRace({ onClose }) {
     let sectorStartMs = Array(N_SECTORS).fill(null)
     let currentSectorMs = Array(N_SECTORS).fill(null)
     let lastSector = 0
+    let physicsElapsedMs = 0  // Physik-Zeit in ms (deterministisch, unabhängig von Framerate)
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -542,7 +543,7 @@ export default function ArcadeRace({ onClose }) {
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
-      currentRecording = []; lastSector = 0
+      currentRecording = []; lastSector = 0; physicsElapsedMs = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
@@ -864,17 +865,24 @@ export default function ArcadeRace({ onClose }) {
           }
         }
         prevSeg = seg
-        } // end sub-step while loop
 
-        // Aufnahme: nur wenn Physik gelaufen ist (kein leerer Frame bei >60fps)
-        if (stepsRan > 0) {
-          const recT = startTimeMs !== null ? ts - startTimeMs : 0
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
+        // ── Ghost-Aufnahme: pro Physik-Schritt mit deterministischem Timestamp ──
+        // (nicht per visual frame – sonst entstehen ungleichmäßige Intervalle bei
+        //  nicht-60-Hz-Displays → periodisches Holpern beim Playback)
+        if (lapStarted && startTimeMs !== null) {
+          physicsElapsedMs += STEP * 1000
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: physicsElapsedMs })
         }
+
+        } // end sub-step while loop
 
         // Ghost-Update: einmal pro Frame (außerhalb Sub-Steps)
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs)
+          // frameDt ist bereits auf 250ms gecappt → gleichen Cap für Ghost nutzen
+          // damit Tab-Wechsel den Ghost nicht teleportieren lässt
+          const rawElapsed = ghostStartOffset + (ts - startTimeMs)
+          const lastGhostT = ghostFrames[ghostIdx]?.t ?? 0
+          const elapsed = Math.min(rawElapsed, lastGhostT + frameDt * 1000 + STEP * 1000 * 4)
           const firstFrameT = ghostFrames[0].t ?? 0
           if (elapsed <= firstFrameT) {
             ghostCar = { ...ghostFrames[0], angle: ghostFrames[0].angle ?? ghostFrames[0].a }
