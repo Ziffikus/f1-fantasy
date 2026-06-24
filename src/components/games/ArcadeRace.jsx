@@ -630,179 +630,140 @@ export default function ArcadeRace({ onClose }) {
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', resetAllKeys)
 
-    // ── Offscreen-Canvas: Strecke wird einmal vorgerendert ──────────────────
-    // Auf Mobilgeräten ist das der größte Flaschenhals: 6× über alle N Punkte
-    // zeichnen kostet pro Frame ~3–6ms. Mit dem Cache ist es <0.1ms (blit).
+    // ── Offscreen-Canvas: Strecke einmal in Weltkoordinaten vorrendern ──────────
+    // Die Strecke selbst ändert sich nie. Wir zeichnen sie einmalig auf einen
+    // großen Offscreen-Canvas in Weltkoordinaten (kein Kamera-Transform).
+    // drawWorld() wendet dann nur noch den Kamera-Transform an und blitet den
+    // Offscreen-Canvas per drawImage – das spart alle Path-Berechnungen pro Frame.
+    //
+    // Größe: Bounding-Box aller Track-Punkte + großzügiger Rand für Randlinien/Puffer.
+    const trk_xs = TRK.map(p => p[0])
+    const trk_ys = TRK.map(p => p[1])
+    const trk_minX = Math.min(...trk_xs)
+    const trk_maxX = Math.max(...trk_xs)
+    const trk_minY = Math.min(...trk_ys)
+    const trk_maxY = Math.max(...trk_ys)
+    const OFF_PAD  = TRACK_WIDTH + BUFFER * 2 + 60   // Rand groß genug für dickste Linie
+    const OFF_OX   = -trk_minX + OFF_PAD             // Weltkoordinaten-Offset ins Canvas
+    const OFF_OY   = -trk_minY + OFF_PAD
+    const OFF_W    = Math.ceil(trk_maxX - trk_minX + OFF_PAD * 2)
+    const OFF_H    = Math.ceil(trk_maxY - trk_minY + OFF_PAD * 2)
+
     const offCanvas = document.createElement('canvas')
-    offCanvas.width  = GAME_W
-    offCanvas.height = GAME_H
+    offCanvas.width  = OFF_W
+    offCanvas.height = OFF_H
     const offCtx = offCanvas.getContext('2d')
 
-    function buildTrackCache() {
-      offCtx.clearRect(0, 0, GAME_W, GAME_H)
-      offCtx.save()
-      // Kamera auf Startposition zentrieren (wird live überschrieben durch drawWorld)
-      offCtx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
-      offCtx.rotate(-car.angle - Math.PI / 2)
-      offCtx.scale(ZOOM, ZOOM)
-      offCtx.translate(-TRK[START_SEG][0], -TRK[START_SEG][1])
+    // Einmalig die gesamte Strecke in Weltkoordinaten auf offCanvas zeichnen.
+    ;(function buildTrackCache() {
+      // Hilfsfunktion: Offset auf Weltkoordinaten anwenden
+      const wx = x => x + OFF_OX
+      const wy = y => y + OFF_OY
 
-      const stroke = (oc, style, width) => {
-        oc.strokeStyle = style; oc.lineWidth = width; oc.lineJoin = 'round'; oc.lineCap = 'round'
-        oc.beginPath(); oc.moveTo(TRK[0][0], TRK[0][1])
-        for (let i = 1; i < N; i++) oc.lineTo(TRK[i][0], TRK[i][1])
-        oc.closePath(); oc.stroke()
+      const stroke = (style, width, dash) => {
+        offCtx.strokeStyle = style; offCtx.lineWidth = width
+        offCtx.lineJoin = 'round'; offCtx.lineCap = 'round'
+        if (dash) offCtx.setLineDash(dash); else offCtx.setLineDash([])
+        offCtx.beginPath()
+        offCtx.moveTo(wx(TRK[0][0]), wy(TRK[0][1]))
+        for (let i = 1; i < N; i++) offCtx.lineTo(wx(TRK[i][0]), wy(TRK[i][1]))
+        offCtx.closePath(); offCtx.stroke()
       }
 
-      stroke(offCtx, '#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
-      stroke(offCtx, '#c8611a', TRACK_WIDTH + BUFFER * 2)
-      stroke(offCtx, '#2e2e3e', TRACK_WIDTH + 20)
-      stroke(offCtx, '#484858', TRACK_WIDTH)
+      stroke('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
+      stroke('#2e2e3e', TRACK_WIDTH + 20)
+      stroke('#484858', TRACK_WIDTH)
 
+      // Sektor-Einfärbung
       const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
       const segPerSector = Math.floor(N / N_SECTORS)
       for (let s = 0; s < N_SECTORS; s++) {
         const start = s * segPerSector
         const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
-        offCtx.strokeStyle = sectorColors[s]; offCtx.lineWidth = TRACK_WIDTH - 20; offCtx.lineJoin = 'round'
-        offCtx.beginPath(); offCtx.moveTo(TRK[start][0], TRK[start][1])
-        for (let i = start + 1; i < end; i++) offCtx.lineTo(TRK[i][0], TRK[i][1])
+        offCtx.strokeStyle = sectorColors[s]; offCtx.lineWidth = TRACK_WIDTH - 20
+        offCtx.lineJoin = 'round'; offCtx.setLineDash([])
+        offCtx.beginPath(); offCtx.moveTo(wx(TRK[start][0]), wy(TRK[start][1]))
+        for (let i = start + 1; i < end; i++) offCtx.lineTo(wx(TRK[i][0]), wy(TRK[i][1]))
         offCtx.stroke()
       }
 
+      // Randlinien (gestrichelt, beide Seiten)
       for (const side of [-1, 1]) {
-        offCtx.strokeStyle = 'rgba(230,150,30,0.7)'; offCtx.lineWidth = BUFFER - 10; offCtx.setLineDash([25, 20])
+        offCtx.strokeStyle = 'rgba(230,150,30,0.7)'; offCtx.lineWidth = BUFFER - 10
+        offCtx.setLineDash([25, 20])
         offCtx.beginPath()
         for (let i = 0; i < N; i++) {
           const a = TRK[i], b = TRK[(i+1)%N]
           const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
-          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
-          i===0 ? offCtx.moveTo(a[0]+nx,a[1]+ny) : offCtx.lineTo(a[0]+nx,a[1]+ny)
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          const ny =  dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          i===0 ? offCtx.moveTo(wx(a[0]+nx), wy(a[1]+ny))
+                : offCtx.lineTo(wx(a[0]+nx), wy(a[1]+ny))
         }
-        offCtx.closePath(); offCtx.stroke(); offCtx.setLineDash([])
+        offCtx.closePath(); offCtx.stroke()
       }
+      offCtx.setLineDash([])
 
+      // Weiße Randmarkierungen (beide Seiten)
       for (const side of [-1, 1]) {
-        offCtx.strokeStyle='rgba(255,255,255,0.75)'; offCtx.lineWidth=6
+        offCtx.strokeStyle = 'rgba(255,255,255,0.75)'; offCtx.lineWidth = 6
+        offCtx.setLineDash([])
         offCtx.beginPath()
-        for (let i=0;i<N;i++) {
-          const a=TRK[i],b=TRK[(i+1)%N]
-          const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.sqrt(dx*dx+dy*dy)||1
-          const nx=-dy/len*side*(TRACK_WIDTH/2),ny=dx/len*side*(TRACK_WIDTH/2)
-          i===0?offCtx.moveTo(a[0]+nx,a[1]+ny):offCtx.lineTo(a[0]+nx,a[1]+ny)
+        for (let i = 0; i < N; i++) {
+          const a = TRK[i], b = TRK[(i+1)%N]
+          const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+          const nx = -dy/len*side*(TRACK_WIDTH/2)
+          const ny =  dx/len*side*(TRACK_WIDTH/2)
+          i===0 ? offCtx.moveTo(wx(a[0]+nx), wy(a[1]+ny))
+                : offCtx.lineTo(wx(a[0]+nx), wy(a[1]+ny))
         }
         offCtx.closePath(); offCtx.stroke()
       }
 
-      offCtx.strokeStyle='rgba(255,255,255,0.15)'; offCtx.lineWidth=4; offCtx.setLineDash([30,40])
-      stroke(offCtx, 'rgba(255,255,255,0.15)', 4)
+      // Mittellinie (gestrichelt)
+      stroke('rgba(255,255,255,0.15)', 4, [30, 40])
       offCtx.setLineDash([])
 
-      const sa=TRK[START_SEG],sb=TRK[(START_SEG+1)%N]
-      const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
+      // Ziellinie (kariert)
+      const sa=TRK[START_SEG], sb=TRK[(START_SEG+1)%N]
+      const ddx=sb[0]-sa[0], ddy=sb[1]-sa[1], fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
       const hw=TRACK_WIDTH/2+4, cw=hw*2/8
-      offCtx.save(); offCtx.translate(sa[0],sa[1]); offCtx.rotate(Math.atan2(ddx/fl,-ddy/fl))
-      for (let i=0;i<8;i++) { offCtx.fillStyle=i%2===0?'#fff':'#4af'; offCtx.fillRect(-hw+i*cw,-8,cw,16) }
+      offCtx.save()
+      offCtx.translate(wx(sa[0]), wy(sa[1]))
+      offCtx.rotate(Math.atan2(ddx/fl, -ddy/fl))
+      for (let i=0; i<8; i++) {
+        offCtx.fillStyle = i%2===0 ? '#fff' : '#4af'
+        offCtx.fillRect(-hw+i*cw, -8, cw, 16)
+      }
       offCtx.restore()
 
+      // Sektor-Trennlinien
       for (let s = 1; s < N_SECTORS; s++) {
         const idx = s * Math.floor(N / N_SECTORS)
         const a = TRK[idx], b = TRK[(idx+1)%N]
         const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
         const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
-        offCtx.strokeStyle = 'rgba(100,180,255,0.7)'; offCtx.lineWidth = 5; offCtx.setLineDash([10,6])
-        offCtx.beginPath(); offCtx.moveTo(a[0]-nx, a[1]-ny); offCtx.lineTo(a[0]+nx, a[1]+ny); offCtx.stroke()
-        offCtx.setLineDash([])
+        offCtx.strokeStyle = 'rgba(100,180,255,0.7)'; offCtx.lineWidth = 5
+        offCtx.setLineDash([10, 6])
+        offCtx.beginPath()
+        offCtx.moveTo(wx(a[0]-nx), wy(a[1]-ny))
+        offCtx.lineTo(wx(a[0]+nx), wy(a[1]+ny))
+        offCtx.stroke()
       }
+      offCtx.setLineDash([])
+    })()
 
-      offCtx.restore()
-    }
-    // Cache ist kamera-unabhängig – wird NICHT vorgebaut (Kamera dreht sich ja).
-    // Stattdessen: drawWorld zeichnet die Strecke weiterhin direkt, aber mit
-    // einem Path-Cache: Pfad einmal berechnen, mehrfach verwenden.
-    // (Der offCanvas-Ansatz würde nur bei fester Kamera helfen – hier dreht
-    //  sich die Welt um das Auto, also kein sinnvolles Caching möglich.)
-    // Der echte Gewinn kommt vom spatial grid oben.
-
+    // drawWorld: Kamera-Transform anwenden, dann Offscreen-Canvas einbliten.
+    // Kein einziger Path wird mehr pro Frame berechnet.
     function drawWorld() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
       ctx.rotate(-car.angle - Math.PI / 2)
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
-
-      // Hauptpfad einmal bauen, dann mehrfach wiederverwenden
-      const mainPath = new Path2D()
-      mainPath.moveTo(TRK[0][0], TRK[0][1])
-      for (let i = 1; i < N; i++) mainPath.lineTo(TRK[i][0], TRK[i][1])
-      mainPath.closePath()
-
-      const strokePath = (style, width) => {
-        ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'
-        ctx.stroke(mainPath)
-      }
-
-      strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
-      strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
-      strokePath('#2e2e3e', TRACK_WIDTH + 20)
-      strokePath('#484858', TRACK_WIDTH)
-
-      const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
-      const segPerSector = Math.floor(N / N_SECTORS)
-      for (let s = 0; s < N_SECTORS; s++) {
-        const start = s * segPerSector
-        const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
-        ctx.strokeStyle = sectorColors[s]; ctx.lineWidth = TRACK_WIDTH - 20; ctx.lineJoin = 'round'
-        ctx.beginPath(); ctx.moveTo(TRK[start][0], TRK[start][1])
-        for (let i = start + 1; i < end; i++) ctx.lineTo(TRK[i][0], TRK[i][1])
-        ctx.stroke()
-      }
-
-      for (const side of [-1, 1]) {
-        ctx.strokeStyle = 'rgba(230,150,30,0.7)'; ctx.lineWidth = BUFFER - 10; ctx.setLineDash([25, 20])
-        ctx.beginPath()
-        for (let i = 0; i < N; i++) {
-          const a = TRK[i], b = TRK[(i+1)%N]
-          const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
-          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
-          i===0 ? ctx.moveTo(a[0]+nx,a[1]+ny) : ctx.lineTo(a[0]+nx,a[1]+ny)
-        }
-        ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
-      }
-
-      for (const side of [-1, 1]) {
-        ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=6
-        ctx.beginPath()
-        for (let i=0;i<N;i++) {
-          const a=TRK[i],b=TRK[(i+1)%N]
-          const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.sqrt(dx*dx+dy*dy)||1
-          const nx=-dy/len*side*(TRACK_WIDTH/2),ny=dx/len*side*(TRACK_WIDTH/2)
-          i===0?ctx.moveTo(a[0]+nx,a[1]+ny):ctx.lineTo(a[0]+nx,a[1]+ny)
-        }
-        ctx.closePath(); ctx.stroke()
-      }
-
-      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
-      ctx.stroke(mainPath)
-      ctx.setLineDash([])
-
-      const sa=TRK[START_SEG],sb=TRK[(START_SEG+1)%N]
-      const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
-      const hw=TRACK_WIDTH/2+4, cw=hw*2/8
-      ctx.save(); ctx.translate(sa[0],sa[1]); ctx.rotate(Math.atan2(ddx/fl,-ddy/fl))
-      for (let i=0;i<8;i++) { ctx.fillStyle=i%2===0?'#fff':'#4af'; ctx.fillRect(-hw+i*cw,-8,cw,16) }
-      ctx.restore()
-
-      for (let s = 1; s < N_SECTORS; s++) {
-        const idx = s * Math.floor(N / N_SECTORS)
-        const a = TRK[idx], b = TRK[(idx+1)%N]
-        const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
-        const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
-        ctx.strokeStyle = 'rgba(100,180,255,0.7)'; ctx.lineWidth = 5; ctx.setLineDash([10,6])
-        ctx.beginPath(); ctx.moveTo(a[0]-nx, a[1]-ny); ctx.lineTo(a[0]+nx, a[1]+ny); ctx.stroke()
-        ctx.setLineDash([])
-      }
-
+      // Offscreen-Canvas so positionieren dass Weltkoordinate (0,0) an (−OFF_OX, −OFF_OY) liegt
+      ctx.drawImage(offCanvas, -OFF_OX, -OFF_OY)
       ctx.restore()
     }
 
@@ -845,29 +806,31 @@ export default function ArcadeRace({ onClose }) {
       ctx.restore()
     }
 
+    // ── Minimap: Konstanten einmal vorberechnen ──────────────────────────────
+    const MM_MX=12, MM_MY=12, MM_MW=110, MM_MH=78, MM_PAD=8
+    const mm_xs = RAW.map(p=>p[0]), mm_ys = RAW.map(p=>p[1])
+    const mm_mnx = Math.min(...mm_xs), mm_mxx = Math.max(...mm_xs)
+    const mm_mny = Math.min(...mm_ys), mm_mxy = Math.max(...mm_ys)
+    const mm_sc  = Math.min((MM_MW-MM_PAD*2)/(mm_mxx-mm_mnx), (MM_MH-MM_PAD*2)/(mm_mxy-mm_mny))
+    const mm_ox  = MM_MX+MM_PAD+(MM_MW-MM_PAD*2-(mm_mxx-mm_mnx)*mm_sc)/2
+    const mm_oy  = MM_MY+MM_PAD+(MM_MH-MM_PAD*2-(mm_mxy-mm_mny)*mm_sc)/2
+    const mmPt   = (wx, wy) => [mm_ox+(wx-mm_mnx)*mm_sc, mm_oy+(wy-mm_mny)*mm_sc]
+    // Minimap-Streckenpfad als Path2D einmal vorberechnen
+    const mmPath = new Path2D()
+    const _mp0 = mmPt(RAW[0][0], RAW[0][1]); mmPath.moveTo(_mp0[0], _mp0[1])
+    for (let i=1; i<RAW.length; i++) { const p=mmPt(RAW[i][0],RAW[i][1]); mmPath.lineTo(p[0],p[1]) }
+    mmPath.closePath()
+
     function drawMinimap() {
-      const mx=12,my=12,mw=110,mh=78
       ctx.save(); ctx.globalAlpha=0.88
-      ctx.fillStyle='rgba(10,10,20,0.85)'; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.fill()
-      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(mx,my,mw,mh,6); ctx.stroke()
-      const pad=8
-      const xs=RAW.map(p=>p[0]),ys=RAW.map(p=>p[1])
-      const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys)
-      const sc2=Math.min((mw-pad*2)/(mxx-mnx),(mh-pad*2)/(mxy-mny))
-      const ox2=mx+pad+(mw-pad*2-(mxx-mnx)*sc2)/2, oy2=my+pad+(mh-pad*2-(mxy-mny)*sc2)/2
-      const mm=(p)=>[ox2+(p[0]-mnx)*sc2,oy2+(p[1]-mny)*sc2]
-      ctx.strokeStyle='#4a4a5e'; ctx.lineWidth=4
-      ctx.beginPath(); const p0=mm(RAW[0]); ctx.moveTo(p0[0],p0[1])
-      for (let i=1; i<RAW.length; i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
-      ctx.closePath(); ctx.stroke()
-      ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5
-      ctx.beginPath(); ctx.moveTo(p0[0],p0[1])
-      for (let i=1; i<RAW.length; i++) { const p=mm(RAW[i]); ctx.lineTo(p[0],p[1]) }
-      ctx.closePath(); ctx.stroke()
-      const cp=mm([car.x/TRACK_SCALE,car.y/TRACK_SCALE])
+      ctx.fillStyle='rgba(10,10,20,0.85)'; ctx.beginPath(); ctx.roundRect(MM_MX,MM_MY,MM_MW,MM_MH,6); ctx.fill()
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(MM_MX,MM_MY,MM_MW,MM_MH,6); ctx.stroke()
+      ctx.strokeStyle='#4a4a5e'; ctx.lineWidth=4; ctx.stroke(mmPath)
+      ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5; ctx.stroke(mmPath)
+      const cp=mmPt(car.x/TRACK_SCALE, car.y/TRACK_SCALE)
       ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.arc(cp[0],cp[1],3,0,Math.PI*2); ctx.fill()
       if (ghostCar) {
-        const gp=mm([ghostCar.x/TRACK_SCALE,ghostCar.y/TRACK_SCALE])
+        const gp=mmPt(ghostCar.x/TRACK_SCALE, ghostCar.y/TRACK_SCALE)
         ctx.fillStyle='rgba(100,181,246,0.65)'; ctx.beginPath(); ctx.arc(gp[0],gp[1],2.5,0,Math.PI*2); ctx.fill()
       }
       ctx.globalAlpha=1; ctx.restore()
