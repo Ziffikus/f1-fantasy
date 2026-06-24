@@ -478,8 +478,17 @@ export default function ArcadeRace({ onClose }) {
           x: f.x, y: f.y, angle: f.angle ?? f.a, t: f.t
         }))
         // Deduplizieren: Frames mit identischem t entfernen
-        // (passiert bei alten Aufnahmen die noch mit Sub-Step-Bug aufgezeichnet wurden)
         frames = frames.filter((f, i) => i === 0 || f.t !== frames[i - 1].t)
+
+        // Re-timestampen: egal wie der Ghost aufgenommen wurde (alter Bug,
+        // physicsElapsedMs, Wall-Clock-Jitter) — wir verteilen die Frames
+        // gleichmäßig auf die gespeicherte Gesamtzeit. So ist der Abstand
+        // zwischen je zwei Frames immer identisch → kein Ruckeln beim Playback.
+        const totalMs = data.lapTimeMs
+        if (frames.length > 1 && totalMs > 0) {
+          const step = totalMs / frames.length
+          frames = frames.map((f, i) => ({ ...f, t: Math.round(i * step) }))
+        }
         return frames
       }
 
@@ -555,6 +564,7 @@ export default function ArcadeRace({ onClose }) {
     let currentSectorMs = Array(N_SECTORS).fill(null)
     let lastSector = 0
     let physicsElapsedMs = 0  // Physik-Zeit in ms (deterministisch, unabhängig von Framerate)
+    let ghostElapsedMs   = 0  // Ghost-Playback-Zeit: Wall-Clock, gecappt auf 250ms/Frame
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -576,7 +586,7 @@ export default function ArcadeRace({ onClose }) {
       camX = car.x; camY = car.y
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
-      currentRecording = []; lastSector = 0; physicsElapsedMs = 0
+      currentRecording = []; lastSector = 0; physicsElapsedMs = 0; ghostElapsedMs = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
@@ -1077,21 +1087,28 @@ export default function ArcadeRace({ onClose }) {
         }
         prevSeg = seg
 
-        // ── Ghost-Aufnahme: pro Physik-Schritt mit deterministischem Timestamp ──
-        // (nicht per visual frame – sonst entstehen ungleichmäßige Intervalle bei
-        //  nicht-60-Hz-Displays → periodisches Holpern beim Playback)
+        // ── Ghost-Aufnahme: interpolierter Wall-Clock-Timestamp pro Sub-Step ──
+        // ts ist der Frame-Timestamp. Bei mehreren Sub-Steps pro Frame wird der
+        // Timestamp gleichmäßig rückwärts interpoliert (Step 0 = ältester).
+        // So hat jeder Frame einen eindeutigen, gleichmäßigen Zeitstempel —
+        // identisch zur ghostElapsedMs-Zeitbasis beim Playback.
         if (lapStarted && startTimeMs !== null) {
-          physicsElapsedMs += STEP * 1000
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: physicsElapsedMs })
+          // stepsRan ist nach dem letzten Step der Zähler; wir rechnen rückwärts:
+          // aktueller Step ist stepsRan-ter Step dieses Frames.
+          const stepT = Math.round(ts - startTimeMs - (stepsRan - 1) * STEP * 1000)
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.max(0, stepT) })
         }
 
         } // end sub-step while loop
 
         // Ghost-Update: einmal pro Frame (außerhalb Sub-Steps)
         if (ghostFrames.length > 0 && ghostCar && startTimeMs !== null) {
-          // frameDt ist bereits auf 250ms gecappt → gleichen Cap für Ghost nutzen
-          // damit Tab-Wechsel den Ghost nicht teleportieren lässt
-          const rawElapsed = ghostStartOffset + (ts - startTimeMs)
+          // ghostElapsedMs läuft auf Wall-Clock-Basis (frameDt ist bereits auf 250ms gecappt).
+          // Das ist korrekt: Ghost wurde in Echtzeit aufgenommen, also muss er auch in
+          // Echtzeit abgespielt werden – unabhängig davon wie viele Physik-Sub-Steps pro
+          // Frame liefen (auf 120Hz wären das 2 Steps → physicsElapsedMs liefe doppelt schnell).
+          ghostElapsedMs += frameDt * 1000
+          const rawElapsed = ghostStartOffset + ghostElapsedMs
           const lastGhostT = ghostFrames[ghostIdx]?.t ?? 0
           const elapsed = Math.min(rawElapsed, lastGhostT + frameDt * 1000 + STEP * 1000 * 4)
           const firstFrameT = ghostFrames[0].t ?? 0
@@ -1319,6 +1336,15 @@ export default function ArcadeRace({ onClose }) {
               <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
             )}
             <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
+          </div>
+        </div>
+      )}
+
+      {gameState==='idle' && hasGhost && (
+        <div className="arcade-hud-bar">
+          <div style={{flex:1}}/>
+          <div className="arcade-hud-buttons">
+            <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
           </div>
         </div>
       )}
