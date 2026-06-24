@@ -255,7 +255,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .arcade-hud-col {
@@ -302,6 +302,7 @@
   align-items: center;
   gap: 0.4rem;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .arcade-hud-ghost-toggle {
