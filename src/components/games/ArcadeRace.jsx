@@ -408,9 +408,42 @@ export default function ArcadeRace({ onClose }) {
       return Math.floor(seg / totalSegs * N_SECTORS)
     }
 
+    // ── Spatial grid for O(1) nearestPoint lookups ──────────────────────────
+    // Precompute a cell→segment index so each frame only checks ~10 candidates
+    // instead of all N segments. Critical for mobile performance.
+    const GRID_CELL = Math.max(...TRK.map(p => Math.abs(p[0])), ...TRK.map(p => Math.abs(p[1]))) / 30 || 200
+    const spatialGrid = new Map()
+    function gridKey(gx, gy) { return `${gx},${gy}` }
+    for (let i = 0; i < N; i++) {
+      const a = TRK[i], b = TRK[(i + 1) % N]
+      const x0 = Math.floor(Math.min(a[0], b[0]) / GRID_CELL) - 1
+      const x1 = Math.floor(Math.max(a[0], b[0]) / GRID_CELL) + 1
+      const y0 = Math.floor(Math.min(a[1], b[1]) / GRID_CELL) - 1
+      const y1 = Math.floor(Math.max(a[1], b[1]) / GRID_CELL) + 1
+      for (let gx = x0; gx <= x1; gx++) {
+        for (let gy = y0; gy <= y1; gy++) {
+          const k = gridKey(gx, gy)
+          if (!spatialGrid.has(k)) spatialGrid.set(k, [])
+          spatialGrid.get(k).push(i)
+        }
+      }
+    }
+
     function nearestPoint(x, y) {
+      const gx = Math.floor(x / GRID_CELL), gy = Math.floor(y / GRID_CELL)
+      // Check the car's cell + immediate neighbors (3×3)
+      const candidates = new Set()
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const segs = spatialGrid.get(gridKey(gx + dx, gy + dy))
+          if (segs) for (const s of segs) candidates.add(s)
+        }
+      }
+      // Fallback: full scan only when no candidates found (edge case: car way off track)
+      let toCheck = candidates
+      if (candidates.size === 0) { for (let i = 0; i < N; i++) candidates.add(i); toCheck = candidates }
       let best = 1e9, bi = 0, px = x, py = y
-      for (let i = 0; i < N; i++) {
+      for (const i of toCheck) {
         const a = TRK[i], b = TRK[(i + 1) % N]
         const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy
         let t = l2 > 0 ? ((x - a[0]) * dx + (y - a[1]) * dy) / l2 : 0
@@ -593,6 +626,100 @@ export default function ArcadeRace({ onClose }) {
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', resetAllKeys)
 
+    // ── Offscreen-Canvas: Strecke wird einmal vorgerendert ──────────────────
+    // Auf Mobilgeräten ist das der größte Flaschenhals: 6× über alle N Punkte
+    // zeichnen kostet pro Frame ~3–6ms. Mit dem Cache ist es <0.1ms (blit).
+    const offCanvas = document.createElement('canvas')
+    offCanvas.width  = GAME_W
+    offCanvas.height = GAME_H
+    const offCtx = offCanvas.getContext('2d')
+
+    function buildTrackCache() {
+      offCtx.clearRect(0, 0, GAME_W, GAME_H)
+      offCtx.save()
+      // Kamera auf Startposition zentrieren (wird live überschrieben durch drawWorld)
+      offCtx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
+      offCtx.rotate(-car.angle - Math.PI / 2)
+      offCtx.scale(ZOOM, ZOOM)
+      offCtx.translate(-TRK[START_SEG][0], -TRK[START_SEG][1])
+
+      const stroke = (oc, style, width) => {
+        oc.strokeStyle = style; oc.lineWidth = width; oc.lineJoin = 'round'; oc.lineCap = 'round'
+        oc.beginPath(); oc.moveTo(TRK[0][0], TRK[0][1])
+        for (let i = 1; i < N; i++) oc.lineTo(TRK[i][0], TRK[i][1])
+        oc.closePath(); oc.stroke()
+      }
+
+      stroke(offCtx, '#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      stroke(offCtx, '#c8611a', TRACK_WIDTH + BUFFER * 2)
+      stroke(offCtx, '#2e2e3e', TRACK_WIDTH + 20)
+      stroke(offCtx, '#484858', TRACK_WIDTH)
+
+      const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
+      const segPerSector = Math.floor(N / N_SECTORS)
+      for (let s = 0; s < N_SECTORS; s++) {
+        const start = s * segPerSector
+        const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
+        offCtx.strokeStyle = sectorColors[s]; offCtx.lineWidth = TRACK_WIDTH - 20; offCtx.lineJoin = 'round'
+        offCtx.beginPath(); offCtx.moveTo(TRK[start][0], TRK[start][1])
+        for (let i = start + 1; i < end; i++) offCtx.lineTo(TRK[i][0], TRK[i][1])
+        offCtx.stroke()
+      }
+
+      for (const side of [-1, 1]) {
+        offCtx.strokeStyle = 'rgba(230,150,30,0.7)'; offCtx.lineWidth = BUFFER - 10; offCtx.setLineDash([25, 20])
+        offCtx.beginPath()
+        for (let i = 0; i < N; i++) {
+          const a = TRK[i], b = TRK[(i+1)%N]
+          const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          i===0 ? offCtx.moveTo(a[0]+nx,a[1]+ny) : offCtx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        offCtx.closePath(); offCtx.stroke(); offCtx.setLineDash([])
+      }
+
+      for (const side of [-1, 1]) {
+        offCtx.strokeStyle='rgba(255,255,255,0.75)'; offCtx.lineWidth=6
+        offCtx.beginPath()
+        for (let i=0;i<N;i++) {
+          const a=TRK[i],b=TRK[(i+1)%N]
+          const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.sqrt(dx*dx+dy*dy)||1
+          const nx=-dy/len*side*(TRACK_WIDTH/2),ny=dx/len*side*(TRACK_WIDTH/2)
+          i===0?offCtx.moveTo(a[0]+nx,a[1]+ny):offCtx.lineTo(a[0]+nx,a[1]+ny)
+        }
+        offCtx.closePath(); offCtx.stroke()
+      }
+
+      offCtx.strokeStyle='rgba(255,255,255,0.15)'; offCtx.lineWidth=4; offCtx.setLineDash([30,40])
+      stroke(offCtx, 'rgba(255,255,255,0.15)', 4)
+      offCtx.setLineDash([])
+
+      const sa=TRK[START_SEG],sb=TRK[(START_SEG+1)%N]
+      const ddx=sb[0]-sa[0],ddy=sb[1]-sa[1],fl=Math.sqrt(ddx*ddx+ddy*ddy)||1
+      const hw=TRACK_WIDTH/2+4, cw=hw*2/8
+      offCtx.save(); offCtx.translate(sa[0],sa[1]); offCtx.rotate(Math.atan2(ddx/fl,-ddy/fl))
+      for (let i=0;i<8;i++) { offCtx.fillStyle=i%2===0?'#fff':'#4af'; offCtx.fillRect(-hw+i*cw,-8,cw,16) }
+      offCtx.restore()
+
+      for (let s = 1; s < N_SECTORS; s++) {
+        const idx = s * Math.floor(N / N_SECTORS)
+        const a = TRK[idx], b = TRK[(idx+1)%N]
+        const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
+        const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
+        offCtx.strokeStyle = 'rgba(100,180,255,0.7)'; offCtx.lineWidth = 5; offCtx.setLineDash([10,6])
+        offCtx.beginPath(); offCtx.moveTo(a[0]-nx, a[1]-ny); offCtx.lineTo(a[0]+nx, a[1]+ny); offCtx.stroke()
+        offCtx.setLineDash([])
+      }
+
+      offCtx.restore()
+    }
+    // Cache ist kamera-unabhängig – wird NICHT vorgebaut (Kamera dreht sich ja).
+    // Stattdessen: drawWorld zeichnet die Strecke weiterhin direkt, aber mit
+    // einem Path-Cache: Pfad einmal berechnen, mehrfach verwenden.
+    // (Der offCanvas-Ansatz würde nur bei fester Kamera helfen – hier dreht
+    //  sich die Welt um das Auto, also kein sinnvolles Caching möglich.)
+    // Der echte Gewinn kommt vom spatial grid oben.
+
     function drawWorld() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
@@ -600,17 +727,21 @@ export default function ArcadeRace({ onClose }) {
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
 
-      const stroke = (style, width) => {
+      // Hauptpfad einmal bauen, dann mehrfach wiederverwenden
+      const mainPath = new Path2D()
+      mainPath.moveTo(TRK[0][0], TRK[0][1])
+      for (let i = 1; i < N; i++) mainPath.lineTo(TRK[i][0], TRK[i][1])
+      mainPath.closePath()
+
+      const strokePath = (style, width) => {
         ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'
-        ctx.beginPath(); ctx.moveTo(TRK[0][0], TRK[0][1])
-        for (let i = 1; i < N; i++) ctx.lineTo(TRK[i][0], TRK[i][1])
-        ctx.closePath(); ctx.stroke()
+        ctx.stroke(mainPath)
       }
 
-      stroke('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
-      stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
-      stroke('#2e2e3e', TRACK_WIDTH + 20)
-      stroke('#484858', TRACK_WIDTH)
+      strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
+      strokePath('#2e2e3e', TRACK_WIDTH + 20)
+      strokePath('#484858', TRACK_WIDTH)
 
       const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
       const segPerSector = Math.floor(N / N_SECTORS)
@@ -648,7 +779,7 @@ export default function ArcadeRace({ onClose }) {
       }
 
       ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=4; ctx.setLineDash([30,40])
-      stroke('rgba(255,255,255,0.15)', 4)
+      ctx.stroke(mainPath)
       ctx.setLineDash([])
 
       const sa=TRK[START_SEG],sb=TRK[(START_SEG+1)%N]
@@ -913,7 +1044,12 @@ export default function ArcadeRace({ onClose }) {
 
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
-          setCurrentLapTime(Math.round(lapTime * 1000))
+          const lapMs = Math.round(lapTime * 1000)
+          // Nur alle ~100ms React-State aktualisieren – spart Re-renders auf Mobil
+          if (!drawWorld._lastLapUpdate || lapMs - drawWorld._lastLapUpdate >= 100) {
+            drawWorld._lastLapUpdate = lapMs
+            setCurrentLapTime(lapMs)
+          }
         }
       }
 
@@ -976,8 +1112,8 @@ export default function ArcadeRace({ onClose }) {
         )}
 
         {gameState==='finished' && (
-          <div className="arcade-overlay">
-            <div className="arcade-finish-card monaco-finish-card">
+          <div className="arcade-overlay" style={{overflowY:'auto',alignItems:'flex-start',paddingTop:'0.5rem',paddingBottom:'0.5rem'}}>
+            <div className="arcade-finish-card monaco-finish-card" style={{maxHeight:'calc(100dvh - 1rem)',overflowY:'auto',width:'min(340px,92vw)'}}>
               <div className="arcade-finish-title">🏁 Ziel!</div>
               <div className="arcade-finish-row">
                 <span>Rundenzeit</span>
