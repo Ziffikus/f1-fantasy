@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useRaceWeekends } from '../../hooks/useRaceWeekends'
@@ -591,6 +591,10 @@ export default function ArcadeRace({ onClose }) {
           ghostStartOffset = ghostFrames[ghostIdx].t ?? ghostIdx * 16
         }
       }
+      // Loop neu starten falls sie durch finishedRef gestoppt wurde
+      cancelAnimationFrame(rafRef.current)
+      lastTS = null
+      rafRef.current = requestAnimationFrame(loop)
     }
 
     gameRef.current = {
@@ -1073,6 +1077,7 @@ export default function ArcadeRace({ onClose }) {
 
       // Nach dem Zieldurchfahrt: Loop stoppen – Canvas bleibt eingefroren,
       // das Finish-Overlay (React) liegt darüber.
+      // resetCar() startet die Loop über rafRef neu.
       if (finishedRef) return
 
       rafRef.current=requestAnimationFrame(loop)
