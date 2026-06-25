@@ -975,9 +975,15 @@ export default function ArcadeRace({ onClose }) {
       if (racing && startTimeMs === null) {
         startTimeMs = ts
         ghostStartOffset = 0
-        // t=0-Frame: Startposition bevor erstes Sub-Step — spiegelt altes Ghost-Format
-        // und stellt sicher dass Ghost-Interpolation korrekt von Position 0 beginnt.
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: 0 })
+      }
+
+      // ── Ghost-Aufnahme: VOR den Sub-Steps, wie die Kamera ──
+      // camX/camY wird vor Sub-Steps gesetzt → gezeichnetes Auto zeigt Position von VOR diesem Frame.
+      // Ghost-Aufnahme ebenfalls hier → exakt dieselbe Zeitbasis, kein Offset nötig.
+      if (racing && !finishedRef && lapStarted && startTimeMs !== null) {
+        const recT = Math.round(ts - startTimeMs)
+        if (recT > 0) currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
       }
 
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
@@ -1080,19 +1086,9 @@ export default function ArcadeRace({ onClose }) {
 
         } // end sub-step while loop
 
-        // ── Ghost-Aufnahme: einmal pro Frame, Wall-Clock seit Rennstart ──
-        if (lapStarted && startTimeMs !== null && stepsRan > 0) {
-          const recT = Math.round(ts - startTimeMs)
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
-        }
-
-        // ── Ghost-Playback: Wall-Clock seit Rennstart + einen Frame voraus ──
-        // camX/camY wird vor den Sub-Steps gesetzt (Zeile ~972), das gezeichnete Auto
-        // zeigt also die Position von VOR diesem Frame. Ghost-Aufnahme passiert NACH
-        // den Sub-Steps → Ghost ist einen Frame weiter als die Kameraposition.
-        // Korrektur: elapsed um frameDt vorziehen damit Ghost und Auto deckungsgleich sind.
+        // ── Ghost-Playback: Wall-Clock seit Rennstart ──
         if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs) + frameDt * 1000
+          const elapsed = ghostStartOffset + (ts - startTimeMs)
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
