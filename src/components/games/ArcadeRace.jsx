@@ -575,6 +575,7 @@ export default function ArcadeRace({ onClose }) {
       lapStarted = true; lapTime = 0; prevSeg = entrySeg
       startTimeMs = null; inBuffer = false; finishedRef = false; accumulator = 0
       currentRecording = []; lastSector = 0
+      drawWorld._lastLapUpdate = 0
       sectorStartMs = Array(N_SECTORS).fill(null)
       currentSectorMs = Array(N_SECTORS).fill(null)
       if (ghostFrames.length > 0) {
