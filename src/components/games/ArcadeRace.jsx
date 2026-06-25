@@ -972,6 +972,36 @@ export default function ArcadeRace({ onClose }) {
       }
       camX = car.x; camY = car.y
 
+      camX = car.x; camY = car.y
+
+      // ── Ghost-Playback: VOR Sub-Steps, mit Zeit des letzten Frames ──
+      // camX = car.x hier (vor Sub-Steps) → Kamera zeigt Position von letztem Frame.
+      // Ghost mit elapsed = ts - frameDt*1000 - startTimeMs → exakt synchron.
+      if (ghostFrames.length > 0 && startTimeMs !== null) {
+        const elapsed = ghostStartOffset + (ts - startTimeMs) - frameDt * 1000
+        if (elapsed >= 0) {
+          while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
+            ghostIdx++
+          }
+          const f0 = ghostFrames[ghostIdx]
+          const f1 = ghostFrames[ghostIdx + 1]
+          if (f1) {
+            const span = f1.t - f0.t
+            const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - f0.t) / span)) : 0
+            let da = (f1.angle - f0.angle)
+            if (da >  Math.PI) da -= Math.PI * 2
+            if (da < -Math.PI) da += Math.PI * 2
+            ghostCar = {
+              x:     f0.x + (f1.x - f0.x) * frac,
+              y:     f0.y + (f1.y - f0.y) * frac,
+              angle: f0.angle + da * frac,
+            }
+          } else {
+            ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
+          }
+        }
+      }
+
       // Uhr starten: erst wenn der erste Sub-Step tatsächlich laufen wird.
       // accumulator hier nullen — nicht im useEffect (Race Condition mit React-Render).
       // So starten Physik, Zeitnehmung und Ghost-Aufnahme immer vom selben Punkt.
@@ -1092,32 +1122,6 @@ export default function ArcadeRace({ onClose }) {
         }
 
         } // end sub-step while loop
-
-        // ── Ghost-Playback: synchron zur Kameraposition ──
-        // camX/camY = car.x VOR Sub-Steps. accumulator-Rest abziehen damit
-        // Ghost-elapsed auf denselben Zeitpunkt zeigt wie die Kamera.
-        if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs) - accumulator * 1000
-          while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
-            ghostIdx++
-          }
-          const f0 = ghostFrames[ghostIdx]
-          const f1 = ghostFrames[ghostIdx + 1]
-          if (f1) {
-            const span = f1.t - f0.t
-            const frac = span > 0 ? Math.max(0, Math.min(1, (elapsed - f0.t) / span)) : 0
-            let da = (f1.angle - f0.angle)
-            if (da >  Math.PI) da -= Math.PI * 2
-            if (da < -Math.PI) da += Math.PI * 2
-            ghostCar = {
-              x:     f0.x + (f1.x - f0.x) * frac,
-              y:     f0.y + (f1.y - f0.y) * frac,
-              angle: f0.angle + da * frac,
-            }
-          } else {
-            ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
-          }
-        }
 
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
