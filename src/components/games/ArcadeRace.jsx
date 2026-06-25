@@ -597,6 +597,7 @@ export default function ArcadeRace({ onClose }) {
 
     gameRef.current = {
       resetCar,
+      resetAccumulator: () => { accumulator = 0 },
       reloadGhost: () => {
         // Wird von loadGhostFromSupabase aufgerufen nachdem Daten async ankommen
         const ms = loadGhost()
@@ -971,16 +972,19 @@ export default function ArcadeRace({ onClose }) {
       }
       camX = car.x; camY = car.y
 
-      // Uhr starten: exakt im ersten Frame wo racing=true wird
-      if (racing && startTimeMs === null) {
+      // Sub-Steps vorausberechnen damit startTimeMs erst gesetzt wird wenn wirklich Physik läuft
+      const willStep = racing && !finishedRef && (accumulator + frameDt) >= (1/60)
+
+      // Uhr starten: erst wenn der erste Sub-Step tatsächlich laufen wird —
+      // nicht im frameDt=0 Frame nach Leertaste (lastTS=null → kein Sub-Step).
+      // So ist Countdown und Leertaste identisch: t=0 = echte Startposition.
+      if (racing && startTimeMs === null && willStep) {
         startTimeMs = ts
         ghostStartOffset = 0
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: 0 })
       }
 
       // ── Ghost-Aufnahme: VOR den Sub-Steps, wie die Kamera ──
-      // camX/camY wird vor Sub-Steps gesetzt → gezeichnetes Auto zeigt Position von VOR diesem Frame.
-      // Ghost-Aufnahme ebenfalls hier → exakt dieselbe Zeitbasis, kein Offset nötig.
       if (racing && !finishedRef && lapStarted && startTimeMs !== null) {
         const recT = Math.round(ts - startTimeMs)
         if (recT > 0) currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
@@ -1157,7 +1161,10 @@ export default function ArcadeRace({ onClose }) {
   }, [track.id])
 
   useEffect(() => {
-    if (gameRef.current) gameRef.current.racing = gameState==='racing'
+    if (gameRef.current) {
+      gameRef.current.racing = gameState==='racing'
+      if (gameState==='racing') gameRef.current.resetAccumulator?.()
+    }
   }, [gameState])
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
