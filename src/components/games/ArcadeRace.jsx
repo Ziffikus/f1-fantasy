@@ -958,6 +958,14 @@ export default function ArcadeRace({ onClose }) {
     }
 
     function loop(ts) {
+      // ── 60 FPS-Cap: auf Displays mit 90/120/144 Hz läuft rAF zu schnell.
+      // Da die Physik sowieso in fixen 1/60-s-Schritten tickt, bringt höheres
+      // FPS null Spielvorteil, kostet aber unnötige Renderarbeit.
+      // Skip-Schwelle: 14 ms ≈ 71 Hz → alles schneller wird übersprungen.
+      if (lastTS && ts - lastTS < 14) {
+        rafRef.current = requestAnimationFrame(loop)
+        return
+      }
       if (!lastTS) lastTS = ts
       // Echtes elapsed seit letztem Frame — kein Cap mehr nötig dank Sub-Steps
       const frameDt = Math.min((ts - lastTS) / 1000, 0.25) // max 250ms (Tab-Wechsel-Schutz)
