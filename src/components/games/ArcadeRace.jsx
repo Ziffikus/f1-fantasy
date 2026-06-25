@@ -1062,6 +1062,7 @@ export default function ArcadeRace({ onClose }) {
             if (lapMs < bestLapMs) {
               bestLapMs = lapMs
               saveGhost(currentRecording, [...currentSectorMs, lapMs])
+              loadGhost()  // Ghost-Frames im Loop sofort aktualisieren
               setHasGhost(true)
             }
             setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
@@ -1083,17 +1084,15 @@ export default function ArcadeRace({ onClose }) {
         if (lapStarted && startTimeMs !== null && stepsRan > 0) {
           const recT = Math.round(ts - startTimeMs)
           currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
-          if (currentRecording.length <= 5) {
-            console.log(`[REC] frame=${currentRecording.length} t=${recT} x=${car.x.toFixed(2)} y=${car.y.toFixed(2)} steps=${stepsRan}`)
-          }
         }
 
-        // ── Ghost-Playback: Wall-Clock seit Rennstart, einmal pro Frame ──
+        // ── Ghost-Playback: Wall-Clock seit Rennstart + einen Frame voraus ──
+        // camX/camY wird vor den Sub-Steps gesetzt (Zeile ~972), das gezeichnete Auto
+        // zeigt also die Position von VOR diesem Frame. Ghost-Aufnahme passiert NACH
+        // den Sub-Steps → Ghost ist einen Frame weiter als die Kameraposition.
+        // Korrektur: elapsed um frameDt vorziehen damit Ghost und Auto deckungsgleich sind.
         if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs)
-          if (elapsed < 200) {
-            console.log(`[PLAY] elapsed=${elapsed.toFixed(1)} ghostIdx=${ghostIdx} gx=${ghostFrames[ghostIdx].x.toFixed(2)} car.x=${car.x.toFixed(2)} g.t=${ghostFrames[ghostIdx].t}`)
-          }
+          const elapsed = ghostStartOffset + (ts - startTimeMs) + frameDt * 1000
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
