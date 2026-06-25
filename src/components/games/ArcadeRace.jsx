@@ -1087,9 +1087,9 @@ export default function ArcadeRace({ onClose }) {
         // Timestamp rückwärts interpoliert: letzter Sub-Step = ts, vorletzter = ts - STEP*1000 usw.
         // So hat jeder Frame einen eindeutigen, gleichmäßigen Zeitstempel.
         if (lapStarted && startTimeMs !== null) {
-          const stepT = Math.round((ts - startTimeMs) - (accumulator * 1000))
-          if (stepT > 0 || currentRecording.length === 1) {
-            currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.max(0, stepT) })
+          const stepT = Math.round(ts - startTimeMs)
+          if (currentRecording.length === 0 || stepT > currentRecording[currentRecording.length-1].t) {
+            currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: stepT })
           }
         }
 
@@ -1099,7 +1099,7 @@ export default function ArcadeRace({ onClose }) {
         // Kamera (camX/camY) = car.x VOR Sub-Steps → zeigt Position von letztem Frame.
         // Ghost-Playback ebenfalls auf letzten Frame → exakt synchron.
         if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs) - frameDt * 1000
+          const elapsed = ghostStartOffset + (ts - startTimeMs)
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
