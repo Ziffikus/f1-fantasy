@@ -1080,16 +1080,20 @@ export default function ArcadeRace({ onClose }) {
         } // end sub-step while loop
 
         // ── Ghost-Aufnahme: einmal pro Frame, Wall-Clock seit Rennstart ──
-        // Nicht im Sub-Step-Loop (würde bei 2 Steps/Frame Duplikate mit gleichem t erzeugen).
-        // Einmal pro Frame = dieselbe Rate wie der Playback → kein Ruckeln, kein Offset.
         if (lapStarted && startTimeMs !== null && stepsRan > 0) {
-          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.round(ts - startTimeMs) })
+          const recT = Math.round(ts - startTimeMs)
+          currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
+          if (currentRecording.length <= 5) {
+            console.log(`[REC] frame=${currentRecording.length} t=${recT} x=${car.x.toFixed(2)} y=${car.y.toFixed(2)} steps=${stepsRan}`)
+          }
         }
 
         // ── Ghost-Playback: Wall-Clock seit Rennstart, einmal pro Frame ──
-        // Außerhalb der Sub-Steps damit ghostCar pro Frame genau einmal gesetzt wird.
         if (ghostFrames.length > 0 && startTimeMs !== null) {
           const elapsed = ghostStartOffset + (ts - startTimeMs)
+          if (elapsed < 200) {
+            console.log(`[PLAY] elapsed=${elapsed.toFixed(1)} ghostIdx=${ghostIdx} gx=${ghostFrames[ghostIdx].x.toFixed(2)} car.x=${car.x.toFixed(2)} g.t=${ghostFrames[ghostIdx].t}`)
+          }
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
