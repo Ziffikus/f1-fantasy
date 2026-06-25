@@ -1093,11 +1093,11 @@ export default function ArcadeRace({ onClose }) {
 
         } // end sub-step while loop
 
-        // ── Ghost-Playback: Zeit des vorherigen Frames ──
-        // Kamera (camX/camY) = car.x VOR Sub-Steps → zeigt Position von letztem Frame.
-        // Ghost-Playback ebenfalls auf letzten Frame → exakt synchron.
+        // ── Ghost-Playback: synchron zur Kameraposition ──
+        // camX/camY = car.x VOR Sub-Steps. accumulator-Rest abziehen damit
+        // Ghost-elapsed auf denselben Zeitpunkt zeigt wie die Kamera.
         if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs)
+          const elapsed = ghostStartOffset + (ts - startTimeMs) - accumulator * 1000
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
