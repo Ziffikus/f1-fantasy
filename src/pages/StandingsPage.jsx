@@ -8,17 +8,110 @@ import { supabase } from '../lib/supabase'
 import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio } from 'lucide-react'
 import './StandingsPage.css'
 
+// Berechnet Punkte eines Spielers für ein Wochenende
+// Identische Logik wie CalendarPage
+function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers) {
+  let racePoints = 0, sprintPoints = 0
+  for (const pick of playerPicks) {
+    if (pick.pick_type === 'driver') {
+      const pos = raceResultMap[pick.driver_id]
+      racePoints += pos ?? 22
+      if (isSprint) {
+        const spos = sprintResultMap[pick.driver_id]
+        sprintPoints += spos ? (spos / 2) : 11
+      }
+    } else if (pick.pick_type === 'constructor') {
+      const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
+      for (const td of teamDrivers) {
+        const pos = raceResultMap[td.id]
+        racePoints += pos ?? 22
+        if (isSprint) {
+          const spos = sprintResultMap[td.id]
+          sprintPoints += spos ? (spos / 2) : 11
+        }
+      }
+    }
+  }
+  return { racePoints, sprintPoints, total: racePoints + sprintPoints }
+}
+
 function useRaceResults() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from('player_race_points')
-        .select('*, race_weekends(round, name, flag_emoji, city), profiles(display_name, avatar_url)')
-        .order('race_weekends(round)', { ascending: true })
-      setResults(data ?? [])
+      const [
+        { data: weekends },
+        { data: allPicks },
+        { data: allResults },
+        { data: profiles },
+        { data: season },
+      ] = await Promise.all([
+        supabase.from('race_weekends').select('id, round, name, flag_emoji, city, is_sprint_weekend, race_start'),
+        supabase.from('picks').select('id, profile_id, race_weekend_id, pick_type, driver_id, constructor_id'),
+        supabase.from('race_results').select('race_weekend_id, driver_id, session_type, position'),
+        supabase.from('profiles').select('id, display_name, avatar_url'),
+        supabase.from('seasons').select('id').eq('is_active', true).single(),
+      ])
+
+      let allDrivers = []
+      if (season) {
+        const { data: drivers } = await supabase
+          .from('drivers')
+          .select('id, constructor_id')
+          .eq('season_id', season.id)
+        allDrivers = drivers ?? []
+      }
+
+      // Ergebnisse pro Wochenende indexieren
+      const resultsByWeekend = {}
+      for (const r of (allResults ?? [])) {
+        if (!resultsByWeekend[r.race_weekend_id]) resultsByWeekend[r.race_weekend_id] = { race: {}, sprint: {} }
+        if (r.session_type === 'race')   resultsByWeekend[r.race_weekend_id].race[r.driver_id]   = r.position
+        if (r.session_type === 'sprint') resultsByWeekend[r.race_weekend_id].sprint[r.driver_id] = r.position
+      }
+
+      // Picks pro Spieler + Wochenende indexieren
+      const picksByPlayerWeekend = {}
+      for (const pick of (allPicks ?? [])) {
+        const key = `${pick.profile_id}__${pick.race_weekend_id}`
+        if (!picksByPlayerWeekend[key]) picksByPlayerWeekend[key] = []
+        picksByPlayerWeekend[key].push(pick)
+      }
+
+      const now = new Date()
+      const completedWeekends = (weekends ?? []).filter(w => new Date(w.race_start) < now)
+
+      // Punkte pro Spieler pro Wochenende berechnen
+      // Format: [{ profile_id, race_weekends: { round, name, flag_emoji, city }, total_points, racePoints, sprintPoints }]
+      const rows = []
+      for (const profile of (profiles ?? [])) {
+        for (const w of completedWeekends) {
+          if (!resultsByWeekend[w.id]) continue
+          const raceMap   = resultsByWeekend[w.id].race
+          const sprintMap = resultsByWeekend[w.id].sprint
+          const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
+          const { racePoints, sprintPoints, total } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers)
+          rows.push({
+            profile_id: profile.id,
+            race_weekends: { round: w.round, name: w.name, flag_emoji: w.flag_emoji, city: w.city },
+            racePoints,
+            sprintPoints,
+            total_points: total,
+          })
+        }
+      }
+
+      // weekend_rank berechnen: pro Wochenende alle Spieler sortieren
+      completedWeekends.forEach(w => {
+        const weekendRows = rows
+          .filter(r => r.race_weekends.round === w.round)
+          .sort((a, b) => a.total_points - b.total_points)
+        weekendRows.forEach((r, idx) => { r.weekend_rank = idx + 1 })
+      })
+
+      setResults(rows)
       setLoading(false)
     }
     load()
@@ -429,7 +522,7 @@ export default function StandingsPage() {
 
   const completedWeekends = weekends.filter(w => new Date(w.race_start) < new Date())
 
-  // Matrix: profile_id → round → points
+  // Matrix: profile_id → round → { total_points, racePoints, sprintPoints, weekend_rank }
   const matrix = {}
   for (const r of results) {
     if (!matrix[r.profile_id]) matrix[r.profile_id] = {}
