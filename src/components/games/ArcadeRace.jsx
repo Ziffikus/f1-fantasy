@@ -985,12 +985,6 @@ export default function ArcadeRace({ onClose }) {
         currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: 0 })
       }
 
-      // ── Ghost-Aufnahme: VOR den Sub-Steps, wie die Kamera ──
-      if (racing && !finishedRef && lapStarted && startTimeMs !== null) {
-        const recT = Math.round(ts - startTimeMs)
-        if (recT > 0) currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: recT })
-      }
-
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
@@ -1089,11 +1083,23 @@ export default function ArcadeRace({ onClose }) {
         }
         prevSeg = seg
 
+        // ── Ghost-Aufnahme: nach Physik, im Sub-Step-Loop ──
+        // Timestamp rückwärts interpoliert: letzter Sub-Step = ts, vorletzter = ts - STEP*1000 usw.
+        // So hat jeder Frame einen eindeutigen, gleichmäßigen Zeitstempel.
+        if (lapStarted && startTimeMs !== null) {
+          const stepT = Math.round((ts - startTimeMs) - (accumulator * 1000))
+          if (stepT > 0 || currentRecording.length === 1) {
+            currentRecording.push({ x: car.x, y: car.y, angle: car.angle, t: Math.max(0, stepT) })
+          }
+        }
+
         } // end sub-step while loop
 
-        // ── Ghost-Playback: Wall-Clock seit Rennstart ──
+        // ── Ghost-Playback: Zeit des vorherigen Frames ──
+        // Kamera (camX/camY) = car.x VOR Sub-Steps → zeigt Position von letztem Frame.
+        // Ghost-Playback ebenfalls auf letzten Frame → exakt synchron.
         if (ghostFrames.length > 0 && startTimeMs !== null) {
-          const elapsed = ghostStartOffset + (ts - startTimeMs)
+          const elapsed = ghostStartOffset + (ts - startTimeMs) - frameDt * 1000
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
           }
