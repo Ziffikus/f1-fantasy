@@ -148,6 +148,16 @@ export default function ArcadeRace({ onClose }) {
   const [finishedSectors, setFinishedSectors] = useState(() => Array(N_SECTORS).fill(null))
   const [showGhost,       setShowGhost]       = useState(true)
   const [showFps,         setShowFps]         = useState(false)
+  const [fpsCap,          setFpsCap]          = useState(() => {
+    try { return localStorage.getItem('arcadeRace_fpsCap') !== 'off' } catch { return true }
+  })
+  const fpsCapRef = useRef((() => { try { return localStorage.getItem('arcadeRace_fpsCap') !== 'off' } catch { return true } })())
+  // 'auto' | 'blit' | 'path2d' – wird in localStorage gespeichert
+  const RENDER_MODE_KEY = 'arcadeRace_renderMode'
+  const [renderMode, setRenderMode] = useState(() => {
+    try { return localStorage.getItem(RENDER_MODE_KEY) || 'auto' } catch { return 'auto' }
+  })
+  const renderModeRef = useRef(renderMode)
   const [ghostSectors,    setGhostSectors]    = useState([])
   const [ghostLapMs,      setGhostLapMs]      = useState(null)
   const fpsRef            = useRef(0)      // aktueller FPS-Wert (kein Re-render nötig)
@@ -603,6 +613,7 @@ export default function ArcadeRace({ onClose }) {
         const ms = loadGhost()
         if (ms < bestLapMs) bestLapMs = ms
       },
+      setRenderMode: applyRenderMode,
       get racing() { return racing },
       set racing(v) { racing = v },
       touches: { left: false, right: false },
@@ -844,40 +855,42 @@ export default function ArcadeRace({ onClose }) {
     // ── Performance-Test: einmal beim Setup beide Methoden messen ───────────────
     // Testet auf einem unsichtbaren Canvas mit echter Kameratransformation.
     // Median aus 5 Runs pro Methode – robuster als Einzelmessung.
+    // Wenn renderModeRef.current !== 'auto', wird der Benchmark übersprungen.
     let drawWorld = drawWorldBlit  // Standardwert bis Test abgeschlossen
-    ;(function benchmarkDrawMethods() {
-      const RUNS = 5
-      const testCanvas = document.createElement('canvas')
-      testCanvas.width = GAME_W; testCanvas.height = GAME_H
-      const tCtx = testCanvas.getContext('2d')
+    const drawWorldRef = { current: drawWorldBlit }
 
-      function measureMethod(fn) {
-        const times = []
-        // Gleiche Kamerasituation wie im echten Spiel simulieren
-        const savedCtx = ctx
-        // Wir tauschen ctx temporär gegen tCtx aus
-        // (Closure-Trick: fn nutzt ctx aus dem äußeren Scope)
-        // → Einfacher: fn direkt auf tCtx ausführen indem wir ctx-Calls umleiten.
-        // Da ctx eine let-Variable im äußeren Scope ist, können wir sie kurz ersetzen:
-        // ABER: ctx ist const. Stattdessen messen wir auf dem echten ctx,
-        // der ist sowieso unsichtbar bis zum ersten paint.
-        for (let r = 0; r < RUNS; r++) {
-          const t0 = performance.now()
-          fn()
-          // Wichtig: getImageData() erzwingt GPU-Flush damit die Zeit real ist
-          ctx.getImageData(0, 0, 1, 1)
-          times.push(performance.now() - t0)
+    function applyRenderMode(mode) {
+      if (mode === 'blit') {
+        drawWorldRef.current = drawWorldBlit
+      } else if (mode === 'path2d') {
+        drawWorldRef.current = drawWorldPath2D
+      } else {
+        // 'auto': Benchmark entscheidet
+        const RUNS = 5
+        const testCanvas = document.createElement('canvas')
+        testCanvas.width = GAME_W; testCanvas.height = GAME_H
+
+        function measureMethod(fn) {
+          const times = []
+          for (let r = 0; r < RUNS; r++) {
+            const t0 = performance.now()
+            fn()
+            ctx.getImageData(0, 0, 1, 1)
+            times.push(performance.now() - t0)
+          }
+          times.sort((a, b) => a - b)
+          return times[Math.floor(RUNS / 2)]
         }
-        times.sort((a, b) => a - b)
-        return times[Math.floor(RUNS / 2)]  // Median
+
+        const medianBlit   = measureMethod(drawWorldBlit)
+        const medianPath2D = measureMethod(drawWorldPath2D)
+        drawWorldRef.current = medianBlit <= medianPath2D ? drawWorldBlit : drawWorldPath2D
+        console.log(`[ArcadeRace] drawWorld: blit=${medianBlit.toFixed(2)}ms  path2d=${medianPath2D.toFixed(2)}ms  → ${drawWorldRef.current === drawWorldBlit ? 'BLIT' : 'PATH2D'}`)
       }
+      drawWorld = drawWorldRef.current
+    }
 
-      const medianBlit   = measureMethod(drawWorldBlit)
-      const medianPath2D = measureMethod(drawWorldPath2D)
-
-      drawWorld = medianBlit <= medianPath2D ? drawWorldBlit : drawWorldPath2D
-      console.log(`[ArcadeRace] drawWorld: blit=${medianBlit.toFixed(2)}ms  path2d=${medianPath2D.toFixed(2)}ms  → ${drawWorld === drawWorldBlit ? 'BLIT' : 'PATH2D'}`)
-    })()
+    applyRenderMode(renderModeRef.current)
 
     function drawGhost() {
       if (!ghostCar) return
@@ -962,7 +975,7 @@ export default function ArcadeRace({ onClose }) {
       // Da die Physik sowieso in fixen 1/60-s-Schritten tickt, bringt höheres
       // FPS null Spielvorteil, kostet aber unnötige Renderarbeit.
       // Skip-Schwelle: 14 ms ≈ 71 Hz → alles schneller wird übersprungen.
-      if (lastTS && ts - lastTS < 14) {
+      if (fpsCapRef.current && lastTS && ts - lastTS < 14) {
         rafRef.current = requestAnimationFrame(loop)
         return
       }
@@ -1143,7 +1156,7 @@ export default function ArcadeRace({ onClose }) {
       }
 
       ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
-      drawWorld(); if (showGhostRef.current) drawGhost(); drawCar(); drawBufferWarning(); drawMinimap()
+      drawWorldRef.current(); if (showGhostRef.current) drawGhost(); drawCar(); drawBufferWarning(); drawMinimap()
 
       // ── FPS-Overlay (nur wenn aktiviert) ───────────────────────────────
       if (showFpsRef.current) {
@@ -1183,8 +1196,17 @@ export default function ArcadeRace({ onClose }) {
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
   useEffect(() => { showFpsRef.current   = showFps   }, [showFps])
+  useEffect(() => {
+    fpsCapRef.current = fpsCap
+    try { localStorage.setItem('arcadeRace_fpsCap', fpsCap ? 'on' : 'off') } catch {}
+  }, [fpsCap])
   useEffect(() => { selectedEntryRef.current = selectedEntry }, [selectedEntry])
   useEffect(() => { trainModeRef.current = trainMode }, [trainMode])
+  useEffect(() => {
+    renderModeRef.current = renderMode
+    try { localStorage.setItem(RENDER_MODE_KEY, renderMode) } catch {}
+    gameRef.current?.setRenderMode?.(renderMode)
+  }, [renderMode])
 
   function touchStart(action) { if (gameRef.current) gameRef.current.touches[action]=true }
   function touchEnd(action)   { if (gameRef.current) gameRef.current.touches[action]=false }
@@ -1328,15 +1350,36 @@ export default function ArcadeRace({ onClose }) {
               <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
             )}
             <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
+            <button className="arcade-hud-ghost-toggle" title={fpsCap?'60 FPS-Cap AN – auf Nativrate wechseln':'60 FPS-Cap AUS – läuft mit nativer Bildrate'} style={{opacity:fpsCap?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setFpsCap(v=>!v)}}>{fpsCap?'⏱ 60':'⚡ MAX'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={renderMode==='auto'?'Rendermodus: AUTO (Benchmark)':renderMode==='blit'?'Rendermodus: BLIT (Offscreen)':'Rendermodus: PATH2D (Direktzeichnen)'}
+              onPointerDown={(e)=>{
+                e.currentTarget.setPointerCapture(e.pointerId)
+                setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
+              }}
+            >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
           </div>
         </div>
       )}
 
-      {gameState==='idle' && hasGhost && (
+      {gameState==='idle' && (
         <div className="arcade-hud-bar">
           <div style={{flex:1}}/>
           <div className="arcade-hud-buttons">
-            <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
+            {hasGhost && (
+              <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
+            )}
+            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
+            <button className="arcade-hud-ghost-toggle" title={fpsCap?'60 FPS-Cap AN – auf Nativrate wechseln':'60 FPS-Cap AUS – läuft mit nativer Bildrate'} style={{opacity:fpsCap?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setFpsCap(v=>!v)}}>{fpsCap?'⏱ 60':'⚡ MAX'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={renderMode==='auto'?'Rendermodus: AUTO (Benchmark)':renderMode==='blit'?'Rendermodus: BLIT (Offscreen)':'Rendermodus: PATH2D (Direktzeichnen)'}
+              onPointerDown={(e)=>{
+                e.currentTarget.setPointerCapture(e.pointerId)
+                setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
+              }}
+            >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
           </div>
         </div>
       )}
