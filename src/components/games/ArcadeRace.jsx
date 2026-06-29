@@ -166,10 +166,14 @@ export default function ArcadeRace({ onClose }) {
   const showFpsRef   = useRef(false)
 
   // ── Performance-Logger ──────────────────────────────────────────────────────
-  const [perfLogging,   setPerfLogging]   = useState(false)
-  const perfLoggingRef  = useRef(false)
-  const perfLogRef      = useRef([])        // sammelt Frame-Einträge während der Aufnahme
-  const perfLogStartRef = useRef(null)      // performance.now() beim Start der Aufnahme
+  const [perfLogging,    setPerfLogging]   = useState(false)
+  const perfLoggingRef   = useRef(false)
+  const perfLogRef       = useRef([])       // rAF-Frame-Einträge
+  const perfFreezeRef    = useRef([])       // Freeze-Einträge vom Watchdog-Timer
+  const perfLogStartRef  = useRef(null)     // performance.now() beim Start
+  const perfLastRafRef   = useRef(null)     // letzter rAF-Timestamp (für Watchdog)
+  const perfWatchdogRef  = useRef(null)     // setInterval-Handle
+
   const [selectedEntry,   setSelectedEntry]   = useState(0)
   const selectedEntryRef  = useRef(0)
   const [trainMode,       setTrainMode]       = useState('qualifying')
@@ -375,74 +379,110 @@ export default function ArcadeRace({ onClose }) {
     else setSaveError(true)
   }
 
-  // ── Performance-Log: Aufnahme starten/stoppen & Download ──────────────────
+  // ── Performance-Logger: Aufnahme starten/stoppen & Download ───────────────
   function togglePerfLog() {
     if (perfLoggingRef.current) {
-      // Aufnahme stoppen und Datei erzeugen
+      // Aufnahme stoppen
       setPerfLogging(false)
       perfLoggingRef.current = false
+      if (perfWatchdogRef.current) {
+        clearInterval(perfWatchdogRef.current)
+        perfWatchdogRef.current = null
+      }
       downloadPerfLog()
     } else {
       // Aufnahme starten
-      perfLogRef.current = []
+      perfLogRef.current      = []
+      perfFreezeRef.current   = []
       perfLogStartRef.current = performance.now()
+      perfLastRafRef.current  = performance.now()
       setPerfLogging(true)
-      perfLoggingRef.current = true
+      perfLoggingRef.current  = true
+
+      // Watchdog: läuft alle 100ms unabhängig von rAF.
+      // Wenn rAF seit >40ms nicht aufgerufen wurde → Freeze registrieren.
+      perfWatchdogRef.current = setInterval(() => {
+        if (!perfLoggingRef.current) return
+        const now     = performance.now()
+        const sinceRaf = now - (perfLastRafRef.current ?? now)
+        if (sinceRaf > 40) {
+          perfFreezeRef.current.push({
+            elapsed:  Math.round(now - perfLogStartRef.current),
+            gapMs:    Math.round(sinceRaf),
+          })
+        }
+      }, 100)
     }
   }
 
   function downloadPerfLog() {
-    const entries = perfLogRef.current
+    const entries  = perfLogRef.current
+    const freezes  = perfFreezeRef.current
     if (entries.length === 0) return
 
     // ── Geräte-Infos ──
-    const nav = window.navigator
+    const nav    = window.navigator
+    const canvas = canvasRef.current
     const deviceInfo = [
-      `Gerät/Browser: ${nav.userAgent}`,
-      `Bildschirm: ${window.screen.width}x${window.screen.height} @ ${window.devicePixelRatio}x DPR`,
-      `Hardware Concurrency: ${nav.hardwareConcurrency ?? 'unbekannt'}`,
-      `Plattform: ${nav.platform ?? 'unbekannt'}`,
-      `Sprache: ${nav.language}`,
-      `Online: ${nav.onLine}`,
+      `User-Agent:           ${nav.userAgent}`,
+      `Bildschirm (CSS px):  ${window.screen.width}x${window.screen.height}`,
+      `Device Pixel Ratio:   ${window.devicePixelRatio}`,
+      `Canvas (phys. Pixel): ${canvas ? canvas.width * window.devicePixelRatio : '?'}x${canvas ? canvas.height * window.devicePixelRatio : '?'}`,
+      `Hardware Concurrency: ${nav.hardwareConcurrency ?? '?'}`,
+      `Plattform:            ${nav.platform ?? '?'}`,
+      `Sprache:              ${nav.language}`,
+      `Online:               ${nav.onLine}`,
     ].join('\n')
 
-    // ── Ruckler-Analyse ──
-    const frameDts = entries.map(e => e.frameDtMs)
-    const avgDt    = frameDts.reduce((a, b) => a + b, 0) / frameDts.length
-    const maxDt    = Math.max(...frameDts)
-    const minDt    = Math.min(...frameDts)
-    const spikes   = entries.filter(e => e.frameDtMs > 50)   // >50ms = sichtbarer Ruckler
-    const bigSpikes = entries.filter(e => e.frameDtMs > 100) // >100ms = sehr starker Ruckler
+    // ── Frame-Statistik: auf rawDtMs basieren (echter Abstand, nicht gedeckelt) ──
+    const rawDts = entries.map(e => e.rawDtMs ?? e.frameDtMs)   // Fallback für alte Logs
+    const avg  = rawDts.reduce((a, b) => a + b, 0) / rawDts.length
+    const max  = Math.max(...rawDts)
+    const min  = Math.min(...rawDts.filter(d => d > 0))
+
+    // Gaps zwischen aufeinanderfolgenden rAF-Timestamps (echte Freeze-Lücken)
+    const rafGaps = []
+    for (let i = 1; i < entries.length; i++) {
+      const gap = entries[i].elapsed - entries[i-1].elapsed
+      if (gap > 40) rafGaps.push({ elapsed: Math.round(entries[i].elapsed), gapMs: Math.round(gap) })
+    }
 
     const summary = [
-      `Track: ${track.name} (${track.id})`,
-      `RenderMode: ${renderMode}`,
-      `FPS-Cap: ${fpsCap ? 'AN (60)' : 'AUS (nativ)'}`,
-      `Aufnahmedauer: ${((entries[entries.length-1].elapsed - entries[0].elapsed)/1000).toFixed(2)}s`,
+      `Track:                ${track.name} (${track.id})`,
+      `RenderMode:           ${renderMode}`,
+      `FPS-Cap:              ${fpsCap ? 'AN (60)' : 'AUS (nativ)'}`,
+      `Aufnahmedauer:        ${((entries[entries.length-1].elapsed - entries[0].elapsed)/1000).toFixed(2)}s`,
       `Frames aufgezeichnet: ${entries.length}`,
-      `Durchschn. Frame-Zeit: ${avgDt.toFixed(2)}ms`,
-      `Min Frame-Zeit: ${minDt.toFixed(2)}ms`,
-      `Max Frame-Zeit: ${maxDt.toFixed(2)}ms`,
-      `Ruckler (>50ms): ${spikes.length}`,
-      `Starke Ruckler (>100ms): ${bigSpikes.length}`,
+      `Ø rawDt (echter Abstand): ${avg.toFixed(2)}ms`,
+      `Min rawDt:            ${min.toFixed(2)}ms`,
+      `Max rawDt:            ${max.toFixed(2)}ms`,
+      `rAF-Gaps >40ms:       ${rafGaps.length}  (sichtbare Ruckler laut Zeitstempel-Lücke)`,
+      `Watchdog-Freezes:     ${freezes.length}  (rAF war >40ms stumm laut externem Timer)`,
+      `physSteps=0 Frames:   ${entries.filter(e=>e.physSteps===0).length}`,
+      `physSteps≥2 Frames:   ${entries.filter(e=>e.physSteps>=2).length}`,
     ].join('\n')
 
-    // ── Spike-Details ──
-    const spikeDetails = spikes.map(e =>
-      `  t=${e.elapsed.toFixed(0)}ms  frameDt=${e.frameDtMs.toFixed(1)}ms  fps=${e.fps}  steps=${e.physSteps}  mode=${e.renderMode}  racing=${e.racing}`
-    ).join('\n')
+    // ── rAF-Lücken Detail ──
+    const rafGapDetail = rafGaps.length > 0
+      ? rafGaps.map(g => `  t=${g.elapsed}ms  Lücke=${g.gapMs}ms`).join('\n')
+      : '  (keine)'
 
-    // ── Alle Frames (kompakt) ──
-    const header = 'elapsed_ms\tframeDt_ms\tfps\tphysSteps\trenderMode\tracing\tinBuffer'
-    const rows = entries.map(e =>
-      `${e.elapsed.toFixed(1)}\t${e.frameDtMs.toFixed(2)}\t${e.fps}\t${e.physSteps}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}`
+    // ── Watchdog-Freezes Detail ──
+    const freezeDetail = freezes.length > 0
+      ? freezes.map(f => `  t=${f.elapsed}ms  rAF stumm seit ${f.gapMs}ms`).join('\n')
+      : '  (keine)'
+
+    // ── Alle Frames ──
+    const header = 'elapsed_ms\trawDt_ms\tframeDt_ms\tskipped\tfps\tphysSteps\trenderMode\tracing\tinBuffer'
+    const rows   = entries.map(e =>
+      `${e.elapsed.toFixed(1)}\t${(e.rawDtMs ?? e.frameDtMs).toFixed(2)}\t${e.frameDtMs.toFixed(2)}\t${e.skipped ?? false}\t${e.fps}\t${e.physSteps}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}`
     ).join('\n')
 
     const now = new Date()
     const ts  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`
 
     const content = [
-      '=== ARCADERACE PERFORMANCE LOG ===',
+      '=== ARCADERACE PERFORMANCE LOG v3 ===',
       `Erstellt: ${now.toLocaleString('de-AT')}`,
       '',
       '--- GERÄT ---',
@@ -451,10 +491,14 @@ export default function ArcadeRace({ onClose }) {
       '--- ZUSAMMENFASSUNG ---',
       summary,
       '',
-      '--- RUCKLER-DETAILS (>50ms) ---',
-      spikes.length > 0 ? spikeDetails : '  (keine Ruckler über 50ms)',
+      '--- rAF-LÜCKEN >40ms (Freeze im Timestamp-Verlauf) ---',
+      rafGapDetail,
+      '',
+      '--- WATCHDOG-FREEZES >40ms (externer Timer) ---',
+      freezeDetail,
       '',
       '--- ALLE FRAMES ---',
+      '(rawDt_ms = echter Abstand zum Vorgänger-Frame, ungedeckelt; frameDt_ms = gedeckelt auf 250ms; skipped = vom FPS-Cap übersprungen)',
       header,
       rows,
     ].join('\n')
@@ -462,10 +506,8 @@ export default function ArcadeRace({ onClose }) {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
-    a.href     = url
-    a.download = `arcaderace_log_${ts}.txt`
-    document.body.appendChild(a)
-    a.click()
+    a.href = url; a.download = `arcaderace_log_${ts}.txt`
+    document.body.appendChild(a); a.click()
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 1000)
   }
 
@@ -1075,13 +1117,28 @@ export default function ArcadeRace({ onClose }) {
       // Da die Physik sowieso in fixen 1/60-s-Schritten tickt, bringt höheres
       // FPS null Spielvorteil, kostet aber unnötige Renderarbeit.
       // Skip-Schwelle: 14 ms ≈ 71 Hz → alles schneller wird übersprungen.
-      if (fpsCapRef.current && lastTS && ts - lastTS < 14) {
+      const rawDtMs = lastTS ? ts - lastTS : 0   // echter Abstand, UNGEDECKELT – für den Logger
+      if (fpsCapRef.current && lastTS && rawDtMs < 14) {
+        // FPS-Cap-Skip: trotzdem loggen wenn Aufnahme läuft (skipped frames sind unsichtbar aber zählen)
+        if (perfLoggingRef.current && perfLogStartRef.current !== null) {
+          perfLogRef.current.push({
+            elapsed: ts - perfLogStartRef.current,
+            frameDtMs: rawDtMs,
+            rawDtMs,
+            skipped: true,
+            fps: fpsRef.current,
+            physSteps: 0,
+            renderMode: renderModeRef.current,
+            racing,
+            inBuffer,
+          })
+        }
         rafRef.current = requestAnimationFrame(loop)
         return
       }
       if (!lastTS) lastTS = ts
       // Echtes elapsed seit letztem Frame — kein Cap mehr nötig dank Sub-Steps
-      const frameDt = Math.min((ts - lastTS) / 1000, 0.25) // max 250ms (Tab-Wechsel-Schutz)
+      const frameDt = Math.min(rawDtMs / 1000, 0.25) // max 250ms (Tab-Wechsel-Schutz)
       lastTS = ts
 
       // ── FPS-Messung (gleitender Schnitt über 30 Frames) ──────────────────
@@ -1273,25 +1330,27 @@ export default function ArcadeRace({ onClose }) {
         ctx.restore()
       }
 
-      // ── Performance-Logging: Frame-Daten aufzeichnen ─────────────────────
+      // Nach dem Zieldurchfahrt: Loop stoppen – Canvas bleibt eingefroren,
+      // das Finish-Overlay (React) liegt darüber.
+      // resetCar() startet die Loop über rafRef neu.
+
+      // ── Performance-Logger: Frame aufzeichnen ────────────────────────────
       if (perfLoggingRef.current && perfLogStartRef.current !== null) {
-        const elapsed = ts - perfLogStartRef.current
+        perfLastRafRef.current = performance.now()   // Watchdog-Heartbeat
         perfLogRef.current.push({
-          elapsed,
-          frameDtMs: frameDt * 1000,
-          fps: fpsRef.current,
-          physSteps: stepsRan ?? 0,
+          elapsed:    ts - perfLogStartRef.current,
+          frameDtMs:  frameDt * 1000,   // gedeckelt (max 250ms)
+          rawDtMs,                       // echter Abstand zum letzten Frame, UNGEDECKELT
+          skipped:    false,
+          fps:        fpsRef.current,
+          physSteps:  stepsRan,
           renderMode: renderModeRef.current,
           racing,
           inBuffer,
         })
-        // Maximaler Puffer: 30 Minuten bei 60fps ≈ 108.000 Frames – Sicherheitsgrenze
         if (perfLogRef.current.length > 120000) perfLogRef.current.shift()
       }
 
-      // Nach dem Zieldurchfahrt: Loop stoppen – Canvas bleibt eingefroren,
-      // das Finish-Overlay (React) liegt darüber.
-      // resetCar() startet die Loop über rafRef neu.
       if (finishedRef) return
 
       rafRef.current=requestAnimationFrame(loop)
@@ -1476,12 +1535,6 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
-            <button
-              className="arcade-hud-ghost-toggle"
-              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
-              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
-              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
-            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
@@ -1503,12 +1556,6 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
-            <button
-              className="arcade-hud-ghost-toggle"
-              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
-              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
-              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
-            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
