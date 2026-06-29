@@ -164,6 +164,12 @@ export default function ArcadeRace({ onClose }) {
   const fpsFramesRef      = useRef([])     // Ring-Buffer der letzten Frame-Timestamps
   const showGhostRef = useRef(true)
   const showFpsRef   = useRef(false)
+
+  // ── Performance-Logger ──────────────────────────────────────────────────────
+  const [perfLogging,   setPerfLogging]   = useState(false)
+  const perfLoggingRef  = useRef(false)
+  const perfLogRef      = useRef([])        // sammelt Frame-Einträge während der Aufnahme
+  const perfLogStartRef = useRef(null)      // performance.now() beim Start der Aufnahme
   const [selectedEntry,   setSelectedEntry]   = useState(0)
   const selectedEntryRef  = useRef(0)
   const [trainMode,       setTrainMode]       = useState('qualifying')
@@ -367,6 +373,100 @@ export default function ArcadeRace({ onClose }) {
     setSaving(false)
     if (ok) { if (result) setSaved(true); clearPendingScore(); loadLeaderboard() }
     else setSaveError(true)
+  }
+
+  // ── Performance-Log: Aufnahme starten/stoppen & Download ──────────────────
+  function togglePerfLog() {
+    if (perfLoggingRef.current) {
+      // Aufnahme stoppen und Datei erzeugen
+      setPerfLogging(false)
+      perfLoggingRef.current = false
+      downloadPerfLog()
+    } else {
+      // Aufnahme starten
+      perfLogRef.current = []
+      perfLogStartRef.current = performance.now()
+      setPerfLogging(true)
+      perfLoggingRef.current = true
+    }
+  }
+
+  function downloadPerfLog() {
+    const entries = perfLogRef.current
+    if (entries.length === 0) return
+
+    // ── Geräte-Infos ──
+    const nav = window.navigator
+    const deviceInfo = [
+      `Gerät/Browser: ${nav.userAgent}`,
+      `Bildschirm: ${window.screen.width}x${window.screen.height} @ ${window.devicePixelRatio}x DPR`,
+      `Hardware Concurrency: ${nav.hardwareConcurrency ?? 'unbekannt'}`,
+      `Plattform: ${nav.platform ?? 'unbekannt'}`,
+      `Sprache: ${nav.language}`,
+      `Online: ${nav.onLine}`,
+    ].join('\n')
+
+    // ── Ruckler-Analyse ──
+    const frameDts = entries.map(e => e.frameDtMs)
+    const avgDt    = frameDts.reduce((a, b) => a + b, 0) / frameDts.length
+    const maxDt    = Math.max(...frameDts)
+    const minDt    = Math.min(...frameDts)
+    const spikes   = entries.filter(e => e.frameDtMs > 50)   // >50ms = sichtbarer Ruckler
+    const bigSpikes = entries.filter(e => e.frameDtMs > 100) // >100ms = sehr starker Ruckler
+
+    const summary = [
+      `Track: ${track.name} (${track.id})`,
+      `RenderMode: ${renderMode}`,
+      `FPS-Cap: ${fpsCap ? 'AN (60)' : 'AUS (nativ)'}`,
+      `Aufnahmedauer: ${((entries[entries.length-1].elapsed - entries[0].elapsed)/1000).toFixed(2)}s`,
+      `Frames aufgezeichnet: ${entries.length}`,
+      `Durchschn. Frame-Zeit: ${avgDt.toFixed(2)}ms`,
+      `Min Frame-Zeit: ${minDt.toFixed(2)}ms`,
+      `Max Frame-Zeit: ${maxDt.toFixed(2)}ms`,
+      `Ruckler (>50ms): ${spikes.length}`,
+      `Starke Ruckler (>100ms): ${bigSpikes.length}`,
+    ].join('\n')
+
+    // ── Spike-Details ──
+    const spikeDetails = spikes.map(e =>
+      `  t=${e.elapsed.toFixed(0)}ms  frameDt=${e.frameDtMs.toFixed(1)}ms  fps=${e.fps}  steps=${e.physSteps}  mode=${e.renderMode}  racing=${e.racing}`
+    ).join('\n')
+
+    // ── Alle Frames (kompakt) ──
+    const header = 'elapsed_ms\tframeDt_ms\tfps\tphysSteps\trenderMode\tracing\tinBuffer'
+    const rows = entries.map(e =>
+      `${e.elapsed.toFixed(1)}\t${e.frameDtMs.toFixed(2)}\t${e.fps}\t${e.physSteps}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}`
+    ).join('\n')
+
+    const now = new Date()
+    const ts  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`
+
+    const content = [
+      '=== ARCADERACE PERFORMANCE LOG ===',
+      `Erstellt: ${now.toLocaleString('de-AT')}`,
+      '',
+      '--- GERÄT ---',
+      deviceInfo,
+      '',
+      '--- ZUSAMMENFASSUNG ---',
+      summary,
+      '',
+      '--- RUCKLER-DETAILS (>50ms) ---',
+      spikes.length > 0 ? spikeDetails : '  (keine Ruckler über 50ms)',
+      '',
+      '--- ALLE FRAMES ---',
+      header,
+      rows,
+    ].join('\n')
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `arcaderace_log_${ts}.txt`
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 1000)
   }
 
   const startGame = useCallback(() => {
@@ -1035,6 +1135,7 @@ export default function ArcadeRace({ onClose }) {
       }
 
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
+      let stepsRan = 0
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
@@ -1044,7 +1145,6 @@ export default function ArcadeRace({ onClose }) {
         // Accumulator-Pattern: übrige Zeit bleibt erhalten und wird zum nächsten Frame addiert.
         // dt ist immer exakt STEP → vollständig deterministisch auf allen Geräten/Framerates.
         accumulator += frameDt
-        let stepsRan = 0
         while (accumulator >= STEP) {
           accumulator -= STEP
           stepsRan++
@@ -1173,6 +1273,22 @@ export default function ArcadeRace({ onClose }) {
         ctx.restore()
       }
 
+      // ── Performance-Logging: Frame-Daten aufzeichnen ─────────────────────
+      if (perfLoggingRef.current && perfLogStartRef.current !== null) {
+        const elapsed = ts - perfLogStartRef.current
+        perfLogRef.current.push({
+          elapsed,
+          frameDtMs: frameDt * 1000,
+          fps: fpsRef.current,
+          physSteps: stepsRan ?? 0,
+          renderMode: renderModeRef.current,
+          racing,
+          inBuffer,
+        })
+        // Maximaler Puffer: 30 Minuten bei 60fps ≈ 108.000 Frames – Sicherheitsgrenze
+        if (perfLogRef.current.length > 120000) perfLogRef.current.shift()
+      }
+
       // Nach dem Zieldurchfahrt: Loop stoppen – Canvas bleibt eingefroren,
       // das Finish-Overlay (React) liegt darüber.
       // resetCar() startet die Loop über rafRef neu.
@@ -1196,6 +1312,7 @@ export default function ArcadeRace({ onClose }) {
 
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
   useEffect(() => { showFpsRef.current   = showFps   }, [showFps])
+  useEffect(() => { perfLoggingRef.current = perfLogging }, [perfLogging])
   useEffect(() => {
     fpsCapRef.current = fpsCap
     try { localStorage.setItem('arcadeRace_fpsCap', fpsCap ? 'on' : 'off') } catch {}
@@ -1359,6 +1476,12 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
+              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
+            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
@@ -1380,6 +1503,12 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
+              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
+            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
