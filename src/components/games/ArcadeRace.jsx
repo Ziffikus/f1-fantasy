@@ -696,6 +696,7 @@ export default function ArcadeRace({ onClose }) {
       }
     }
 
+    const capIntervals = []   // Ring-Buffer der letzten rAF-Abstände für adaptiven FPS-Cap
     let lapTime = 0, bestLapMs = loadGhost()   // Ghost-Zeit als initiale Bestzeit
     let ghostStartOffset = 0
     let lapStarted = true, prevSeg = START_SEG, lastTS = null
@@ -1113,31 +1114,47 @@ export default function ArcadeRace({ onClose }) {
     }
 
     function loop(ts) {
-      // ── 60 FPS-Cap: auf Displays mit 90/120/144 Hz läuft rAF zu schnell.
-      // Da die Physik sowieso in fixen 1/60-s-Schritten tickt, bringt höheres
-      // FPS null Spielvorteil, kostet aber unnötige Renderarbeit.
-      // Skip-Schwelle: 14 ms ≈ 71 Hz → alles schneller wird übersprungen.
       const rawDtMs = lastTS ? ts - lastTS : 0   // echter Abstand, UNGEDECKELT – für den Logger
-      if (fpsCapRef.current && lastTS && rawDtMs < 14) {
-        // FPS-Cap-Skip: trotzdem loggen wenn Aufnahme läuft (skipped frames sind unsichtbar aber zählen)
-        if (perfLoggingRef.current && perfLogStartRef.current !== null) {
-          perfLogRef.current.push({
-            elapsed: ts - perfLogStartRef.current,
-            frameDtMs: rawDtMs,
-            rawDtMs,
-            skipped: true,
-            fps: fpsRef.current,
-            physSteps: 0,
-            renderMode: renderModeRef.current,
-            racing,
-            inBuffer,
-          })
+
+      // ── Adaptiver 60-FPS-Cap ─────────────────────────────────────────────────
+      // Displays mit 90/120/144 Hz lassen rAF zu schnell feuern. Die Physik läuft
+      // in fixen 1/60s-Schritten → mehr Frames bringen keinen Spielvorteil,
+      // kosten aber Renderarbeit und verursachen Stutter beim Hz-Wechsel.
+      //
+      // Problem mit hartem 14ms-Limit: Wenn das Display mid-session auf 120Hz
+      // wechselt (VRR / Android LPDDR), kommen Frames alle ~8ms. Das liegt unter
+      // der 14ms-Schwelle → Cap greift nicht → Accumulator läuft aus dem Takt →
+      // sichtbarer Stutter, obwohl die Physik identisch wäre.
+      //
+      // Lösung: Wir messen die tatsächliche rAF-Intervall-Rate aus den letzten
+      // 10 Frames und leiten daraus die Display-Refreshrate ab. Die Skip-Schwelle
+      // wird auf 85% des gemessenen Intervalls gesetzt → funktioniert bei jedem
+      // Hz-Wert und passt sich mid-session an.
+      if (lastTS && rawDtMs > 0) capIntervals.push(rawDtMs)
+      if (capIntervals.length > 10) capIntervals.shift()
+      if (fpsCapRef.current && lastTS && capIntervals.length >= 5) {
+        // Median der letzten Intervalle (robuster als Durchschnitt gegen Ausreißer)
+        const sorted = [...capIntervals].sort((a, b) => a - b)
+        const medianInterval = sorted[Math.floor(sorted.length / 2)]
+        // Skip-Schwelle: 85% des natürlichen Intervalls.
+        // Bei 60Hz ~14.2ms, bei 90Hz ~9.4ms, bei 120Hz ~7.1ms, bei 144Hz ~5.9ms
+        const skipThreshold = medianInterval * 0.85
+        if (rawDtMs < skipThreshold) {
+          // FPS-Cap-Skip: trotzdem loggen wenn Aufnahme läuft
+          if (perfLoggingRef.current && perfLogStartRef.current !== null) {
+            perfLogRef.current.push({
+              elapsed: ts - perfLogStartRef.current,
+              frameDtMs: rawDtMs, rawDtMs, skipped: true,
+              fps: fpsRef.current, physSteps: 0,
+              renderMode: renderModeRef.current, racing, inBuffer,
+            })
+          }
+          rafRef.current = requestAnimationFrame(loop)
+          return
         }
-        rafRef.current = requestAnimationFrame(loop)
-        return
       }
+
       if (!lastTS) lastTS = ts
-      // Echtes elapsed seit letztem Frame — kein Cap mehr nötig dank Sub-Steps
       const frameDt = Math.min(rawDtMs / 1000, 0.25) // max 250ms (Tab-Wechsel-Schutz)
       lastTS = ts
 
