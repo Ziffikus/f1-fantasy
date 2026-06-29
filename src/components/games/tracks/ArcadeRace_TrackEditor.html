@@ -41,6 +41,28 @@ button:hover { background: #3d3d6e; color: #fff; }
 #import-btn:hover { background: #2a3a4a; color: #a5f3fc; }
 #svg-import-btn { background: #2a1a10; border-color: #7a4a20; color: #fb923c; }
 #svg-import-btn:hover { background: #3a2a18; color: #fdba74; }
+#set-entry-btn { background: #1a2a20; border-color: #2a6a5a; color: #34d399; }
+#set-entry-btn:hover { background: #2a3a30; color: #6ee7b7; }
+#set-entry-btn.active { background: #0a3a2a; border-color: #34d399; color: #6ee7b7; outline: 1px solid #34d399; }
+
+/* ── Entry Picker Popup ───────────────────────────────────── */
+#entry-picker {
+  position: fixed; z-index: 300;
+  background: #1a1a2e; border: 1px solid #444; border-radius: 6px;
+  padding: 6px 0; min-width: 180px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  display: none; flex-direction: column;
+  font-family: monospace; font-size: 12px;
+}
+#entry-picker .ep-pick-title {
+  padding: 4px 12px 6px; color: #666; font-size: 10px; border-bottom: 1px solid #333; margin-bottom: 2px;
+}
+#entry-picker button {
+  background: transparent; border: none; border-radius: 0;
+  color: #ccc; padding: 5px 14px; text-align: left; width: 100%;
+  font-size: 11px; cursor: pointer;
+}
+#entry-picker button:hover { background: #2a2a4e; color: #fff; }
 
 /* ── SVG Import Overlay ───────────────────────────────────── */
 #svg-overlay { position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:200;display:none;align-items:center;justify-content:center; }
@@ -162,6 +184,7 @@ button:hover { background: #3d3d6e; color: #fff; }
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button id="toggle-smooth">Smooth: AN</button>
       <button id="set-start-btn" title="Punkt wählen, dann hier klicken">★ Start setzen</button>
+      <button id="set-entry-btn" title="Abschnitt-Modus: Punkt anklicken → Einstiegspunkt wählen">📍 Abschnitt setzen</button>
       <button id="mirror-h">⟺ H</button>
       <button id="mirror-v">⇅ V</button>
       <button id="reverse-btn">🔄 Richtung umkehren</button>
@@ -499,7 +522,7 @@ function highlightRow(i) {
 function getTransform() {
   const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
   const mnx=Math.min(...xs), mxx=Math.max(...xs), mny=Math.min(...ys), mxy=Math.max(...ys);
-  const W=canvas.width, H=canvas.height;
+  const W=parseFloat(canvas.style.width)||canvas.width, H=parseFloat(canvas.style.height)||canvas.height;
   const sc = Math.min((W-40)/(mxx-mnx||1),(H-40)/(mxy-mny||1));
   return { mnx, mny, sc, ox:(W-(mxx-mnx)*sc)/2, oy:(H-(mxy-mny)*sc)/2 };
 }
@@ -571,8 +594,8 @@ function draw() {
 // ── Mouse ─────────────────────────────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
-  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
-  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const mx=(e.clientX-rect.left);
+  const my=(e.clientY-rect.top);
   const t=getTransform();
   let best=1e9, bi=-1;
   pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
@@ -585,12 +608,18 @@ canvas.addEventListener('mousemove', e => {
 
 canvas.addEventListener('click', e => {
   const rect = canvas.getBoundingClientRect();
-  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
-  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const mx=(e.clientX-rect.left);
+  const my=(e.clientY-rect.top);
   const t=getTransform();
   let best=1e9, bi=-1;
   pts.forEach((p,i)=>{ const [sx,sy]=toScreen(p,t); const d=(mx-sx)**2+(my-sy)**2; if(d<best){best=d;bi=i;} });
-  if(best<400) { selectedIdx=bi; draw(); highlightRow(bi); }
+  if(best<400) {
+    if(entrySetMode) {
+      showEntryPicker(bi, e.clientX, e.clientY);
+    } else {
+      selectedIdx=bi; draw(); highlightRow(bi);
+    }
+  }
 });
 
 // ── Mirror / Smooth / Start ────────────────────────────────────────────────────
@@ -631,6 +660,70 @@ document.getElementById('set-start-btn').addEventListener('click', () => {
   START = selectedIdx;
   buildTable(); draw();
   document.getElementById('status').textContent = `★ Startpunkt auf #${START} gesetzt`;
+});
+
+// ── Abschnitt setzen (Entry-Point-Modus) ──────────────────────────────────────
+let entrySetMode = false;
+const entryPicker = document.getElementById('entry-picker');
+const setEntryBtn = document.getElementById('set-entry-btn');
+
+function setEntryModeActive(on) {
+  entrySetMode = on;
+  setEntryBtn.classList.toggle('active', on);
+  setEntryBtn.textContent = on ? '📍 Abschnitt … (ESC)' : '📍 Abschnitt setzen';
+  canvas.style.cursor = on ? 'cell' : 'crosshair';
+  document.getElementById('status').textContent = on
+    ? 'Abschnitt-Modus: Punkt auf der Strecke anklicken'
+    : 'Hover über einen Punkt für Details';
+}
+
+setEntryBtn.addEventListener('click', () => setEntryModeActive(!entrySetMode));
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') { setEntryModeActive(false); entryPicker.style.display = 'none'; }
+});
+
+function showEntryPicker(pointIdx, screenX, screenY) {
+  // Rebuild picker buttons from current entryPoints list
+  // Remove all previous buttons (keep title div)
+  [...entryPicker.querySelectorAll('button')].forEach(b => b.remove());
+
+  if(!entryPoints.length) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:6px 14px;color:#888;font-size:11px';
+    msg.textContent = 'Keine Einstiegspunkte vorhanden.';
+    entryPicker.appendChild(msg);
+  } else {
+    entryPoints.forEach((ep, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = `${ep.emoji} ${ep.label}  (aktuell: #${ep.rawIdx})`;
+      btn.addEventListener('click', () => {
+        entryPoints[i].rawIdx = pointIdx;
+        renderEntryList();
+        draw();
+        entryPicker.style.display = 'none';
+        setEntryModeActive(false);
+        document.getElementById('status').textContent =
+          `📍 "${ep.label}" → Punkt #${pointIdx} gesetzt`;
+      });
+      entryPicker.appendChild(btn);
+    });
+  }
+
+  // Position picker near click, keep within viewport
+  entryPicker.style.display = 'flex';
+  const pw = entryPicker.offsetWidth || 200;
+  const ph = entryPicker.offsetHeight || 150;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  entryPicker.style.left = Math.min(screenX + 8, vw - pw - 8) + 'px';
+  entryPicker.style.top  = Math.min(screenY + 8, vh - ph - 8) + 'px';
+}
+
+// Close picker when clicking elsewhere
+document.addEventListener('click', e => {
+  if(!entryPicker.contains(e.target) && e.target !== setEntryBtn) {
+    entryPicker.style.display = 'none';
+  }
 });
 
 // ── Export RAW (clipboard) ────────────────────────────────────────────────────
@@ -1258,6 +1351,11 @@ svgConfirm.addEventListener('click', () => {
   document.getElementById('status').textContent = `✅ SVG importiert: ${pts.length} Punkte geladen.`;
 });
 </script>
+
+<!-- ── Entry Picker Popup ──────────────────────────────────────────────────────── -->
+<div id="entry-picker">
+  <div class="ep-pick-title">Welchen Einstiegspunkt setzen?</div>
+</div>
 
 <!-- ── Import-Overlay ──────────────────────────────────────────────────────── -->
 <div id="import-overlay">

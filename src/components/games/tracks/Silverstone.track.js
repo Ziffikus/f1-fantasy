@@ -12,12 +12,12 @@ export const SILVERSTONE_TRACK = {
   scale:       11,
   trackWidth:  175,
   buffer:      80,
-  startIndex:  0,       // RAW-Punkt 0 → Subdivision-Segment = 0
+  startIndex:  101,       // RAW-Punkt 101 → Subdivision-Segment = 404
   sectorCount: 3,
 
   entryPoints: [
     { label: 'Start / Ziel', rawIdx: 101, emoji: '①' },
-    { label: 'Kurve 1-2', rawIdx: 125, emoji: '②' },
+    { label: 'Kurve 1-2', rawIdx: 126, emoji: '②' },
     { label: 'Sector 2', rawIdx: 150, emoji: '③' },
     { label: 'Chicane', rawIdx: 175, emoji: '④' },
     { label: 'Sector 3', rawIdx: 200, emoji: '⑤' },
@@ -26,7 +26,7 @@ export const SILVERSTONE_TRACK = {
   ],
 
   points: [
-    /* 00 */ [947.78, 354.15], // ← START / ZIEL
+    /* 00 */ [947.78, 354.15],
     /* 01 */ [950.00, 365.83],
     /* 02 */ [949.77, 378.13],
     /* 03 */ [945.21, 388.83],
@@ -127,7 +127,7 @@ export const SILVERSTONE_TRACK = {
     /* 98 */ [262.77, 61.92],
     /* 99 */ [272.40, 66.74],
     /* 100 */ [285.17, 73.25],
-    /* 101 */ [301.36, 81.61],
+    /* 101 */ [301.36, 81.61], // ← START / ZIEL
     /* 102 */ [321.29, 91.96],
     /* 103 */ [345.25, 104.46],
     /* 104 */ [371.11, 117.97],
