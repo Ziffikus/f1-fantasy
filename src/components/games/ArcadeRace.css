@@ -44,6 +44,8 @@
   width: 100%;
   height: auto;
   background: #1a1a2e;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* ── Overlays ────────────────────────────────────────────────── */
