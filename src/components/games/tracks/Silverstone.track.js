@@ -16,13 +16,13 @@ export const SILVERSTONE_TRACK = {
   sectorCount: 3,
 
   entryPoints: [
-    { label: 'Start / Ziel', rawIdx: 100, emoji: '①' },
-    { label: 'Kurve 1-2', rawIdx: 25, emoji: '②' },
-    { label: 'Sector 2', rawIdx: 50, emoji: '③' },
-    { label: 'Chicane', rawIdx: 75, emoji: '④' },
-    { label: 'Sector 3', rawIdx: 100, emoji: '⑤' },
-    { label: 'Letzter S', rawIdx: 140, emoji: '⑥' },
-    { label: 'Zielgerade', rawIdx: 170, emoji: '⑦' },
+    { label: 'Start / Ziel', rawIdx: 101, emoji: '①' },
+    { label: 'Kurve 1-2', rawIdx: 125, emoji: '②' },
+    { label: 'Sector 2', rawIdx: 150, emoji: '③' },
+    { label: 'Chicane', rawIdx: 175, emoji: '④' },
+    { label: 'Sector 3', rawIdx: 200, emoji: '⑤' },
+    { label: 'Letzter S', rawIdx: 40, emoji: '⑥' },
+    { label: 'Zielgerade', rawIdx: 70, emoji: '⑦' },
   ],
 
   points: [
