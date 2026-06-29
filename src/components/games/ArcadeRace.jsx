@@ -440,6 +440,18 @@ export default function ArcadeRace({ onClose }) {
     const max  = Math.max(...rawDts)
     const min  = Math.min(...rawDts.filter(d => d > 0))
 
+    // nearestPoint-Statistik (nur physikalisch aktive Frames)
+    const npFrames = entries.filter(e => !e.longTask && e.nearestPointMs != null)
+    const npAvg = npFrames.length
+      ? (npFrames.reduce((a, e) => a + e.nearestPointMs, 0) / npFrames.length).toFixed(3)
+      : '–'
+    const npMax = npFrames.length
+      ? Math.max(...npFrames.map(e => e.nearestPointMs)).toFixed(3)
+      : '–'
+    const npSlow = npFrames.filter(e => e.nearestPointMs > 2).length
+
+    const longTaskEntries = entries.filter(e => e.longTask)
+
     // Gaps zwischen aufeinanderfolgenden rAF-Timestamps (echte Freeze-Lücken)
     const rafGaps = []
     for (let i = 1; i < entries.length; i++) {
@@ -460,6 +472,8 @@ export default function ArcadeRace({ onClose }) {
       `Watchdog-Freezes:     ${freezes.length}  (rAF war >40ms stumm laut externem Timer)`,
       `physSteps=0 Frames:   ${entries.filter(e=>e.physSteps===0).length}`,
       `physSteps≥2 Frames:   ${entries.filter(e=>e.physSteps>=2).length}`,
+      `nearestPoint Ø:       ${npAvg}ms  Max: ${npMax}ms  Slow(>2ms): ${npSlow}`,
+      `Long Tasks ≥50ms:     ${longTaskEntries.length}  (Main-Thread-Blockierungen via PerformanceObserver)`,
     ].join('\n')
 
     // ── rAF-Lücken Detail ──
@@ -472,17 +486,26 @@ export default function ArcadeRace({ onClose }) {
       ? freezes.map(f => `  t=${f.elapsed}ms  rAF stumm seit ${f.gapMs}ms`).join('\n')
       : '  (keine)'
 
+    // ── Long Task Detail ──
+    const longTaskDetail = longTaskEntries.length > 0
+      ? longTaskEntries.map(e =>
+          `  t=${Math.round(e.elapsed)}ms  Dauer=${e.longTaskMs}ms` +
+          `  touch=${e.touchLeft?'L':'·'}${e.touchRight?'R':'·'}` +
+          `  key=${e.keyLeft?'L':'·'}${e.keyRight?'R':'·'}`
+        ).join('\n')
+      : '  (keine)'
+
     // ── Alle Frames ──
-    const header = 'elapsed_ms\trawDt_ms\tframeDt_ms\tskipped\tfps\tphysSteps\trenderMode\tracing\tinBuffer'
+    const header = 'elapsed_ms\trawDt_ms\tframeDt_ms\tskipped\tfps\tphysSteps\tnearestPoint_ms\ttouchLeft\ttouchRight\tkeyLeft\tkeyRight\trenderMode\tracing\tinBuffer\tlongTask\tlongTask_ms'
     const rows   = entries.map(e =>
-      `${e.elapsed.toFixed(1)}\t${(e.rawDtMs ?? e.frameDtMs).toFixed(2)}\t${e.frameDtMs.toFixed(2)}\t${e.skipped ?? false}\t${e.fps}\t${e.physSteps}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}`
+      `${e.elapsed.toFixed(1)}\t${(e.rawDtMs ?? e.frameDtMs).toFixed(2)}\t${e.frameDtMs.toFixed(2)}\t${e.skipped ?? false}\t${e.fps}\t${e.physSteps}\t${(e.nearestPointMs ?? 0).toFixed(3)}\t${e.touchLeft ?? false}\t${e.touchRight ?? false}\t${e.keyLeft ?? false}\t${e.keyRight ?? false}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}\t${e.longTask ?? false}\t${e.longTaskMs ?? ''}`
     ).join('\n')
 
     const now = new Date()
     const ts  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`
 
     const content = [
-      '=== ARCADERACE PERFORMANCE LOG v3 ===',
+      '=== ARCADERACE PERFORMANCE LOG v4 ===',
       `Erstellt: ${now.toLocaleString('de-AT')}`,
       '',
       '--- GERÄT ---',
@@ -497,8 +520,11 @@ export default function ArcadeRace({ onClose }) {
       '--- WATCHDOG-FREEZES >40ms (externer Timer) ---',
       freezeDetail,
       '',
+      '--- LONG TASKS ≥50ms (PerformanceObserver, Main-Thread-Blockierungen) ---',
+      longTaskDetail,
+      '',
       '--- ALLE FRAMES ---',
-      '(rawDt_ms = echter Abstand zum Vorgänger-Frame, ungedeckelt; frameDt_ms = gedeckelt auf 250ms; skipped = vom FPS-Cap übersprungen)',
+      '(rawDt_ms = echter Abstand zum Vorgänger-Frame, ungedeckelt; frameDt_ms = gedeckelt auf 250ms; skipped = vom FPS-Cap übersprungen; longTask = kein rAF-Frame sondern PerformanceObserver-Eintrag)',
       header,
       rows,
     ].join('\n')
@@ -1035,6 +1061,44 @@ export default function ArcadeRace({ onClose }) {
 
     applyRenderMode(renderModeRef.current)
 
+    // ── Long Task Observer ───────────────────────────────────────────────────
+    // Erkennt, wenn der Main Thread ≥ 50 ms blockiert ist – unabhängig von rAF.
+    // Ursache kann Rendering, JS, GC, Browser-intern oder Storage-I/O sein.
+    // Wird nur aufgezeichnet wenn die Logging-Aufnahme läuft.
+    let longTaskObserver = null
+    if ('PerformanceObserver' in window) {
+      try {
+        longTaskObserver = new PerformanceObserver((list) => {
+          if (!perfLoggingRef.current || perfLogStartRef.current === null) return
+          for (const entry of list.getEntries()) {
+            if (entry.duration < 50) continue
+            const t = gameRef.current?.touches ?? {}
+            perfLogRef.current.push({
+              elapsed:        entry.startTime + entry.duration - perfLogStartRef.current,
+              frameDtMs:      0,
+              rawDtMs:        0,
+              skipped:        false,
+              fps:            fpsRef.current,
+              physSteps:      0,
+              nearestPointMs: 0,
+              touchLeft:      t.left  ?? false,
+              touchRight:     t.right ?? false,
+              keyLeft:        !!(keys['ArrowLeft'] || keys['a']),
+              keyRight:       !!(keys['ArrowRight'] || keys['d']),
+              renderMode:     renderModeRef.current,
+              racing,
+              inBuffer,
+              longTask:       true,           // Marker: dieser Eintrag ist kein rAF-Frame
+              longTaskMs:     +entry.duration.toFixed(1),
+            })
+          }
+        })
+        longTaskObserver.observe({ type: 'longtask', buffered: false })
+      } catch (e) {
+        console.warn('[ArcadeRace] PerformanceObserver longtask nicht verfügbar:', e)
+      }
+    }
+
     function drawGhost() {
       if (!ghostCar) return
       ctx.save()
@@ -1142,10 +1206,16 @@ export default function ArcadeRace({ onClose }) {
         if (rawDtMs < skipThreshold) {
           // FPS-Cap-Skip: trotzdem loggen wenn Aufnahme läuft
           if (perfLoggingRef.current && perfLogStartRef.current !== null) {
+            const t = gameRef.current?.touches ?? {}
             perfLogRef.current.push({
               elapsed: ts - perfLogStartRef.current,
               frameDtMs: rawDtMs, rawDtMs, skipped: true,
               fps: fpsRef.current, physSteps: 0,
+              nearestPointMs: 0,
+              touchLeft:  t.left  ?? false,
+              touchRight: t.right ?? false,
+              keyLeft:    !!(keys['ArrowLeft'] || keys['a']),
+              keyRight:   !!(keys['ArrowRight'] || keys['d']),
               renderMode: renderModeRef.current, racing, inBuffer,
             })
           }
@@ -1210,6 +1280,7 @@ export default function ArcadeRace({ onClose }) {
 
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
       let stepsRan = 0
+      let nearestPointTotalMs = 0   // summierte nearestPoint-Dauer aller Sub-Steps dieses Frames
       if (racing && !finishedRef) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
@@ -1238,7 +1309,10 @@ export default function ArcadeRace({ onClose }) {
         car.x += Math.cos(car.angle)*speedAvg*dt
         car.y += Math.sin(car.angle)*speedAvg*dt
 
+        const _npT0 = performance.now()
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
+        const _npMs = performance.now() - _npT0
+        nearestPointTotalMs += _npMs
         if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
           inBuffer=true
           const bufCap=maxSpd*0.5
@@ -1354,14 +1428,20 @@ export default function ArcadeRace({ onClose }) {
       // ── Performance-Logger: Frame aufzeichnen ────────────────────────────
       if (perfLoggingRef.current && perfLogStartRef.current !== null) {
         perfLastRafRef.current = performance.now()   // Watchdog-Heartbeat
+        const t = gameRef.current?.touches ?? {}
         perfLogRef.current.push({
-          elapsed:    ts - perfLogStartRef.current,
-          frameDtMs:  frameDt * 1000,   // gedeckelt (max 250ms)
-          rawDtMs,                       // echter Abstand zum letzten Frame, UNGEDECKELT
-          skipped:    false,
-          fps:        fpsRef.current,
-          physSteps:  stepsRan,
-          renderMode: renderModeRef.current,
+          elapsed:         ts - perfLogStartRef.current,
+          frameDtMs:       frameDt * 1000,   // gedeckelt (max 250ms)
+          rawDtMs,                            // echter Abstand zum letzten Frame, UNGEDECKELT
+          skipped:         false,
+          fps:             fpsRef.current,
+          physSteps:       stepsRan,
+          nearestPointMs:  +nearestPointTotalMs.toFixed(3),   // summierte Kollisions-ms dieses Frames
+          touchLeft:       t.left  ?? false,                  // Touch-Lenkzustand
+          touchRight:      t.right ?? false,
+          keyLeft:         !!(keys['ArrowLeft'] || keys['a']),
+          keyRight:        !!(keys['ArrowRight'] || keys['d']),
+          renderMode:      renderModeRef.current,
           racing,
           inBuffer,
         })
@@ -1379,6 +1459,7 @@ export default function ArcadeRace({ onClose }) {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', resetAllKeys)
+      longTaskObserver?.disconnect()
     }
   }, [track.id])
 
