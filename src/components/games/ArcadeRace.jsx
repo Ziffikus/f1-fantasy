@@ -1552,6 +1552,12 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
+              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
+            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
@@ -1573,6 +1579,12 @@ export default function ArcadeRace({ onClose }) {
                 setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
               }}
             >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
+            <button
+              className="arcade-hud-ghost-toggle"
+              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
+              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
+            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
           </div>
         </div>
       )}
