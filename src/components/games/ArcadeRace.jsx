@@ -591,7 +591,11 @@ export default function ArcadeRace({ onClose }) {
     const START_SPEED = 0
 
     function getSectorForSeg(seg, totalSegs) {
-      return Math.floor(seg / totalSegs * N_SECTORS)
+      // Sektorgrenzen relativ zu START_SEG (Start-/Ziellinie), nicht zur
+      // absoluten Segment-Geometrie — Sektor 1 beginnt so immer exakt an der
+      // Ziellinie, unabhängig davon, wo START_SEG auf der Strecke liegt.
+      const relSeg = (seg - START_SEG + totalSegs) % totalSegs
+      return Math.floor(relSeg / totalSegs * N_SECTORS)
     }
 
     // ── Spatial grid for O(1) nearestPoint lookups ──────────────────────────
@@ -888,16 +892,22 @@ export default function ArcadeRace({ onClose }) {
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
 
-      // Sektor-Einfärbung
+      // Sektor-Einfärbung — Grenzen relativ zu START_SEG (Ziellinie), damit
+      // Sektor 1 immer exakt an der Start-/Ziellinie beginnt, egal wo
+      // START_SEG auf der Streckengeometrie liegt.
       const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
       const segPerSector = Math.floor(N / N_SECTORS)
       for (let s = 0; s < N_SECTORS; s++) {
-        const start = s * segPerSector
-        const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
+        const relStart = s * segPerSector
+        const relEnd   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
         offCtx.strokeStyle = sectorColors[s]; offCtx.lineWidth = TRACK_WIDTH - 20
         offCtx.lineJoin = 'round'; offCtx.setLineDash([])
-        offCtx.beginPath(); offCtx.moveTo(wx(TRK[start][0]), wy(TRK[start][1]))
-        for (let i = start + 1; i < end; i++) offCtx.lineTo(wx(TRK[i][0]), wy(TRK[i][1]))
+        offCtx.beginPath()
+        offCtx.moveTo(wx(TRK[(START_SEG + relStart) % N][0]), wy(TRK[(START_SEG + relStart) % N][1]))
+        for (let i = relStart + 1; i <= relEnd; i++) {
+          const idx = (START_SEG + i) % N
+          offCtx.lineTo(wx(TRK[idx][0]), wy(TRK[idx][1]))
+        }
         offCtx.stroke()
       }
 
@@ -951,9 +961,10 @@ export default function ArcadeRace({ onClose }) {
       }
       offCtx.restore()
 
-      // Sektor-Trennlinien
+      // Sektor-Trennlinien — relativ zu START_SEG, damit Sektor 1 an der
+      // Ziellinie beginnt
       for (let s = 1; s < N_SECTORS; s++) {
-        const idx = s * Math.floor(N / N_SECTORS)
+        const idx = (START_SEG + s * Math.floor(N / N_SECTORS)) % N
         const a = TRK[idx], b = TRK[(idx+1)%N]
         const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
         const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
@@ -993,11 +1004,15 @@ export default function ArcadeRace({ onClose }) {
       const sectorColors = ['rgba(100,200,255,0.12)', 'rgba(200,100,255,0.12)', 'rgba(255,200,60,0.12)']
       const segPerSector = Math.floor(N / N_SECTORS)
       for (let s = 0; s < N_SECTORS; s++) {
-        const start = s * segPerSector
-        const end   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
+        const relStart = s * segPerSector
+        const relEnd   = s < N_SECTORS - 1 ? (s + 1) * segPerSector : N
         ctx.strokeStyle = sectorColors[s]; ctx.lineWidth = TRACK_WIDTH - 20; ctx.lineJoin = 'round'
-        ctx.beginPath(); ctx.moveTo(TRK[start][0], TRK[start][1])
-        for (let i = start + 1; i < end; i++) ctx.lineTo(TRK[i][0], TRK[i][1])
+        ctx.beginPath()
+        ctx.moveTo(TRK[(START_SEG + relStart) % N][0], TRK[(START_SEG + relStart) % N][1])
+        for (let i = relStart + 1; i <= relEnd; i++) {
+          const idx = (START_SEG + i) % N
+          ctx.lineTo(TRK[idx][0], TRK[idx][1])
+        }
         ctx.stroke()
       }
       for (const side of [-1, 1]) {
@@ -1033,7 +1048,7 @@ export default function ArcadeRace({ onClose }) {
       ctx.restore()
 
       for (let s = 1; s < N_SECTORS; s++) {
-        const idx = s * Math.floor(N / N_SECTORS)
+        const idx = (START_SEG + s * Math.floor(N / N_SECTORS)) % N
         const a = TRK[idx], b = TRK[(idx+1)%N]
         const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
         const nx = -dy/len * (TRACK_WIDTH/2), ny = dx/len * (TRACK_WIDTH/2)
@@ -1863,7 +1878,7 @@ export default function ArcadeRace({ onClose }) {
                     disabled={isLocked}
                     title={isLocked ? `Freigeschaltet ab ${new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit', year:'numeric' })}` : undefined}
                   >
-                    <span>{isLocked ? '🔒' : (t.emoji ?? '🏎️')} {t.name}</span>
+                    <span>{isLocked ? '🔒 ' : ''}{t.name}</span>
                     {isLocked && status?.unlockAt && (
                       <span className="arcade-settings-btn-sub">
                         ab {new Date(status.unlockAt).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit' })}
