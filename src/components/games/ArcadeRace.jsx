@@ -1,4 +1,4 @@
-gameimport React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useRaceWeekends } from '../../hooks/useRaceWeekends'
