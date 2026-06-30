@@ -751,6 +751,7 @@ export default function ArcadeRace({ onClose }) {
     }
 
     const capIntervals = []   // Ring-Buffer der letzten rAF-Abstände für adaptiven FPS-Cap
+    let smoothedSkipThreshold = null   // gedämpfte Skip-Schwelle (Hysterese) — verhindert Kurven-Ruckeln
     let lapTime = 0, bestLapMs = loadGhost()   // Ghost-Zeit als initiale Bestzeit
     let ghostStartOffset = 0
     let lapStarted = true, prevSeg = START_SEG, lastTS = null
@@ -1223,20 +1224,30 @@ export default function ArcadeRace({ onClose }) {
       // der 14ms-Schwelle → Cap greift nicht → Accumulator läuft aus dem Takt →
       // sichtbarer Stutter, obwohl die Physik identisch wäre.
       //
-      // Lösung: Wir messen die tatsächliche rAF-Intervall-Rate aus den letzten
-      // 10 Frames und leiten daraus die Display-Refreshrate ab. Die Skip-Schwelle
-      // wird auf 85% des gemessenen Intervalls gesetzt → funktioniert bei jedem
-      // Hz-Wert und passt sich mid-session an.
+      // Lösung: Wir messen die tatsächliche rAF-Intervall-Rate aus einem größeren
+      // Fenster (60 Frames ≈ 1s bei 60Hz) und dämpfen die abgeleitete Skip-Schwelle
+      // per Hysterese (exponentielle Glättung). Ohne diese Dämpfung schwankt die
+      // Schwelle mit der Renderlast selbst — z.B. in Kurven, wo Pfad-/Transform-
+      // Arbeit pro Frame leicht variiert — und reißt dadurch Frames raus, die sonst
+      // durchgelassen worden wären. Das erzeugte genau das beobachtete
+      // "FPS schwankt synchron mit dem Lenken"-Ruckeln.
       if (lastTS && rawDtMs > 0) capIntervals.push(rawDtMs)
-      if (capIntervals.length > 10) capIntervals.shift()
-      if (fpsCapRef.current && lastTS && capIntervals.length >= 5) {
+      if (capIntervals.length > 60) capIntervals.shift()
+      if (fpsCapRef.current && lastTS && capIntervals.length >= 20) {
         // Median der letzten Intervalle (robuster als Durchschnitt gegen Ausreißer)
         const sorted = [...capIntervals].sort((a, b) => a - b)
         const medianInterval = sorted[Math.floor(sorted.length / 2)]
         // Skip-Schwelle: 85% des natürlichen Intervalls.
         // Bei 60Hz ~14.2ms, bei 90Hz ~9.4ms, bei 120Hz ~7.1ms, bei 144Hz ~5.9ms
-        const skipThreshold = medianInterval * 0.85
-        if (rawDtMs < skipThreshold) {
+        const rawThreshold = medianInterval * 0.85
+        // Hysterese: Schwelle bewegt sich nur zu max. 5% pro Frame in Richtung des
+        // neuen Zielwerts. Bei echtem Hz-Wechsel (90→60Hz o.ä.) braucht das wenige
+        // hundert Millisekunden zum Einschwingen — unmerklich. Kurzfristiges Jitter
+        // durch variable Renderlast (Kurven) wird dadurch aber komplett weggefiltert.
+        smoothedSkipThreshold = smoothedSkipThreshold === null
+          ? rawThreshold
+          : smoothedSkipThreshold + (rawThreshold - smoothedSkipThreshold) * 0.05
+        if (rawDtMs < smoothedSkipThreshold) {
           // FPS-Cap-Skip: trotzdem loggen wenn Aufnahme läuft
           if (perfLoggingRef.current && perfLogStartRef.current !== null) {
             const t = gameRef.current?.touches ?? {}
