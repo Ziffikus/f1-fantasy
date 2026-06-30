@@ -663,6 +663,13 @@ export default function ArcadeRace({ onClose }) {
       x: TRK[START_SEG][0], y: TRK[START_SEG][1],
       angle: segAngle(START_SEG), speed: START_SPEED
     }
+    // renderCar: interpolierter Zustand fürs Zeichnen (Fix-Timestep-Interpolation).
+    // car.x/y/angle springt in diskreten 1/60s-Schritten (physikalisch korrekt & deterministisch),
+    // aber rAF läuft nicht synchron dazu — ohne Interpolation "rastet" die Weltrotation in Kurven
+    // sichtbar (Strecke ruckelt, weil pro Frame mal 0, mal 1, mal 2 Steps liefen).
+    // renderCar gleicht das per linearer Interpolation zwischen vorherigem und aktuellem
+    // Physik-Zustand aus — nur fürs Rendering, Physik/Ghost bleiben unverändert.
+    const renderCar = { x: car.x, y: car.y, angle: car.angle }
     let camX = car.x, camY = car.y
 
     let ghostFrames = []
@@ -969,7 +976,7 @@ export default function ArcadeRace({ onClose }) {
     function drawWorldPath2D() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
-      ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.rotate(-renderCar.angle - Math.PI / 2)
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
 
@@ -1040,7 +1047,7 @@ export default function ArcadeRace({ onClose }) {
     function drawWorldBlit() {
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
-      ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.rotate(-renderCar.angle - Math.PI / 2)
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
       ctx.drawImage(offCanvas, -OFF_OX, -OFF_OY)
@@ -1129,7 +1136,7 @@ export default function ArcadeRace({ onClose }) {
       if (!ghostCar) return
       ctx.save()
       ctx.translate(CAR_SCREEN_X, CAR_SCREEN_Y)
-      ctx.rotate(-car.angle - Math.PI / 2)
+      ctx.rotate(-renderCar.angle - Math.PI / 2)
       ctx.scale(ZOOM, ZOOM)
       ctx.translate(-camX, -camY)
       ctx.translate(ghostCar.x, ghostCar.y)
@@ -1185,7 +1192,7 @@ export default function ArcadeRace({ onClose }) {
       ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(MM_MX,MM_MY,MM_MW,MM_MH,6); ctx.stroke()
       ctx.strokeStyle='#4a4a5e'; ctx.lineWidth=4; ctx.stroke(mmPath)
       ctx.strokeStyle='#aaa'; ctx.lineWidth=1.5; ctx.stroke(mmPath)
-      const cp=mmPt(car.x/TRACK_SCALE, car.y/TRACK_SCALE)
+      const cp=mmPt(renderCar.x/TRACK_SCALE, renderCar.y/TRACK_SCALE)
       ctx.fillStyle='#e8c440'; ctx.beginPath(); ctx.arc(cp[0],cp[1],3,0,Math.PI*2); ctx.fill()
       if (ghostCar) {
         const gp=mmPt(ghostCar.x/TRACK_SCALE, ghostCar.y/TRACK_SCALE)
@@ -1261,9 +1268,8 @@ export default function ArcadeRace({ onClose }) {
       if (frames.length >= 2) {
         fpsRef.current = Math.round((frames.length - 1) / ((frames[frames.length - 1] - frames[0]) / 1000))
       }
-      camX = car.x; camY = car.y
-
-      camX = car.x; camY = car.y
+      // Kamera wird NACH der Render-Interpolation gesetzt (siehe unten, renderCar.x/y) —
+      // dadurch sind Kamera-Position und Kamera-Rotation (renderCar.angle) immer exakt synchron.
 
       // ── Ghost-Playback: VOR Sub-Steps, mit Zeit des letzten Frames ──
       // camX = car.x hier (vor Sub-Steps) → Kamera zeigt Position von letztem Frame.
@@ -1319,6 +1325,9 @@ export default function ArcadeRace({ onClose }) {
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
         const maxSpd=855, acc=665, steer=2.6
         const STEP = 1/60  // fixer Physik-Zeitschritt (16.67 ms)
+
+        // Zustand VOR den Sub-Steps dieses Frames merken — Basis für Render-Interpolation.
+        const frameStartX = car.x, frameStartY = car.y, frameStartAngle = car.angle
 
         // Accumulator-Pattern: übrige Zeit bleibt erhalten und wird zum nächsten Frame addiert.
         // dt ist immer exakt STEP → vollständig deterministisch auf allen Geräten/Framerates.
@@ -1428,6 +1437,23 @@ export default function ArcadeRace({ onClose }) {
 
         } // end sub-step while loop
 
+        // ── Render-Interpolation ──────────────────────────────────────────
+        // alpha = wie weit der NÄCHSTE (noch nicht gelaufene) Step bereits "fällig" wäre.
+        // alpha=0 → letzter Step trifft exakt den Frame; alpha→1 → nächster Step steht kurz bevor.
+        // Wir blenden zwischen frameStart* (vor diesem Frame) und car.* (nach allen Steps dieses
+        // Frames) — das glättet genau die 0/1/2-Step-Sprünge, die in Kurven als Strecken-Ruckeln
+        // sichtbar werden, ohne die Physik selbst zu verändern.
+        const alpha = Math.max(0, Math.min(1, accumulator / STEP))
+        renderCar.x = frameStartX + (car.x - frameStartX) * alpha
+        renderCar.y = frameStartY + (car.y - frameStartY) * alpha
+        {
+          let da = car.angle - frameStartAngle
+          if (da >  Math.PI) da -= Math.PI * 2
+          if (da < -Math.PI) da += Math.PI * 2
+          renderCar.angle = frameStartAngle + da * alpha
+        }
+        camX = renderCar.x; camY = renderCar.y   // Kamera synchron mit interpoliertem Render-Zustand
+
         if (startTimeMs) {
           lapTime = (ts - startTimeMs) / 1000
           const lapMs = Math.round(lapTime * 1000)
@@ -1437,6 +1463,11 @@ export default function ArcadeRace({ onClose }) {
             setCurrentLapTime(lapMs)
           }
         }
+      } else {
+        // racing/pausiert/finished: Physik läuft nicht → renderCar & Kamera einfach synchron
+        // mit car halten (kein Interpolations-Sprung beim nächsten Renne-Start).
+        renderCar.x = car.x; renderCar.y = car.y; renderCar.angle = car.angle
+        camX = car.x; camY = car.y
       }
 
       ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,GAME_W,GAME_H)
