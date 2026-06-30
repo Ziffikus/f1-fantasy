@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+gameimport React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useRaceWeekends } from '../../hooks/useRaceWeekends'
@@ -164,6 +164,14 @@ export default function ArcadeRace({ onClose }) {
   const fpsFramesRef      = useRef([])     // Ring-Buffer der letzten Frame-Timestamps
   const showGhostRef = useRef(true)
   const showFpsRef   = useRef(false)
+  const [gcOpt, setGcOpt] = useState(() => {
+    try { return localStorage.getItem('arcadeRace_gcOpt') === 'on' } catch { return false }
+  })
+  const gcOptRef = useRef(false)
+
+  // ── Einstellungen-Panel (pausiert Physik solange offen) ─────────────────────
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const pausedRef = useRef(false)
 
   // ── Performance-Logger ──────────────────────────────────────────────────────
   const [perfLogging,    setPerfLogging]   = useState(false)
@@ -609,17 +617,30 @@ export default function ArcadeRace({ onClose }) {
 
     function nearestPoint(x, y) {
       const gx = Math.floor(x / GRID_CELL), gy = Math.floor(y / GRID_CELL)
-      // Check the car's cell + immediate neighbors (3×3)
-      const candidates = new Set()
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          const segs = spatialGrid.get(gridKey(gx + dx, gy + dy))
-          if (segs) for (const s of segs) candidates.add(s)
+      let toCheck
+      if (gcOptRef.current) {
+        // GC-Opt: vorab-Array leeren und befüllen statt new Set()
+        _npCandidates.length = 0
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const segs = spatialGrid.get(gridKey(gx + dx, gy + dy))
+            if (segs) for (const s of segs) { if (_npCandidates.indexOf(s) < 0) _npCandidates.push(s) }
+          }
         }
+        if (_npCandidates.length === 0) { for (let i = 0; i < N; i++) _npCandidates.push(i) }
+        toCheck = _npCandidates
+      } else {
+        // Standard: new Set() pro Aufruf
+        const candidates = new Set()
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const segs = spatialGrid.get(gridKey(gx + dx, gy + dy))
+            if (segs) for (const s of segs) candidates.add(s)
+          }
+        }
+        if (candidates.size === 0) { for (let i = 0; i < N; i++) candidates.add(i) }
+        toCheck = candidates
       }
-      // Fallback: full scan only when no candidates found (edge case: car way off track)
-      let toCheck = candidates
-      if (candidates.size === 0) { for (let i = 0; i < N; i++) candidates.add(i); toCheck = candidates }
       let best = 1e9, bi = 0, px = x, py = y
       for (const i of toCheck) {
         const a = TRK[i], b = TRK[(i + 1) % N]
@@ -732,6 +753,11 @@ export default function ArcadeRace({ onClose }) {
     let sectorStartMs = Array(N_SECTORS).fill(null)
     let currentSectorMs = Array(N_SECTORS).fill(null)
     let lastSector = 0
+
+    // ── GC-Opt: vorab allozierte Objekte (werden nur mutiert, nie neu erstellt) ──
+    let _prevCarX = 0, _prevCarY = 0          // ersetzt: const prevCar = { x, y }
+    const _ghostCarPool = { x: 0, y: 0, angle: 0 }  // ersetzt: ghostCar = { x, y, angle }
+    const _npCandidates = []                   // ersetzt: new Set() in nearestPoint
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -1256,10 +1282,17 @@ export default function ArcadeRace({ onClose }) {
             let da = (f1.angle - f0.angle)
             if (da >  Math.PI) da -= Math.PI * 2
             if (da < -Math.PI) da += Math.PI * 2
-            ghostCar = {
-              x:     f0.x + (f1.x - f0.x) * frac,
-              y:     f0.y + (f1.y - f0.y) * frac,
-              angle: f0.angle + da * frac,
+            if (gcOptRef.current) {
+              _ghostCarPool.x     = f0.x + (f1.x - f0.x) * frac
+              _ghostCarPool.y     = f0.y + (f1.y - f0.y) * frac
+              _ghostCarPool.angle = f0.angle + da * frac
+              ghostCar = _ghostCarPool
+            } else {
+              ghostCar = {
+                x:     f0.x + (f1.x - f0.x) * frac,
+                y:     f0.y + (f1.y - f0.y) * frac,
+                angle: f0.angle + da * frac,
+              }
             }
           } else {
             ghostCar = { x: f0.x, y: f0.y, angle: f0.angle }
@@ -1270,7 +1303,7 @@ export default function ArcadeRace({ onClose }) {
       // Uhr starten: erst wenn der erste Sub-Step tatsächlich laufen wird.
       // accumulator hier nullen — nicht im useEffect (Race Condition mit React-Render).
       // So starten Physik, Zeitnehmung und Ghost-Aufnahme immer vom selben Punkt.
-      const willStep = racing && !finishedRef && (accumulator + frameDt) >= (1/60)
+      const willStep = racing && !finishedRef && !pausedRef.current && (accumulator + frameDt) >= (1/60)
       if (racing && startTimeMs === null && willStep) {
         accumulator = 0
         startTimeMs = ts
@@ -1281,7 +1314,7 @@ export default function ArcadeRace({ onClose }) {
       // Die Fahrphysik wird jetzt komplett eigenständig ausgeführt, unabhängig davon ob startTimeMs geladen ist!
       let stepsRan = 0
       let nearestPointTotalMs = 0   // summierte nearestPoint-Dauer aller Sub-Steps dieses Frames
-      if (racing && !finishedRef) {
+      if (racing && !finishedRef && !pausedRef.current) {
         const left  = keys['ArrowLeft']  || keys['a'] || gameRef.current?.touches.left
         const right = keys['ArrowRight'] || keys['d'] || gameRef.current?.touches.right
         const maxSpd=855, acc=665, steer=2.6
@@ -1296,7 +1329,8 @@ export default function ArcadeRace({ onClose }) {
           const dt = STEP
 
         // Position VOR der Physik merken (für präzise Ziellinien-Interpolation)
-        const prevCar = { x: car.x, y: car.y }
+        if (gcOptRef.current) { _prevCarX = car.x; _prevCarY = car.y }
+        else var prevCar = { x: car.x, y: car.y }
 
         const speedPrev = car.speed
         car.speed = Math.min(car.speed + acc*dt, maxSpd)
@@ -1351,7 +1385,9 @@ export default function ArcadeRace({ onClose }) {
               const len = Math.sqrt(lx * lx + ly * ly)
               if (len > 0) {
                 const nx = -ly / len, ny = lx / len
-                const prevDist = (prevCar.x - sa[0]) * nx + (prevCar.y - sa[1]) * ny
+                const pX = gcOptRef.current ? _prevCarX : prevCar.x
+                const pY = gcOptRef.current ? _prevCarY : prevCar.y
+                const prevDist = (pX - sa[0]) * nx + (pY - sa[1]) * ny
                 const currDist = (car.x     - sa[0]) * nx + (car.y     - sa[1]) * ny
                 if (prevDist !== currDist) {
                   const frac = Math.max(0, Math.min(1, prevDist / (prevDist - currDist)))
@@ -1470,6 +1506,11 @@ export default function ArcadeRace({ onClose }) {
   useEffect(() => { showGhostRef.current = showGhost }, [showGhost])
   useEffect(() => { showFpsRef.current   = showFps   }, [showFps])
   useEffect(() => { perfLoggingRef.current = perfLogging }, [perfLogging])
+  useEffect(() => {
+    gcOptRef.current = gcOpt
+    try { localStorage.setItem('arcadeRace_gcOpt', gcOpt ? 'on' : 'off') } catch {}
+  }, [gcOpt])
+  useEffect(() => { pausedRef.current = settingsOpen }, [settingsOpen])
   useEffect(() => {
     fpsCapRef.current = fpsCap
     try { localStorage.setItem('arcadeRace_fpsCap', fpsCap ? 'on' : 'off') } catch {}
@@ -1623,22 +1664,12 @@ export default function ArcadeRace({ onClose }) {
             {hasGhost && (
               <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
             )}
-            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
-            <button className="arcade-hud-ghost-toggle" title={fpsCap?'60 FPS-Cap AN – auf Nativrate wechseln':'60 FPS-Cap AUS – läuft mit nativer Bildrate'} style={{opacity:fpsCap?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setFpsCap(v=>!v)}}>{fpsCap?'⏱ 60':'⚡ MAX'}</button>
             <button
               className="arcade-hud-ghost-toggle"
-              title={renderMode==='auto'?'Rendermodus: AUTO (Benchmark)':renderMode==='blit'?'Rendermodus: BLIT (Offscreen)':'Rendermodus: PATH2D (Direktzeichnen)'}
-              onPointerDown={(e)=>{
-                e.currentTarget.setPointerCapture(e.pointerId)
-                setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
-              }}
-            >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
-            <button
-              className="arcade-hud-ghost-toggle"
-              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
-              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
-              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
-            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
+              title="Einstellungen"
+              style={{opacity:settingsOpen?1:0.7}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setSettingsOpen(v=>!v)}}
+            >⚙️</button>
           </div>
         </div>
       )}
@@ -1650,23 +1681,92 @@ export default function ArcadeRace({ onClose }) {
             {hasGhost && (
               <button className="arcade-hud-ghost-toggle" style={{opacity:showGhost?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowGhost(v=>!v)}}>{showGhost?'👻 AN':'👻 AUS'}</button>
             )}
-            <button className="arcade-hud-ghost-toggle" style={{opacity:showFps?1:0.35}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setShowFps(v=>!v)}}>FPS</button>
-            <button className="arcade-hud-ghost-toggle" title={fpsCap?'60 FPS-Cap AN – auf Nativrate wechseln':'60 FPS-Cap AUS – läuft mit nativer Bildrate'} style={{opacity:fpsCap?1:0.45}} onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId);setFpsCap(v=>!v)}}>{fpsCap?'⏱ 60':'⚡ MAX'}</button>
             <button
               className="arcade-hud-ghost-toggle"
-              title={renderMode==='auto'?'Rendermodus: AUTO (Benchmark)':renderMode==='blit'?'Rendermodus: BLIT (Offscreen)':'Rendermodus: PATH2D (Direktzeichnen)'}
-              onPointerDown={(e)=>{
-                e.currentTarget.setPointerCapture(e.pointerId)
-                setRenderMode(m => m==='auto'?'blit':m==='blit'?'path2d':'auto')
-              }}
-            >{renderMode==='auto'?'🖥 AUTO':renderMode==='blit'?'🖼 BLIT':'✏️ P2D'}</button>
-            <button
-              className="arcade-hud-ghost-toggle"
-              title={perfLogging?'Aufnahme läuft – tippen zum Stoppen & Download':'Performance-Log aufzeichnen (Ruckler-Diagnose)'}
-              style={{opacity:perfLogging?1:0.45, color:perfLogging?'#f87171':undefined}}
-              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
-            >{perfLogging?'⏹ LOG':'📋 LOG'}</button>
+              title="Einstellungen"
+              style={{opacity:settingsOpen?1:0.7}}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setSettingsOpen(v=>!v)}}
+            >⚙️</button>
           </div>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="arcade-settings-panel">
+          <div className="arcade-settings-panel-header">
+            <span className="arcade-settings-panel-title">⚙️ Einstellungen</span>
+            {gameState==='racing' && <span className="arcade-settings-panel-pause-hint">⏸ pausiert</span>}
+          </div>
+
+          <div className="arcade-settings-row">
+            <span className="arcade-settings-row-label">FPS-Anzeige</span>
+            <div className="arcade-settings-row-options">
+              <button
+                className={`arcade-settings-opt ${!showFps ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowFps(false)}}
+              >AUS</button>
+              <button
+                className={`arcade-settings-opt ${showFps ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setShowFps(true)}}
+              >AN</button>
+            </div>
+          </div>
+
+          <div className="arcade-settings-row">
+            <span className="arcade-settings-row-label">FPS-Cap</span>
+            <div className="arcade-settings-row-options">
+              <button
+                className={`arcade-settings-opt ${fpsCap ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setFpsCap(true)}}
+              >⏱ 60</button>
+              <button
+                className={`arcade-settings-opt ${!fpsCap ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setFpsCap(false)}}
+              >⚡ MAX</button>
+            </div>
+          </div>
+
+          <div className="arcade-settings-row">
+            <span className="arcade-settings-row-label">Rendermodus</span>
+            <div className="arcade-settings-row-options">
+              <button
+                className={`arcade-settings-opt ${renderMode==='auto' ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setRenderMode('auto')}}
+              >🖥 AUTO</button>
+              <button
+                className={`arcade-settings-opt ${renderMode==='blit' ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setRenderMode('blit')}}
+              >🖼 BLIT</button>
+              <button
+                className={`arcade-settings-opt ${renderMode==='path2d' ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setRenderMode('path2d')}}
+              >✏️ P2D</button>
+            </div>
+          </div>
+
+          <div className="arcade-settings-row">
+            <span className="arcade-settings-row-label">GC-Optimierung</span>
+            <div className="arcade-settings-row-options">
+              <button
+                className={`arcade-settings-opt ${!gcOpt ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setGcOpt(false)}}
+              >AUS</button>
+              <button
+                className={`arcade-settings-opt ${gcOpt ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setGcOpt(true)}}
+              >♻ AN</button>
+            </div>
+          </div>
+
+          <div className="arcade-settings-row arcade-settings-row--log">
+            <span className="arcade-settings-row-label">Performance-Log</span>
+            <button
+              className={`arcade-settings-opt arcade-settings-opt--wide ${perfLogging ? 'arcade-settings-opt--recording' : ''}`}
+              onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); togglePerfLog()}}
+            >{perfLogging ? '⏹ Aufnahme stoppen & herunterladen' : '📋 Aufnahme starten (Ruckler-Diagnose)'}</button>
+          </div>
+
+          <button className="arcade-settings-panel-close" onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setSettingsOpen(false)}}>Schließen</button>
         </div>
       )}
 

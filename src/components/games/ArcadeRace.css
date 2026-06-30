@@ -10,6 +10,9 @@
   gap: 0.6rem;
   align-items: center;
   padding: 0;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 @media (max-width: 600px) {
@@ -598,4 +601,118 @@
 .arcade-edit-btn--delete {
   border-color: #555;
   color: #aaa;
+}
+
+/* ── Einstellungen-Panel (ausklappbar unter HUD-Bar) ─────────── */
+.arcade-settings-panel {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.arcade-settings-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arcade-settings-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.arcade-settings-panel-pause-hint {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #facc15;
+}
+
+.arcade-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.arcade-settings-row--log {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.arcade-settings-row-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.arcade-settings-row-options {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.arcade-settings-opt {
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: all 0.12s;
+}
+
+.arcade-settings-opt--active {
+  background: rgba(232, 0, 45, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.arcade-settings-opt--wide {
+  width: 100%;
+}
+
+.arcade-settings-opt--recording {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: #f87171;
+  color: #f87171;
+}
+
+.arcade-settings-panel-close {
+  margin-top: 0.2rem;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .arcade-settings-row {
+    flex-wrap: wrap;
+  }
+  .arcade-settings-opt {
+    font-size: 0.65rem;
+    padding: 0.3rem 0.5rem;
+  }
 }
