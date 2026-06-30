@@ -1852,7 +1852,7 @@ export default function ArcadeRace({ onClose }) {
         {ALL_TRACKS.length > 1 && (
           <div className="arcade-settings-section">
             <div className="arcade-settings-label">Strecke</div>
-            <div className="arcade-settings-grid" style={{gridTemplateColumns: ALL_TRACKS.length <= 4 ? `repeat(${ALL_TRACKS.length}, 1fr)` : 'repeat(3, 1fr)'}}>
+            <div className="arcade-settings-grid arcade-settings-grid--tracks">
               {ALL_TRACKS.map(t => {
                 const status = trackUnlockStatus[t.id]
                 const isLocked = status && !status.unlocked
