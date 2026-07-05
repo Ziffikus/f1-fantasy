@@ -9,9 +9,9 @@
 export const ZANDVOORT_TRACK = {
   id:          'Zandvoort',
   name:        'Zandvoort',
-  scale:       8.1,
-  trackWidth:  151,
-  buffer:      50,
+  scale:       8.2,
+  trackWidth:  148,
+  buffer:      49,
   startIndex:  181,       // RAW-Punkt 181 → Subdivision-Segment = 724
   sectorCount: 3,
 
