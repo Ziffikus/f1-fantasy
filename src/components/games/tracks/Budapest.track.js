@@ -9,8 +9,8 @@
 export const BUDAPEST_TRACK = {
   id:          'Budapest',
   name:        'Budapest',
-  scale:       7,
-  trackWidth:  175,
+  scale:       5,
+  trackWidth:  165,
   buffer:      80,
   startIndex:  47,       // RAW-Punkt 47 → Subdivision-Segment = 188
   sectorCount: 3,
