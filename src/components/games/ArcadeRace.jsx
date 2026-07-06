@@ -146,6 +146,10 @@ export default function ArcadeRace({ onClose }) {
   const [sectorTimes,    setSectorTimes]    = useState(() => Array(N_SECTORS).fill(null))
   const [ghostDelta,     setGhostDelta]     = useState(null)
   const [finishedSectors, setFinishedSectors] = useState(() => Array(N_SECTORS).fill(null))
+  // Zeit wird nur gewertet (Bestzeit/Ghost/Leaderboard), wenn alle Sektor-Checkpoints
+  // in der richtigen Reihenfolge durchfahren wurden — verhindert z.B. gültige Zeiten
+  // durch Abkürzen/Auslassen von Streckenteilen.
+  const [lapValid,        setLapValid]        = useState(true)
   const [showGhost,       setShowGhost]       = useState(true)
   const [showFps,         setShowFps]         = useState(false)
   const [fpsCap,          setFpsCap]          = useState(() => {
@@ -200,6 +204,7 @@ export default function ArcadeRace({ onClose }) {
     setCurrentLapTime(null)
     setSectorTimes(Array(N_SECTORS).fill(null))
     setFinishedSectors(Array(N_SECTORS).fill(null))
+    setLapValid(true)
     setGhostDelta(null)
     setSelectedEntry(0)
     setGhostSectors([])
@@ -555,6 +560,7 @@ export default function ArcadeRace({ onClose }) {
     setCurrentLapTime(null)
     setSectorTimes(Array(N_SECTORS).fill(null))
     setFinishedSectors(Array(N_SECTORS).fill(null))
+    setLapValid(true)
     setGhostDelta(null)
     gameRef.current?.resetCar?.()
 
@@ -572,6 +578,7 @@ export default function ArcadeRace({ onClose }) {
     setSaveError(false)
     setSectorTimes(Array(N_SECTORS).fill(null))
     setFinishedSectors(Array(N_SECTORS).fill(null))
+    setLapValid(true)
     setGhostDelta(null)
     gameRef.current?.resetCar?.()
   }, [N_SECTORS])
@@ -603,6 +610,31 @@ export default function ArcadeRace({ onClose }) {
     // instead of all N segments. Critical for mobile performance.
     const GRID_CELL = Math.max(...TRK.map(p => Math.abs(p[0])), ...TRK.map(p => Math.abs(p[1]))) / 30 || 200
     const spatialGrid = new Map()
+
+    // ── Kontinuitäts-Fenster gegen Wanddurchdringung ────────────────────────
+    // nearestPoint() sucht rein räumlich den nächsten Streckenpunkt. Bei hoher
+    // Geschwindigkeit kann die Autoposition dadurch "hinter" einer Wand näher
+    // an einem völlig anderen (aber pfadmäßig weit entfernten) Streckenteil
+    // liegen als am tatsächlich durchquerten Abschnitt – das Auto "phast"
+    // durch die Wand, weil dort dann dist<=OUTER_LIMIT gilt.
+    // Fix: die Segment-Suche wird auf ein Fenster um das zuletzt bekannte
+    // Segment (refSeg) eingeschränkt, sodass immer die Wand des Abschnitts
+    // erkannt wird, den man gerade befährt – unabhängig von Punkten, die
+    // räumlich zufällig näher liegen. Das ändert nur die Kollisionserkennung,
+    // nicht die Bewegungs-/Beschleunigungsphysik.
+    let _segLenSum = 0
+    for (let i = 0; i < N; i++) {
+      const a = TRK[i], b = TRK[(i + 1) % N]
+      _segLenSum += Math.hypot(b[0] - a[0], b[1] - a[1])
+    }
+    const AVG_SEG_LEN   = (_segLenSum / N) || 1
+    const MAX_STEP_DIST = 855 * (1 / 60)   // maxSpd * fixer Physik-Zeitschritt
+    // Großzügiger Sicherheitsfaktor (Kurven/Ungleichmäßigkeiten in der Subdivision),
+    // mit sinnvollem Minimum/Maximum.
+    const SEG_WINDOW = Math.min(
+      Math.floor(N / 3),
+      Math.max(10, Math.ceil((MAX_STEP_DIST * 8) / AVG_SEG_LEN))
+    )
     function gridKey(gx, gy) { return `${gx},${gy}` }
     for (let i = 0; i < N; i++) {
       const a = TRK[i], b = TRK[(i + 1) % N]
@@ -619,7 +651,10 @@ export default function ArcadeRace({ onClose }) {
       }
     }
 
-    function nearestPoint(x, y) {
+    // refSeg: zuletzt bekanntes Segment (für Kontinuitäts-Fenster, s.o.).
+    // Wird refSeg nicht übergeben, verhält sich die Funktion wie zuvor (freie
+    // räumliche Suche) – genutzt z.B. für einmalige/initiale Aufrufe.
+    function nearestPoint(x, y, refSeg) {
       const gx = Math.floor(x / GRID_CELL), gy = Math.floor(y / GRID_CELL)
       let toCheck
       if (gcOptRef.current) {
@@ -645,6 +680,23 @@ export default function ArcadeRace({ onClose }) {
         if (candidates.size === 0) { for (let i = 0; i < N; i++) candidates.add(i) }
         toCheck = candidates
       }
+
+      // Kontinuitäts-Filter: nur Segmente im Pfad-Fenster um refSeg zulassen.
+      // Verhindert, dass ein räumlich naher, aber pfadmäßig weit entfernter
+      // (durch eine Wand getrennter) Streckenteil als "nächster Punkt" erkannt
+      // wird, wenn das Auto (bei hoher Geschwindigkeit) die Wand überspringt.
+      if (refSeg !== undefined && refSeg !== null) {
+        let filtered = _npFiltered
+        filtered.length = 0
+        for (const i of toCheck) {
+          let d = Math.abs(i - refSeg)
+          if (d > N - d) d = N - d
+          if (d <= SEG_WINDOW) filtered.push(i)
+        }
+        if (filtered.length > 0) toCheck = filtered
+        // sonst: Fallback auf ungefilterte Kandidaten (z.B. nach Reset/Teleport)
+      }
+
       let best = 1e9, bi = 0, px = x, py = y
       for (const i of toCheck) {
         const a = TRK[i], b = TRK[(i + 1) % N]
@@ -770,6 +822,7 @@ export default function ArcadeRace({ onClose }) {
     let _prevCarX = 0, _prevCarY = 0          // ersetzt: const prevCar = { x, y }
     const _ghostCarPool = { x: 0, y: 0, angle: 0 }  // ersetzt: ghostCar = { x, y, angle }
     const _npCandidates = []                   // ersetzt: new Set() in nearestPoint
+    const _npFiltered   = []                   // Kontinuitäts-gefilterte Kandidaten in nearestPoint
 
     function findNearestGhostFrame(x, y) {
       // Suche den Ghost-Frame der der Startposition am nächsten ist
@@ -1379,7 +1432,7 @@ export default function ArcadeRace({ onClose }) {
         car.y += Math.sin(car.angle)*speedAvg*dt
 
         const _npT0 = performance.now()
-        const {seg,dist,cx,cy} = nearestPoint(car.x,car.y)
+        const {seg,dist,cx,cy} = nearestPoint(car.x,car.y,prevSeg)
         const _npMs = performance.now() - _npT0
         nearestPointTotalMs += _npMs
         if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
@@ -1432,18 +1485,31 @@ export default function ArcadeRace({ onClose }) {
             } catch (_) {}
 
             const lapMs = preciseMs
-            if (lapMs < bestLapMs) {
+
+            // ── MUST-Checkpoints: alle Sektorzeiten müssen vorliegen ──────────
+            // Nur wenn jede Sektorgrenze (in Reihenfolge) tatsächlich durchfahren
+            // wurde, zählt die Runde als gültig. Verhindert gewertete Zeiten durch
+            // Abkürzen/Auslassen von Streckenabschnitten. Im Abschnitts-Training
+            // (nicht "qualifying") wird nicht zwangsläufig die volle Runde ab
+            // Start gefahren, daher gilt die Pflicht dort nicht.
+            const allSectorsHit = currentSectorMs.slice(0, N_SECTORS - 1).every(t => t !== null)
+            const lapValid = trainModeRef.current !== 'qualifying' || allSectorsHit
+
+            if (lapValid && lapMs < bestLapMs) {
               bestLapMs = lapMs
               saveGhost(currentRecording, [...currentSectorMs, lapMs])
               loadGhost()  // Ghost-Frames im Loop sofort aktualisieren
               setHasGhost(true)
             }
-            setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
+            if (lapValid) {
+              setBestLap(prev => (!prev || lapMs < prev) ? lapMs : prev)
+            }
             setTotalTime(lapMs)
             finishedRef = true
             setGameState('finished')
             setFinishedSectors([...currentSectorMs])
-            if (bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
+            setLapValid(lapValid)
+            if (lapValid && bestLapMs !== Infinity && bestLapMs !== bestLapSaved) {
               bestLapSaved = bestLapMs
               if (trainModeRef.current === 'qualifying') saveHighscore(bestLapMs)
             }
@@ -1602,6 +1668,11 @@ export default function ArcadeRace({ onClose }) {
         {gameState==='finished' && (
           <div className="arcade-overlay arcade-overlay--finish">
             <div className="arcade-finish-card">
+              {!lapValid && (
+                <div className="arcade-finish-invalid">
+                  ⚠️ Zeit nicht gewertet – nicht alle Sektor-Checkpoints durchfahren
+                </div>
+              )}
               <div className="arcade-finish-times">
                 <div className="arcade-finish-time-col">
                   <span className="arcade-hud-bar-label">🏁 RUNDENZEIT</span>
