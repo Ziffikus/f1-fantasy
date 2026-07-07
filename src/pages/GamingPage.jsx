@@ -1,33 +1,10 @@
 import { useState } from 'react'
 import { Gamepad2, ArrowLeft } from 'lucide-react'
-import ArcadeRacing from '../components/games/ArcadeRacing'
-import ArcadeRace   from '../components/games/ArcadeRace'
-import MonacoTraining from '../components/games/MonacoTraining'
+import ArcadeRace from '../components/games/ArcadeRace'
 import { useRaceWeekends, useCountdown } from '../hooks/useRaceWeekends'
 import './GamingPage.css'
 
-const GAMES_ALT = [
-  {
-    id: 'arcade_racing',
-    title: 'Arcade Racing',
-    subtitle: 'Canada · 1 Runde',
-    emoji: '🏎️',
-    description: 'Steuere einen F1-Boliden durch Canada. Schnellste Runde gewinnt die Krone!',
-    component: ArcadeRacing,
-    beta: false,
-  },
-  {
-    id: 'monaco_training',
-    title: 'Monaco Training',
-    subtitle: 'Canada · Ghost Run',
-    emoji: '👻',
-    description: 'Fahre gegen deinen eigenen Ghost. Sektoren-Analyse & Live-Delta zeigen dir wo du Zeit verlierst.',
-    component: MonacoTraining,
-    beta: true,
-  },
-]
-
-const GAMES_NEU = [
+const GAMES = [
   {
     id: 'arcade_race_new',
     title: 'ARCADE RACE',
@@ -115,12 +92,10 @@ function GameGrid({ games, onSelect }) {
 }
 
 export default function GamingPage() {
-  const [activeGame, setActiveGame]   = useState(null)
-  const [activeTab,  setActiveTab]    = useState('neu')   // 'alt' | 'neu'
+  const [activeGame, setActiveGame] = useState(null)
   const { nextWeekend } = useRaceWeekends()
 
-  const allGames      = [...GAMES_ALT, ...GAMES_NEU]
-  const game          = allGames.find(g => g.id === activeGame)
+  const game          = GAMES.find(g => g.id === activeGame)
   const GameComponent = game?.component
 
   // ── Aktives Spiel ──────────────────────────────────────────────────────────
@@ -156,44 +131,7 @@ export default function GamingPage() {
 
       {nextWeekend && <RaceCountdown weekend={nextWeekend} />}
 
-      {/* ALT / NEU Tabs */}
-      <div className="gaming-tabs" style={{
-        display: 'flex',
-        gap: '0.25rem',
-        marginBottom: '0.75rem',
-        background: 'rgba(255,255,255,0.04)',
-        borderRadius: '8px',
-        padding: '3px',
-      }}>
-        {[['neu', '✨ Neu'], ['alt', '📦 Alt']].map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              flex: 1,
-              padding: '0.4rem 0.75rem',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              background: activeTab === key
-                ? 'rgba(232,0,45,0.85)'
-                : 'transparent',
-              color: activeTab === key
-                ? '#fff'
-                : 'var(--text-secondary)',
-            }}
-          >{label}</button>
-        ))}
-      </div>
-
-      {activeTab === 'alt'
-        ? <GameGrid games={GAMES_ALT} onSelect={setActiveGame} />
-        : <GameGrid games={GAMES_NEU} onSelect={setActiveGame} />
-      }
+      <GameGrid games={GAMES} onSelect={setActiveGame} />
     </div>
   )
 }

@@ -321,7 +321,7 @@ export default function ArcadeRace({ onClose }) {
         const { data, error } = await supabase
           .from('game_highscores')
           .select('lap_time_ms, profiles(display_name, avatar_url)')
-          .eq('game', 'monaco_training')
+          .eq('game', 'arcade_race')
           .eq('track', track.id)
           .order('lap_time_ms', { ascending: true })
           .limit(10)
@@ -357,14 +357,14 @@ export default function ArcadeRace({ onClose }) {
       .from('game_highscores')
       .select('lap_time_ms')
       .eq('profile_id', profile.id)
-      .eq('game', 'monaco_training')
+      .eq('game', 'arcade_race')
       .eq('track', track.id)
       .single()
     if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr
     if (!existing || lapTimeMs < existing.lap_time_ms) {
       const { error } = await supabase
         .from('game_highscores')
-        .upsert({ profile_id: profile.id, game: 'monaco_training', track: track.id, lap_time_ms: lapTimeMs },
+        .upsert({ profile_id: profile.id, game: 'arcade_race', track: track.id, lap_time_ms: lapTimeMs },
           { onConflict: 'profile_id,game,track' })
       if (error) throw error
       return true
