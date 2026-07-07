@@ -622,18 +622,30 @@ export default function ArcadeRace({ onClose }) {
     // erkannt wird, den man gerade befährt – unabhängig von Punkten, die
     // räumlich zufällig näher liegen. Das ändert nur die Kollisionserkennung,
     // nicht die Bewegungs-/Beschleunigungsphysik.
+    //
+    // Wichtig: das Fenster wird in ECHTER BOGENLÄNGE (Streckendistanz) gemessen,
+    // nicht in Segment-Anzahl. Bei sehr spitzen Kurven liegen die Streckenpunkte
+    // viel dichter (feinere Auflösung nötig, um die Kurve sauber abzubilden) –
+    // ein Fenster mit fester Segment-ANZAHL würde dort eine viel kürzere reale
+    // Distanz abdecken und könnte die richtige Wand aus der Suche ausschließen.
+    // Mit Bogenlänge ist das Fenster überall gleich groß, unabhängig von der
+    // lokalen Punktdichte.
+    const CUM_LEN = new Float64Array(N + 1)
     let _segLenSum = 0
     for (let i = 0; i < N; i++) {
       const a = TRK[i], b = TRK[(i + 1) % N]
-      _segLenSum += Math.hypot(b[0] - a[0], b[1] - a[1])
+      const segLen = Math.hypot(b[0] - a[0], b[1] - a[1])
+      CUM_LEN[i + 1] = CUM_LEN[i] + segLen
+      _segLenSum += segLen
     }
+    const TOTAL_LEN     = CUM_LEN[N] || 1
     const AVG_SEG_LEN   = (_segLenSum / N) || 1
     const MAX_STEP_DIST = 855 * (1 / 60)   // maxSpd * fixer Physik-Zeitschritt
-    // Großzügiger Sicherheitsfaktor (Kurven/Ungleichmäßigkeiten in der Subdivision),
-    // mit sinnvollem Minimum/Maximum.
-    const SEG_WINDOW = Math.min(
-      Math.floor(N / 3),
-      Math.max(10, Math.ceil((MAX_STEP_DIST * 8) / AVG_SEG_LEN))
+    // Großzügiger Sicherheitsfaktor, mit sinnvollem Minimum/Maximum in
+    // realer Streckendistanz (nicht Segment-Anzahl).
+    const MAX_ARC_DIST = Math.min(
+      TOTAL_LEN / 3,
+      Math.max(AVG_SEG_LEN * 10, MAX_STEP_DIST * 8)
     )
     function gridKey(gx, gy) { return `${gx},${gy}` }
     for (let i = 0; i < N; i++) {
@@ -686,12 +698,13 @@ export default function ArcadeRace({ onClose }) {
       // (durch eine Wand getrennter) Streckenteil als "nächster Punkt" erkannt
       // wird, wenn das Auto (bei hoher Geschwindigkeit) die Wand überspringt.
       if (refSeg !== undefined && refSeg !== null) {
+        const refArc = CUM_LEN[refSeg]
         let filtered = _npFiltered
         filtered.length = 0
         for (const i of toCheck) {
-          let d = Math.abs(i - refSeg)
-          if (d > N - d) d = N - d
-          if (d <= SEG_WINDOW) filtered.push(i)
+          let d = Math.abs(CUM_LEN[i] - refArc)
+          if (d > TOTAL_LEN - d) d = TOTAL_LEN - d
+          if (d <= MAX_ARC_DIST) filtered.push(i)
         }
         if (filtered.length > 0) toCheck = filtered
         // sonst: Fallback auf ungefilterte Kandidaten (z.B. nach Reset/Teleport)
