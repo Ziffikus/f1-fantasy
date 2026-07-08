@@ -647,42 +647,6 @@ export default function ArcadeRace({ onClose }) {
       TOTAL_LEN / 3,
       Math.max(AVG_SEG_LEN * 10, MAX_STEP_DIST * 8)
     )
-
-    // ── Lokale Korridor-Breite an engen Kurven (gegen "unsichtbare Wand") ──
-    // Buffer-Zone und Fahrbahn werden bisher überall mit fester Breite
-    // gezeichnet/kollidiert (OUTER_LIMIT = TRACK_WIDTH/2 + BUFFER). An sehr
-    // engen Spitzkehren ist der Kurvenradius kleiner als diese Breite – die
-    // "Schwade" der Buffer-Zone überlappt sich dann optisch mit sich selbst
-    // (Canvas füllt beim Zeichnen einer dicken Linie automatisch die ganze
-    // überstrichene Fläche), während die Kollisionsprüfung den echten,
-    // kürzeren Abstand zur Streckenmitte misst. Ergebnis: man sieht noch
-    // "Buffer", ist aber schon dahinter → gefühlt unsichtbare Wand.
-    //
-    // Fix: pro Streckenpunkt den lokalen Kurvenradius (Umkreisradius aus
-    // Vorgänger/Punkt/Nachfolger) berechnen und die Buffer-Halbbreite dort
-    // auf diesen Radius begrenzen. Das ist reine, einmalige Geometrie aus
-    // den (statischen) Streckenpunkten TRK – kein Zufall, keine Zeit-/
-    // Frame-Abhängigkeit, daher auf jedem Gerät bitidentisch reproduzierbar.
-    // Ändert nur, wie BREIT der Korridor an dieser Stelle ist – Beschleunigung,
-    // Lenkung und Integration der Fahrphysik bleiben unangetastet.
-    const CURVE_MARGIN = 6   // kleiner Sicherheitsabstand, Rand berührt sich nie exakt
-    const LOCAL_OUTER  = new Float64Array(N)
-    for (let i = 0; i < N; i++) {
-      const p0 = TRK[(i - 1 + N) % N], p1 = TRK[i], p2 = TRK[(i + 1) % N]
-      const a = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
-      const b = Math.hypot(p2[0] - p1[0], p2[1] - p1[1])
-      const c = Math.hypot(p2[0] - p0[0], p2[1] - p0[1])
-      const area = Math.abs((p1[0]-p0[0])*(p2[1]-p0[1]) - (p2[0]-p0[0])*(p1[1]-p0[1])) / 2
-      const R = area > 1e-6 ? (a * b * c) / (4 * area) : Infinity   // Umkreisradius = lokaler Kurvenradius
-      // Nie unter INNER_LIMIT klemmen (die eigentliche Fahrbahn bleibt immer
-      // in voller Breite befahrbar) und nie über OUTER_LIMIT (normales
-      // Streckenverhalten bleibt an weiten Kurven/Geraden unverändert).
-      LOCAL_OUTER[i] = Math.min(OUTER_LIMIT, Math.max(INNER_LIMIT, R - CURVE_MARGIN))
-    }
-    // Halbbreite der gestrichelten Randlinie: Mittelpunkt zwischen Fahrbahnrand
-    // und (ggf. geklemmter) Puffergrenze — folgt damit automatisch mit.
-    function dashedHalfWidth(i) { return (INNER_LIMIT + LOCAL_OUTER[i]) / 2 }
-
     function gridKey(gx, gy) { return `${gx},${gy}` }
     for (let i = 0; i < N; i++) {
       const a = TRK[i], b = TRK[(i + 1) % N]
@@ -973,42 +937,6 @@ export default function ArcadeRace({ onClose }) {
     offCanvas.height = OFF_H
     const offCtx = offCanvas.getContext('2d')
 
-    // ── Ribbon-Geometrie (variable Breite) für Hintergrund-/Buffer-Layer ──────
-    // Canvas kann keine Linie mit variabler Breite entlang eines Pfads zeichnen
-    // (stroke() nimmt nur eine feste lineWidth). Für die beiden äußeren Layer
-    // (Hintergrund-Glow, orange Buffer-Zone) bauen wir daher pro Punkt eine
-    // linke/rechte Randkurve mit lokal geklemmter Halbbreite (LOCAL_OUTER) und
-    // füllen die daraus entstehende Fläche – so zeigt die Zeichnung exakt den
-    // Korridor, den auch die Kollisionsprüfung verwendet (kein "unsichtbare
-    // Wand im sichtbaren Buffer" mehr an engen Spitzkehren).
-    // Reine, einmalige Geometrie aus TRK/LOCAL_OUTER — deterministisch.
-    function ribbonPoints(halfWidthAt) {
-      const left = [], right = []
-      for (let i = 0; i < N; i++) {
-        const a = TRK[i], b = TRK[(i + 1) % N]
-        const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.hypot(dx,dy) || 1
-        const nx = -dy/len, ny = dx/len
-        const hw = halfWidthAt(i)
-        left.push([a[0]+nx*hw, a[1]+ny*hw])
-        right.push([a[0]-nx*hw, a[1]-ny*hw])
-      }
-      return { left, right }
-    }
-    const bgHalfWidth  = i => LOCAL_OUTER[i] + 20   // entspricht altem TRACK_WIDTH+BUFFER*2+40 (Halbbreite = OUTER_LIMIT+20)
-    const bufHalfWidth = i => LOCAL_OUTER[i]        // entspricht altem TRACK_WIDTH+BUFFER*2      (Halbbreite = OUTER_LIMIT)
-    const bgRibbon  = ribbonPoints(bgHalfWidth)
-    const bufRibbon = ribbonPoints(bufHalfWidth)
-    function fillRibbonPath2D(ribbon) {
-      const path = new Path2D()
-      path.moveTo(ribbon.left[0][0], ribbon.left[0][1])
-      for (let i = 1; i < ribbon.left.length; i++) path.lineTo(ribbon.left[i][0], ribbon.left[i][1])
-      for (let i = ribbon.right.length - 1; i >= 0; i--) path.lineTo(ribbon.right[i][0], ribbon.right[i][1])
-      path.closePath()
-      return path
-    }
-    const bgRibbonPath  = fillRibbonPath2D(bgRibbon)
-    const bufRibbonPath = fillRibbonPath2D(bufRibbon)
-
     // Einmalig die gesamte Strecke in Weltkoordinaten auf offCanvas zeichnen.
     ;(function buildTrackCache() {
       // Hilfsfunktion: Offset auf Weltkoordinaten anwenden
@@ -1024,17 +952,9 @@ export default function ArcadeRace({ onClose }) {
         for (let i = 1; i < N; i++) offCtx.lineTo(wx(TRK[i][0]), wy(TRK[i][1]))
         offCtx.closePath(); offCtx.stroke()
       }
-      const fillRibbon = (ribbon, style) => {
-        offCtx.fillStyle = style
-        offCtx.beginPath()
-        offCtx.moveTo(wx(ribbon.left[0][0]), wy(ribbon.left[0][1]))
-        for (let i = 1; i < ribbon.left.length; i++) offCtx.lineTo(wx(ribbon.left[i][0]), wy(ribbon.left[i][1]))
-        for (let i = ribbon.right.length - 1; i >= 0; i--) offCtx.lineTo(wx(ribbon.right[i][0]), wy(ribbon.right[i][1]))
-        offCtx.closePath(); offCtx.fill()
-      }
 
-      fillRibbon(bgRibbon,  '#1a1a2e')
-      fillRibbon(bufRibbon, '#c8611a')
+      stroke('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
 
@@ -1057,9 +977,7 @@ export default function ArcadeRace({ onClose }) {
         offCtx.stroke()
       }
 
-      // Randlinien (gestrichelt, beide Seiten) — folgt der lokal geklemmten
-      // Halbbreite (dashedHalfWidth), damit sie an engen Kurven mit dem
-      // geschrumpften Buffer-Korridor mitwandert statt optisch daraus rauszuragen.
+      // Randlinien (gestrichelt, beide Seiten)
       for (const side of [-1, 1]) {
         offCtx.strokeStyle = 'rgba(230,150,30,0.7)'; offCtx.lineWidth = BUFFER - 10
         offCtx.setLineDash([25, 20])
@@ -1067,8 +985,8 @@ export default function ArcadeRace({ onClose }) {
         for (let i = 0; i < N; i++) {
           const a = TRK[i], b = TRK[(i+1)%N]
           const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
-          const nx = -dy/len*dashedHalfWidth(i)*side
-          const ny =  dx/len*dashedHalfWidth(i)*side
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side
+          const ny =  dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
           i===0 ? offCtx.moveTo(wx(a[0]+nx), wy(a[1]+ny))
                 : offCtx.lineTo(wx(a[0]+nx), wy(a[1]+ny))
         }
@@ -1144,8 +1062,8 @@ export default function ArcadeRace({ onClose }) {
         ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'
         ctx.stroke(mainPath)
       }
-      ctx.fillStyle = '#1a1a2e'; ctx.fill(bgRibbonPath)
-      ctx.fillStyle = '#c8611a'; ctx.fill(bufRibbonPath)
+      strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
       strokePath('#2e2e3e', TRACK_WIDTH + 20)
       strokePath('#484858', TRACK_WIDTH)
 
@@ -1169,7 +1087,7 @@ export default function ArcadeRace({ onClose }) {
         for (let i = 0; i < N; i++) {
           const a = TRK[i], b = TRK[(i+1)%N]
           const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.sqrt(dx*dx+dy*dy)||1
-          const nx = -dy/len*dashedHalfWidth(i)*side, ny = dx/len*dashedHalfWidth(i)*side
+          const nx = -dy/len*(TRACK_WIDTH/2+BUFFER/2)*side, ny = dx/len*(TRACK_WIDTH/2+BUFFER/2)*side
           i===0 ? ctx.moveTo(a[0]+nx,a[1]+ny) : ctx.lineTo(a[0]+nx,a[1]+ny)
         }
         ctx.closePath(); ctx.stroke(); ctx.setLineDash([])
@@ -1530,17 +1448,13 @@ export default function ArcadeRace({ onClose }) {
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y,prevSeg)
         const _npMs = performance.now() - _npT0
         nearestPointTotalMs += _npMs
-        // Lokale statt globale Puffergrenze verwenden (s. LOCAL_OUTER oben) –
-        // an engen Spitzkehren ist der Korridor automatisch schmaler, exakt
-        // dort, wo auch die Zeichnung (Rendering weiter unten) schmaler wird.
-        const localOuterLimit = LOCAL_OUTER[seg]
-        if (dist>INNER_LIMIT && dist<=localOuterLimit) {
+        if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
           inBuffer=true
           const bufCap=maxSpd*0.5
           if (car.speed>bufCap) car.speed=Math.max(bufCap,car.speed-1800*dt)
-        } else if (dist>localOuterLimit) {
+        } else if (dist>OUTER_LIMIT) {
           inBuffer=false
-          const pushStrength = Math.min(1, (dist-localOuterLimit)/dist * 60 * dt)
+          const pushStrength = Math.min(1, (dist-OUTER_LIMIT)/dist * 60 * dt)
           car.x+=(cx-car.x)*pushStrength; car.y+=(cy-car.y)*pushStrength
           car.speed *= Math.exp(Math.log(0.72) * 60 * dt)
         } else { inBuffer=false }
