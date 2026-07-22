@@ -961,6 +961,12 @@ export default function ArcadeRace({ onClose }) {
       }
 
       stroke('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      // Absolute Wand-Markierung: exakt an OUTER_LIMIT (= TRACK_WIDTH/2 + BUFFER),
+      // hier stoppt das Auto endgültig (siehe Kollisionslogik `dist > OUTER_LIMIT`).
+      // Etwas breiter als das folgende Kiesbett gezeichnet, damit ein kräftig
+      // roter Rand am äußersten Rand sichtbar bleibt, statt vom Kiesbett komplett
+      // überdeckt zu werden.
+      stroke('#ff2d2d', TRACK_WIDTH + BUFFER * 2 + 14)
       stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
@@ -1070,6 +1076,8 @@ export default function ArcadeRace({ onClose }) {
         ctx.stroke(mainPath)
       }
       strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
+      // Absolute Wand-Markierung an OUTER_LIMIT (siehe Kommentar im Blit-Pfad oben)
+      strokePath('#ff2d2d', TRACK_WIDTH + BUFFER * 2 + 14)
       strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
       strokePath('#2e2e3e', TRACK_WIDTH + 20)
       strokePath('#484858', TRACK_WIDTH)
