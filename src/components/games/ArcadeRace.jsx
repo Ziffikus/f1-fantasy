@@ -654,6 +654,42 @@ export default function ArcadeRace({ onClose }) {
       TOTAL_LEN / 3,
       Math.max(AVG_SEG_LEN * 10, MAX_STEP_DIST * 8)
     )
+
+    // ── Dynamische Wandgrenze in engen Kurven (streckenunabhängig) ──────────
+    // OUTER_LIMIT/INNER_LIMIT sind Konstanten für die GESAMTE Strecke. Ist der
+    // tatsächliche Kurvenradius an einer Stelle kleiner als OUTER_LIMIT, faltet
+    // sich die Wandgrenze auf der Kurveninnenseite über sich selbst – das Auto
+    // kann dort an einer unsichtbaren "Geisterwand" mitten im Streckenkorridor
+    // hängenbleiben, obwohl es die sichtbare rote Wand nicht berührt (siehe
+    // z.B. die Haarnadel bei Spa). Das betrifft potenziell JEDE Strecke mit
+    // engen Kurven, nicht nur eine einzelne – daher hier generisch gelöst,
+    // statt trackWidth/buffer oder die Punkte einer einzelnen Strecke von
+    // Hand anzupassen.
+    //
+    // Pro Segment wird der lokale Kurvenradius (Umkreisradius aus einem
+    // Punkte-Fenster vor/nach dem Segment) geschätzt und Outer-/Inner-Limit
+    // dort per Sicherheitsfaktor begrenzt. Auf Geraden/weiten Kurven bleibt
+    // alles beim normalen Wert; nur an echten Engstellen zieht sich die Wand
+    // automatisch näher an die Mittellinie.
+    const CURV_STEP   = 4      // Punkte-Fenster ≈ 1 Roh-Punkt-Abstand (subdivisions=4)
+    const CURV_SAFETY = 0.85   // Sicherheitsabschlag gegen Pendeln exakt am Limit
+    const SAFE_OUTER = new Float64Array(N)
+    const SAFE_INNER = new Float64Array(N)
+    for (let i = 0; i < N; i++) {
+      const a = TRK[(i - CURV_STEP + N) % N]
+      const b = TRK[i]
+      const c = TRK[(i + CURV_STEP) % N]
+      const ab = Math.hypot(b[0] - a[0], b[1] - a[1])
+      const bc = Math.hypot(c[0] - b[0], c[1] - b[1])
+      const ac = Math.hypot(c[0] - a[0], c[1] - a[1])
+      const s    = (ab + bc + ac) / 2
+      const area = Math.sqrt(Math.max(s * (s - ab) * (s - bc) * (s - ac), 0))
+      const R = area > 1e-6 ? (ab * bc * ac) / (4 * area) : 1e9
+      const localLimit = R * CURV_SAFETY
+      SAFE_OUTER[i] = Math.min(OUTER_LIMIT, localLimit)
+      SAFE_INNER[i] = Math.min(INNER_LIMIT, localLimit)
+    }
+
     function gridKey(gx, gy) { return `${gx},${gy}` }
     for (let i = 0; i < N; i++) {
       const a = TRK[i], b = TRK[(i + 1) % N]
@@ -966,7 +1002,7 @@ export default function ArcadeRace({ onClose }) {
       // Etwas breiter als das folgende Kiesbett gezeichnet, damit ein kräftig
       // roter Rand am äußersten Rand sichtbar bleibt, statt vom Kiesbett komplett
       // überdeckt zu werden.
-      stroke('#ff2d2d', TRACK_WIDTH + BUFFER * 2 + 14)
+      stroke('#ffffff', TRACK_WIDTH + BUFFER * 2 + 6)
       stroke('#c8611a', TRACK_WIDTH + BUFFER * 2)
       stroke('#2e2e3e', TRACK_WIDTH + 20)
       stroke('#484858', TRACK_WIDTH)
@@ -1077,7 +1113,7 @@ export default function ArcadeRace({ onClose }) {
       }
       strokePath('#1a1a2e', TRACK_WIDTH + BUFFER * 2 + 40)
       // Absolute Wand-Markierung an OUTER_LIMIT (siehe Kommentar im Blit-Pfad oben)
-      strokePath('#ff2d2d', TRACK_WIDTH + BUFFER * 2 + 14)
+      strokePath('#ffffff', TRACK_WIDTH + BUFFER * 2 + 6)
       strokePath('#c8611a', TRACK_WIDTH + BUFFER * 2)
       strokePath('#2e2e3e', TRACK_WIDTH + 20)
       strokePath('#484858', TRACK_WIDTH)
@@ -1463,13 +1499,18 @@ export default function ArcadeRace({ onClose }) {
         const {seg,dist,cx,cy} = nearestPoint(car.x,car.y,prevSeg)
         const _npMs = performance.now() - _npT0
         nearestPointTotalMs += _npMs
-        if (dist>INNER_LIMIT && dist<=OUTER_LIMIT) {
+        // Statt fixem INNER_LIMIT/OUTER_LIMIT: an dieser Stelle des
+        // Segments (seg) evtl. enger gefasste, kurvenradius-basierte
+        // Grenzen verwenden (siehe SAFE_OUTER/SAFE_INNER weiter oben).
+        const localInner = SAFE_INNER[seg]
+        const localOuter = SAFE_OUTER[seg]
+        if (dist>localInner && dist<=localOuter) {
           inBuffer=true
           const bufCap=maxSpd*0.5
           if (car.speed>bufCap) car.speed=Math.max(bufCap,car.speed-1800*dt)
-        } else if (dist>OUTER_LIMIT) {
+        } else if (dist>localOuter) {
           inBuffer=false
-          const pushStrength = Math.min(1, (dist-OUTER_LIMIT)/dist * 60 * dt)
+          const pushStrength = Math.min(1, (dist-localOuter)/dist * 60 * dt)
           car.x+=(cx-car.x)*pushStrength; car.y+=(cy-car.y)*pushStrength
           car.speed *= Math.exp(Math.log(0.72) * 60 * dt)
         } else { inBuffer=false }
