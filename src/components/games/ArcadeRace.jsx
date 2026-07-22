@@ -209,6 +209,13 @@ export default function ArcadeRace({ onClose }) {
     setSelectedEntry(0)
     setGhostSectors([])
     setGhostLapMs(null)
+    ghostDataRef.current = null  // sonst liefert loadGhost()'s In-Memory-Fallback
+                                  // die Ghost-Daten (inkl. lapTimeMs!) der vorherigen
+                                  // Strecke, sobald für die neue Strecke noch kein
+                                  // eigener localStorage-Ghost existiert.
+    setLeaderboard([])  // Alte Rangliste sofort leeren, sonst zeigt sie bis zum
+                         // Abschluss von loadLeaderboard() noch die Zeiten der
+                         // vorherigen Strecke unter dem neuen Streckennamen an.
   }, [track.id])
 
   // Prüft ob der Countdown für den aktuellen Track abgelaufen ist und
