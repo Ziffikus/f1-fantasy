@@ -54,26 +54,29 @@ function findWeekendForTrack(trackId, weekends) {
   const needle = normalize(trackId)
   if (!needle) return null
 
-  // 1. Exakter/Teilstring-Treffer auf country (zuverlässigster Indikator,
-  //    z.B. "austria" in country "Austria")
-  let match = weekends.find(w => {
-    const c = normalize(w.country)
-    return c && (c.includes(needle) || needle.includes(c))
-  })
+  const matches = (field) => {
+    const f = normalize(field)
+    return f && (f.includes(needle) || needle.includes(f))
+  }
+
+  // 1. Gastgeberstadt (zuverlässigster Indikator für Tracks, deren id der
+  //    Name der Host-Stadt ist, z.B. "budapest" in city "Budapest",
+  //    "zandvoort" in city "Zandvoort" – deckt automatisch auch Fälle ab,
+  //    in denen die Stadt in country/name/circuit gar nicht vorkommt,
+  //    wie z.B. "Budapest" vs. country "Hungary"/circuit "Hungaroring")
+  let match = weekends.find(w => matches(w.city))
   if (match) return match
 
-  // 2. Teilstring-Treffer auf name (z.B. "barcelona" in "Barcelona-Catalunya GP")
-  match = weekends.find(w => {
-    const n = normalize(w.name)
-    return n && n.includes(needle)
-  })
+  // 2. country (zuverlässiger Indikator, z.B. "austria" in country "Austria")
+  match = weekends.find(w => matches(w.country))
   if (match) return match
 
-  // 3. Teilstring-Treffer auf circuit (z.B. "monaco" in "Circuit de Monaco")
-  match = weekends.find(w => {
-    const c = normalize(w.circuit)
-    return c && c.includes(needle)
-  })
+  // 3. name (z.B. "barcelona" in "Barcelona-Catalunya GP")
+  match = weekends.find(w => matches(w.name))
+  if (match) return match
+
+  // 4. circuit (z.B. "monaco" in "Circuit de Monaco")
+  match = weekends.find(w => matches(w.circuit))
   return match ?? null
 }
 
