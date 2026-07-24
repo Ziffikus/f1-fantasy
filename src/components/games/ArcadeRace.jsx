@@ -172,6 +172,13 @@ export default function ArcadeRace({ onClose }) {
     try { return localStorage.getItem('arcadeRace_gcOpt') === 'on' } catch { return false }
   })
   const gcOptRef = useRef(false)
+  // Ghost-Sync-Modus: 'alt' = bestehende Zeitbasis (elapsed - frameDt, vor Kamera-Interpolation
+  // eingeführt), 'neu' = korrigierte Zeitbasis (elapsed ohne Korrektur, synchron zur
+  // render-interpolierten Kamera). Umschaltbar zur Diagnose des Ghost-Rucklers.
+  const [ghostSyncMode, setGhostSyncMode] = useState(() => {
+    try { return localStorage.getItem('arcadeRace_ghostSync') || 'alt' } catch { return 'alt' }
+  })
+  const ghostSyncModeRef = useRef(ghostSyncMode)
 
   // ── Einstellungen-Panel (pausiert Physik solange offen) ─────────────────────
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -483,6 +490,8 @@ export default function ArcadeRace({ onClose }) {
       `Track:                ${track.name} (${track.id})`,
       `RenderMode:           ${renderMode}`,
       `FPS-Cap:              ${fpsCap ? 'AN (60)' : 'AUS (nativ)'}`,
+      `Ghost-Sync (Start):   ${entries[0]?.ghostSyncMode ?? ghostSyncMode}`,
+      `GC-Optimierung:       ${gcOpt ? 'AN' : 'AUS'}`,
       `Aufnahmedauer:        ${((entries[entries.length-1].elapsed - entries[0].elapsed)/1000).toFixed(2)}s`,
       `Frames aufgezeichnet: ${entries.length}`,
       `Ø rawDt (echter Abstand): ${avg.toFixed(2)}ms`,
@@ -516,16 +525,16 @@ export default function ArcadeRace({ onClose }) {
       : '  (keine)'
 
     // ── Alle Frames ──
-    const header = 'elapsed_ms\trawDt_ms\tframeDt_ms\tskipped\tfps\tphysSteps\tnearestPoint_ms\ttouchLeft\ttouchRight\tkeyLeft\tkeyRight\trenderMode\tracing\tinBuffer\tlongTask\tlongTask_ms'
+    const header = 'elapsed_ms\trawDt_ms\tframeDt_ms\tskipped\tfps\tphysSteps\tnearestPoint_ms\ttouchLeft\ttouchRight\tkeyLeft\tkeyRight\trenderMode\tracing\tinBuffer\tlongTask\tlongTask_ms\tghostSyncMode\tghostElapsed_ms\tcarDistToStart\tghostDistToStart'
     const rows   = entries.map(e =>
-      `${e.elapsed.toFixed(1)}\t${(e.rawDtMs ?? e.frameDtMs).toFixed(2)}\t${e.frameDtMs.toFixed(2)}\t${e.skipped ?? false}\t${e.fps}\t${e.physSteps}\t${(e.nearestPointMs ?? 0).toFixed(3)}\t${e.touchLeft ?? false}\t${e.touchRight ?? false}\t${e.keyLeft ?? false}\t${e.keyRight ?? false}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}\t${e.longTask ?? false}\t${e.longTaskMs ?? ''}`
+      `${e.elapsed.toFixed(1)}\t${(e.rawDtMs ?? e.frameDtMs).toFixed(2)}\t${e.frameDtMs.toFixed(2)}\t${e.skipped ?? false}\t${e.fps}\t${e.physSteps}\t${(e.nearestPointMs ?? 0).toFixed(3)}\t${e.touchLeft ?? false}\t${e.touchRight ?? false}\t${e.keyLeft ?? false}\t${e.keyRight ?? false}\t${e.renderMode}\t${e.racing}\t${e.inBuffer}\t${e.longTask ?? false}\t${e.longTaskMs ?? ''}\t${e.ghostSyncMode ?? ''}\t${e.ghostElapsedMs ?? ''}\t${e.carDistToStart ?? ''}\t${e.ghostDistToStart ?? ''}`
     ).join('\n')
 
     const now = new Date()
     const ts  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`
 
     const content = [
-      '=== ARCADERACE PERFORMANCE LOG v4 ===',
+      '=== ARCADERACE PERFORMANCE LOG v5 (Ghost-Sync-Diagnose) ===',
       `Erstellt: ${now.toLocaleString('de-AT')}`,
       '',
       '--- GERÄT ---',
@@ -1344,6 +1353,7 @@ export default function ArcadeRace({ onClose }) {
     }
 
     function loop(ts) {
+      let ghostElapsedForLog = null   // roher elapsed-Wert der Ghost-Zeitbasis, nur fürs Perf-Log
       const rawDtMs = lastTS ? ts - lastTS : 0   // echter Abstand, UNGEDECKELT – für den Logger
 
       // ── Adaptiver 60-FPS-Cap ─────────────────────────────────────────────────
@@ -1414,11 +1424,22 @@ export default function ArcadeRace({ onClose }) {
       // Kamera wird NACH der Render-Interpolation gesetzt (siehe unten, renderCar.x/y) —
       // dadurch sind Kamera-Position und Kamera-Rotation (renderCar.angle) immer exakt synchron.
 
-      // ── Ghost-Playback: VOR Sub-Steps, mit Zeit des letzten Frames ──
-      // camX = car.x hier (vor Sub-Steps) → Kamera zeigt Position von letztem Frame.
-      // Ghost mit elapsed = ts - frameDt*1000 - startTimeMs → exakt synchron.
+      // ── Ghost-Playback: VOR Sub-Steps ────────────────────────────────────────
+      // 'alt' (bestehend): elapsed = ts - frameDt*1000 - startTimeMs. Ging ursprünglich
+      //   davon aus, dass die Kamera camX = car.x VOR den Sub-Steps dieses Frames ist
+      //   (letzter Frame-Zustand). Das stimmt seit Einführung der Render-Interpolation
+      //   (siehe unten: camX = renderCar.x NACH Interpolation) nicht mehr exakt — die
+      //   Kamera repräsentiert jetzt näherungsweise (ts - startTimeMs), nicht (ts - frameDt
+      //   - startTimeMs). Dadurch hinkt der Ghost der Kamera um frameDt hinterher, und
+      //   zwar um einen Betrag, der frame-zu-frame schwankt (Jitter-Quelle).
+      // 'neu' (Diagnose-Fix): elapsed ohne die frameDt-Korrektur, synchron zur selben
+      //   Zeitbasis wie die render-interpolierte Kamera.
+      // Umschaltbar unter Einstellungen → "Ghost Alt" / "Ghost Neu", zum A/B-Vergleich.
       if (ghostFrames.length > 0 && startTimeMs !== null) {
-        const elapsed = ghostStartOffset + (ts - startTimeMs) - frameDt * 1000
+        const elapsed = ghostSyncModeRef.current === 'neu'
+          ? ghostStartOffset + (ts - startTimeMs)
+          : ghostStartOffset + (ts - startTimeMs) - frameDt * 1000
+        ghostElapsedForLog = elapsed   // für Perf-Log: roher elapsed-Wert dieses Frames
         if (elapsed >= 0) {
           while (ghostIdx < ghostFrames.length - 1 && ghostFrames[ghostIdx + 1].t <= elapsed) {
             ghostIdx++
@@ -1657,6 +1678,14 @@ export default function ArcadeRace({ onClose }) {
       if (perfLoggingRef.current && perfLogStartRef.current !== null) {
         perfLastRafRef.current = performance.now()   // Watchdog-Heartbeat
         const t = gameRef.current?.touches ?? {}
+        // Ghost-Diagnose: elapsed-Wert der aktiven Zeitbasis + Abstand von Auto/Ghost
+        // zur Start-/Ziellinie (TRK[START_SEG]). Damit lässt sich prüfen, ob am
+        // Rundenstart ein konstanter Versatz besteht (echtes Start-Offset-Problem)
+        // oder ob der Abstand über die Runde hinweg schwankt (Jitter durch Kamera-Sync).
+        const ghostDistToStart = ghostCar
+          ? Math.hypot(ghostCar.x - TRK[START_SEG][0], ghostCar.y - TRK[START_SEG][1])
+          : null
+        const carDistToStart = Math.hypot(car.x - TRK[START_SEG][0], car.y - TRK[START_SEG][1])
         perfLogRef.current.push({
           elapsed:         ts - perfLogStartRef.current,
           frameDtMs:       frameDt * 1000,   // gedeckelt (max 250ms)
@@ -1672,6 +1701,10 @@ export default function ArcadeRace({ onClose }) {
           renderMode:      renderModeRef.current,
           racing,
           inBuffer,
+          ghostSyncMode:     ghostSyncModeRef.current,
+          ghostElapsedMs:    ghostElapsedForLog !== null ? +ghostElapsedForLog.toFixed(2) : null,
+          carDistToStart:    +carDistToStart.toFixed(2),
+          ghostDistToStart:  ghostDistToStart !== null ? +ghostDistToStart.toFixed(2) : null,
         })
         if (perfLogRef.current.length > 120000) perfLogRef.current.shift()
       }
@@ -1702,6 +1735,10 @@ export default function ArcadeRace({ onClose }) {
     gcOptRef.current = gcOpt
     try { localStorage.setItem('arcadeRace_gcOpt', gcOpt ? 'on' : 'off') } catch {}
   }, [gcOpt])
+  useEffect(() => {
+    ghostSyncModeRef.current = ghostSyncMode
+    try { localStorage.setItem('arcadeRace_ghostSync', ghostSyncMode) } catch {}
+  }, [ghostSyncMode])
   useEffect(() => { pausedRef.current = settingsOpen }, [settingsOpen])
   useEffect(() => {
     fpsCapRef.current = fpsCap
@@ -1952,6 +1989,20 @@ export default function ArcadeRace({ onClose }) {
                 className={`arcade-settings-opt ${gcOpt ? 'arcade-settings-opt--active' : ''}`}
                 onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setGcOpt(true)}}
               >♻ AN</button>
+            </div>
+          </div>
+
+          <div className="arcade-settings-row">
+            <span className="arcade-settings-row-label">Ghost-Sync</span>
+            <div className="arcade-settings-row-options">
+              <button
+                className={`arcade-settings-opt ${ghostSyncMode==='alt' ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setGhostSyncMode('alt')}}
+              >Ghost Alt</button>
+              <button
+                className={`arcade-settings-opt ${ghostSyncMode==='neu' ? 'arcade-settings-opt--active' : ''}`}
+                onPointerDown={(e)=>{e.currentTarget.setPointerCapture(e.pointerId); setGhostSyncMode('neu')}}
+              >Ghost Neu</button>
             </div>
           </div>
 
