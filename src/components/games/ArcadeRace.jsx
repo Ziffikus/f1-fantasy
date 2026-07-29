@@ -130,6 +130,12 @@ export default function ArcadeRace({ onClose }) {
   const { profile } = useAuthStore()
   const profileRef  = useRef(profile)   // immer aktueller Wert in rAF-Closures
   const ghostDataRef = useRef(null)     // In-Memory-Fallback falls localStorage gesperrt
+  // Hält immer die id der aktuell ausgewählten Strecke. Wird von allen async
+  // Ladefunktionen (loadGhostFromSupabase, loadLeaderboard, maybeFinalizeRanking,
+  // trySyncPendingScore) nach jedem await geprüft, damit eine spät eintreffende
+  // Antwort für eine bereits verlassene Strecke NICHT mehr in den State (bestLap,
+  // leaderboard, ...) der inzwischen ausgewählten neuen Strecke geschrieben wird.
+  const activeTrackIdRef = useRef(track.id)
 
   useEffect(() => { profileRef.current = profile }, [profile])
 
@@ -201,6 +207,11 @@ export default function ArcadeRace({ onClose }) {
   const resetStateRef = useRef(null)
 
   useEffect(() => {
+    // Muss VOR den async Ladefunktionen aktualisiert werden, damit deren
+    // Stale-Checks (activeTrackIdRef.current !== requestedTrackId) sofort
+    // greifen, sobald der User auf eine andere Strecke wechselt.
+    activeTrackIdRef.current = track.id
+
     loadLeaderboard()
     trySyncPendingScore()
     loadGhostFromSupabase()
@@ -228,6 +239,7 @@ export default function ArcadeRace({ onClose }) {
   // Prüft ob der Countdown für den aktuellen Track abgelaufen ist und
   // triggert einmalig die Edge Function zum Berechnen der finalen Rangliste.
   async function maybeFinalizeRanking() {
+    const requestedTrackId = track.id   // Snapshot: für welche Strecke wurde dieser Call gestartet
     const status = trackUnlockStatus[track.id]
     // Nur wenn der Track ein Wochenende hat und der Countdown abgelaufen ist
     if (!status?.weekend || !status?.unlockAt) return
@@ -240,6 +252,7 @@ export default function ArcadeRace({ onClose }) {
         .select('finalized_at')
         .eq('track_id', track.id)
         .maybeSingle()
+      if (activeTrackIdRef.current !== requestedTrackId) return // Strecke inzwischen gewechselt
       if (log) return // bereits finalisiert, nichts tun
 
       // Edge Function triggern
@@ -255,14 +268,16 @@ export default function ArcadeRace({ onClose }) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwt}`,
           },
-          body: JSON.stringify({ track_id: track.id }),
+          body: JSON.stringify({ track_id: requestedTrackId }),
         }
       )
+      if (activeTrackIdRef.current !== requestedTrackId) return // Strecke inzwischen gewechselt
       if (!res.ok) {
         console.warn('[Ranking] Edge Function Fehler:', res.status)
         return
       }
       const result = await res.json()
+      if (activeTrackIdRef.current !== requestedTrackId) return // Strecke inzwischen gewechselt
       if (result.success || result.already_finalized) {
         // Rangliste neu laden damit Ränge direkt sichtbar sind
         loadLeaderboard()
@@ -274,6 +289,9 @@ export default function ArcadeRace({ onClose }) {
 
   // Lädt Ghost aus Supabase (eingeloggt) oder localStorage (Fallback)
   async function loadGhostFromSupabase() {
+    const requestedTrackId = track.id   // Snapshot: für welche Strecke wurde dieser Call gestartet
+    const requestedGhostKey = GHOST_KEY // Snapshot des dazugehörigen localStorage-Keys
+
     if (profile?.id) {
       const maxRetries = 3
       const baseDelay  = 600
@@ -283,9 +301,14 @@ export default function ArcadeRace({ onClose }) {
             .from('ghost_laps')
             .select('frames, sector_ms, lap_time_ms')
             .eq('profile_id', profile.id)
-            .eq('track_id', track.id)
+            .eq('track_id', requestedTrackId)
             .maybeSingle()
           if (error) throw error  // explizit werfen → retry
+          // Der User könnte während der Retries (bis zu ~1.8s Delay!) längst
+          // auf eine andere Strecke gewechselt haben. In dem Fall darf diese
+          // veraltete Antwort NICHT mehr in bestLap/ghost der neuen Strecke
+          // geschrieben werden.
+          if (activeTrackIdRef.current !== requestedTrackId) return
           if (!data) break        // kein Eintrag → kein Retry, zu localStorage
           if (!data.frames?.length) {
             console.warn('[Ghost] Supabase-Eintrag hat keine Frames – übersprungen')
@@ -294,7 +317,7 @@ export default function ArcadeRace({ onClose }) {
           const payload = { frames: data.frames, sectorMs: data.sector_ms ?? [], lapTimeMs: data.lap_time_ms ?? null }
           ghostDataRef.current = payload
           try {
-            localStorage.setItem(GHOST_KEY, JSON.stringify(payload))
+            localStorage.setItem(requestedGhostKey, JSON.stringify(payload))
           } catch {}
           setHasGhost(true)
           if (data.lap_time_ms) {
@@ -307,12 +330,14 @@ export default function ArcadeRace({ onClose }) {
         } catch (err) {
           console.warn(`[Ghost] Supabase Versuch ${attempt}/${maxRetries} fehlgeschlagen:`, err?.message ?? err)
         }
+        if (activeTrackIdRef.current !== requestedTrackId) return // zwischenzeitlich gewechselt, keine weiteren Retries nötig
         if (attempt < maxRetries) await new Promise(r => setTimeout(r, baseDelay * attempt))
       }
     }
+    if (activeTrackIdRef.current !== requestedTrackId) return // zwischenzeitlich gewechselt
     // Fallback: nur localStorage prüfen
     try {
-      const raw = localStorage.getItem(GHOST_KEY)
+      const raw = localStorage.getItem(requestedGhostKey)
       if (raw) {
         const parsed = JSON.parse(raw)
         setHasGhost(true)
@@ -328,17 +353,20 @@ export default function ArcadeRace({ onClose }) {
   }
 
   async function loadLeaderboard() {
+    const requestedTrackId = track.id   // Snapshot: für welche Strecke wurde dieser Call gestartet
     const maxRetries = 4
     const baseDelay  = 600
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (activeTrackIdRef.current !== requestedTrackId) return // zwischenzeitlich gewechselt
       try {
         const { data, error } = await supabase
           .from('game_highscores')
           .select('lap_time_ms, profiles(display_name, avatar_url)')
           .eq('game', 'arcade_race')
-          .eq('track', track.id)
+          .eq('track', requestedTrackId)
           .order('lap_time_ms', { ascending: true })
           .limit(10)
+        if (activeTrackIdRef.current !== requestedTrackId) return // Antwort kam zu spät, gehört zur alten Strecke
         if (!error && data) {
           setLeaderboard(data)
           return
