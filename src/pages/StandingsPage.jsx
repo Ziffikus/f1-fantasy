@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
-import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio } from 'lucide-react'
+import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2 } from 'lucide-react'
 import './StandingsPage.css'
 
 // Berechnet Punkte eines Spielers für ein Wochenende
@@ -118,6 +118,28 @@ function useRaceResults() {
   }, [])
 
   return { results, loading }
+}
+
+// Lädt für jeden Spieler die Anzahl der gewonnenen Arcade-Race-Strecken
+// (ein Sieg pro Strecke, siehe track_winners-Tabelle/Trigger).
+function useArcadeWins() {
+  const [arcadeWins, setArcadeWins] = useState({}) // profile_id -> count
+
+  useEffect(() => {
+    supabase
+      .from('track_winners')
+      .select('profile_id')
+      .then(({ data, error }) => {
+        if (error) { console.warn('[ArcadeWins] Ladefehler:', error.message); return }
+        const counts = {}
+        for (const row of (data ?? [])) {
+          counts[row.profile_id] = (counts[row.profile_id] ?? 0) + 1
+        }
+        setArcadeWins(counts)
+      })
+  }, [])
+
+  return arcadeWins
 }
 
 function fmtPts(val) {
@@ -500,6 +522,7 @@ export default function StandingsPage() {
   const { standings, loading } = useStandings()
   const { weekends } = useRaceWeekends()
   const { results, loading: resultsLoading } = useRaceResults()
+  const arcadeWins = useArcadeWins()
   const { profile } = useAuthStore()
   const navigate = useNavigate()
   const [gamingChamp, setGamingChamp] = useState(null)
@@ -628,6 +651,7 @@ export default function StandingsPage() {
             <div className="standings-col-icon" title="Siege" style={{ textAlign: 'right' }}><Trophy size={13} /></div>
             <div className="standings-col-icon standings-col-hide-mobile" title="2. Plätze" style={{ textAlign: 'right' }}><Medal size={13} /></div>
             <div className="standings-col-icon standings-col-hide-mobile" title="3. Plätze" style={{ textAlign: 'right' }}><Flag size={13} /></div>
+            <div className="standings-col-icon standings-col-hide-mobile" title="Arcade Race Siege" style={{ textAlign: 'right' }}><Gamepad2 size={13} /></div>
           </div>
 
           {liveStandings.map((player, i) => (
@@ -680,6 +704,7 @@ export default function StandingsPage() {
                 <div className="standings-col-icon" style={{ textAlign: 'right' }}>{player.wins}</div>
                 <div className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.second_places}</div>
                 <div className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{player.third_places}</div>
+                <div className="standings-col-icon standings-col-hide-mobile" style={{ textAlign: 'right' }}>{arcadeWins[player.profile_id] ?? 0}</div>
               </div>
 
               {/* Aufgeklappte Renn-Details — eigenständige Grid-Row, beeinflusst die Spaltenbreiten der Zeilen nicht */}

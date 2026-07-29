@@ -119,6 +119,7 @@
     var(--col-pts, 5rem)
     var(--col-icon, 2.8rem)
     var(--col-icon-extra, 2.8rem)
+    var(--col-icon-extra, 2.8rem)
     var(--col-icon-extra, 2.8rem);
 }
 .standings-table-wrap--live .standings-grid {
@@ -128,6 +129,7 @@
     var(--col-pts, 5rem)
     var(--col-live, 4rem)
     var(--col-icon, 2.8rem)
+    var(--col-icon-extra, 2.8rem)
     var(--col-icon-extra, 2.8rem)
     var(--col-icon-extra, 2.8rem);
 }
