@@ -9,9 +9,9 @@
 export const ITALY_TRACK = {
   id:          'Italy',
   name:        'Itlay',
-  scale:       11,
-  trackWidth:  175,
-  buffer:      80,
+  scale:       7.5,
+  trackWidth:  150,
+  buffer:      65,
   startIndex:  0,       // RAW-Punkt 0 → Subdivision-Segment = 0
   sectorCount: 3,
 
