@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
-import { getTeamDrivers } from '../lib/teams'
+import { getTeamDrivers, fetchTeamOverrides } from '../lib/teams'
 import { callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment } from '../lib/draftCommentary'
 import './AdminPage.css'
 
@@ -621,6 +621,7 @@ function SubstitutionPanel({ raceWeekendId }) {
   const [subs, setSubs] = useState([]) // [{ original_driver_id, substitute_driver_id, session_type }]
   const [constructors, setConstructors] = useState([])
   const [teamMoves, setTeamMoves] = useState([]) // [{ driver_id, constructor_id }]
+  const [pickCount, setPickCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -643,12 +644,15 @@ function SubstitutionPanel({ raceWeekendId }) {
       const { data: moves } = await supabase
         .from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
       setTeamMoves(moves ?? [])
+
+      const { count } = await supabase.from('picks').select('id', { count: 'exact', head: true }).eq('race_weekend_id', raceWeekendId)
+      setPickCount(count ?? 0)
     }
     if (raceWeekendId) load()
   }, [raceWeekendId])
 
   function addSub() {
-    setSubs(prev => [...prev, { original_driver_id: '', substitute_driver_id: '', session_type: 'both', _new: true }])
+    setSubs(prev => [...prev, { original_driver_id: '', substitute_driver_id: '', session_type: 'both', draftable: true, _new: true }])
   }
 
   function updateSub(i, field, val) {
@@ -682,7 +686,8 @@ function SubstitutionPanel({ raceWeekendId }) {
             race_weekend_id: raceWeekendId,
             original_driver_id: Number(s.original_driver_id),
             substitute_driver_id: Number(s.substitute_driver_id),
-            session_type: s.session_type,
+            session_type: s.draftable === false ? s.session_type : 'both',
+            draftable: s.draftable ?? true,
           }))
         )
         if (error) throw error
@@ -721,9 +726,15 @@ function SubstitutionPanel({ raceWeekendId }) {
       <div className="admin-panel-header">
         <h3>Ersatzfahrer</h3>
         <span className="text-muted" style={{ fontSize: '0.78rem' }}>
-          Punkte des Ersatzfahrers zählen für den Stammfahrer (Option A)
+          Neue Ersatzfahrer sind im Draft wählbar (Stammfahrer nicht) und fahren für das Team des Stammfahrers
         </span>
       </div>
+
+      {pickCount > 0 && (
+        <p style={{ fontSize: '0.82rem', marginBottom: '0.75rem', color: 'var(--warning, #e0a800)' }}>
+          ⚠️ Der Draft für dieses Wochenende hat bereits begonnen ({pickCount} Picks). Änderungen können abgegebene Picks entwerten.
+        </p>
+      )}
 
       {subs.length === 0 && (
         <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
@@ -751,9 +762,13 @@ function SubstitutionPanel({ raceWeekendId }) {
             </div>
             <div className="admin-sub-field">
               <label className="admin-sub-label">Gilt für</label>
-              <select className="input" value={sub.session_type} onChange={e => updateSub(i, 'session_type', e.target.value)}>
-                {Object.entries(SESSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              {sub.draftable === false ? (
+                <select className="input" value={sub.session_type} onChange={e => updateSub(i, 'session_type', e.target.value)}>
+                  {Object.entries(SESSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              ) : (
+                <span className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem 0' }}>Ganzes Wochenende · im Draft wählbar</span>
+              )}
             </div>
             <button className="btn btn-secondary admin-sub-remove" onClick={() => removeSub(i)}>
               <Trash2 size={13} />
@@ -835,14 +850,14 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
     { data: profiles },
     { data: dbResults },
     { data: dbSubs },
-    { data: dbTeamMoves },
+    dbTeamMoves,
   ] = await Promise.all([
     supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId),
     supabase.from('seasons').select('id').eq('is_active', true).single(),
     supabase.from('profiles').select('id'),
     supabase.from('race_results').select('driver_id, session_type, position').eq('race_weekend_id', raceWeekendId),
     supabase.from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId),
-    supabase.from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId),
+    fetchTeamOverrides(raceWeekendId),
   ])
 
   if (!season) throw new Error('Keine aktive Saison gefunden')
@@ -865,7 +880,9 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
   if (!hasRaceResults) return
 
   // Ersatzfahrer anwenden: Stammfahrer bekommt Ergebnis des Ersatzfahrers
-  for (const sub of (dbSubs ?? [])) {
+  // Nur ALTE Ersatzfahrer (draftable=false): Ergebnis des Ersatzes zählt für den Stammfahrer.
+  // Neue (draftable=true) haben ein eigenes Ergebnis und fahren für das Team des Ersetzten.
+  for (const sub of (dbSubs ?? []).filter(s => !s.draftable)) {
     const { original_driver_id: orig, substitute_driver_id: repl, session_type: stype } = sub
     if ((stype === 'race' || stype === 'both') && raceResults[repl] !== undefined)
       raceResults[orig] = raceResults[repl]

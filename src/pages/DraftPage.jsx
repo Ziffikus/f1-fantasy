@@ -27,6 +27,7 @@ function DraggablePickItem({ item, type, isPicked, canPick, onSelect, selected, 
             <span className="pick-item-name">{item.first_name} {item.last_name}</span>
             <span className="pick-item-team" style={{ color: item.constructors?.color }}>
               {item.constructors?.short_name}
+              {item.is_substitute && <span className="pick-item-avail"> · 🔄 Ersatz</span>}
               {availability?.status === 'unavailable' && <span className="pick-item-avail pick-item-avail--out"> · ❌ {availability.reason || 'Nicht dabei'}</span>}
               {availability?.status === 'questionable' && <span className="pick-item-avail pick-item-avail--q"> · ⚠️ {availability.reason || 'Fraglich'}</span>}
             </span>

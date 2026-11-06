@@ -175,7 +175,25 @@ export function useDraft(raceWeekendId) {
       supabase.from('drivers').select('*, constructors(name, short_name, color)').eq('season_id', season.id).eq('is_active', true).order('last_name'),
       supabase.from('constructors').select('*').eq('season_id', season.id).order('name'),
     ])
-    setDrivers(d ?? [])
+    // Ersatzfahrer dieses Wochenendes (draftable): Ersatz wählbar, Stammfahrer nicht
+    let pool = d ?? []
+    const { data: subs } = await supabase.from('driver_substitutions')
+      .select('original_driver_id, substitute_driver_id')
+      .eq('race_weekend_id', raceWeekendId).eq('draftable', true)
+    if (subs?.length) {
+      const { data: subDrivers } = await supabase.from('drivers')
+        .select('*, constructors(name, short_name, color)')
+        .in('id', subs.map(s => s.substitute_driver_id))
+      const absent = new Set(subs.map(s => s.original_driver_id))
+      const extra = subs.map(s => {
+        const sd = (subDrivers ?? []).find(x => x.id === s.substitute_driver_id)
+        const orig = pool.find(x => x.id === s.original_driver_id)
+        return sd ? { ...sd, constructor_id: orig?.constructor_id ?? sd.constructor_id,
+                      constructors: orig?.constructors ?? sd.constructors, is_substitute: true } : null
+      }).filter(Boolean)
+      pool = [...pool.filter(x => !absent.has(x.id)), ...extra].sort((a, b) => a.last_name.localeCompare(b.last_name))
+    }
+    setDrivers(pool)
     setConstructors(c ?? [])
   }
 
