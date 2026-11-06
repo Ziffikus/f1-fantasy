@@ -109,6 +109,7 @@ export function useLiveStandings(weekends, standings) {
           } else if (pick.pick_type === 'constructor') {
             const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
             for (const td of teamDrivers) {
+              if (sType === 'sprint' ? td.out_sprint : td.out_race) continue
               const pos = posByDriverId[td.id] ?? 22
               pts += sType === 'sprint' ? Math.ceil(pos / 2) : pos
             }

@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
-import { getTeamDrivers, fetchTeamOverrides } from '../lib/teams'
+import { getTeamDrivers, getOutFlags, getEffectiveConstructorId, fetchTeamOverrides } from '../lib/teams'
 import { callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment } from '../lib/draftCommentary'
 import './AdminPage.css'
 
@@ -325,9 +325,11 @@ function ResultsPanel({ raceWeekendId }) {
   const [weekend, setWeekend] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [absentManual, setAbsentManual] = useState(new Set()) // fährt nicht (manuell gesetzt)
-  const [absentSub, setAbsentSub] = useState(new Set())       // ersetzter Stammfahrer (über Ersatzfahrer-Reiter)
-  const [extraIds, setExtraIds] = useState(new Set())         // Ersatz-/Wechsel-Fahrer dieses Wochenendes
+  const [manualRace, setManualRace] = useState(new Set())     // fährt im Rennen nicht (manuell)
+  const [manualSprint, setManualSprint] = useState(new Set())  // fährt im Sprint nicht (manuell)
+  const [subOut, setSubOut] = useState(new Set())              // ersetzter Stammfahrer (Ersatzfahrer-Reiter)
+  const [teams, setTeams] = useState({})                       // constructor_id → Team
+  const [teamOv, setTeamOv] = useState([])                     // Team-Wechsel + Abwesenheiten des Wochenendes
 
   useEffect(() => {
     async function load() {
@@ -337,10 +339,18 @@ function ResultsPanel({ raceWeekendId }) {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       const { data: subRows } = await supabase.from('driver_substitutions').select('original_driver_id, substitute_driver_id, draftable').eq('race_weekend_id', raceWeekendId)
       const { data: ovRows } = await supabase.from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
+      const { data: absRows } = await supabase.from('driver_absences').select('driver_id, session_type').eq('race_weekend_id', raceWeekendId)
       const extra = new Set([...(subRows ?? []).map(r => r.substitute_driver_id), ...(ovRows ?? []).map(r => r.driver_id)])
-      setExtraIds(extra)
-      setAbsentManual(new Set((ovRows ?? []).filter(r => r.constructor_id == null).map(r => r.driver_id)))
-      setAbsentSub(new Set((subRows ?? []).filter(r => r.draftable).map(r => r.original_driver_id)))
+      setSubOut(new Set((subRows ?? []).filter(r => r.draftable).map(r => r.original_driver_id)))
+      const mr = new Set(), ms = new Set()
+      for (const x of (absRows ?? [])) {
+        if (x.session_type !== 'sprint') mr.add(x.driver_id)
+        if (x.session_type !== 'race')   ms.add(x.driver_id)
+      }
+      setManualRace(mr); setManualSprint(ms)
+      const { data: cons } = await supabase.from('constructors').select('id, name, short_name, color').eq('season_id', season.id)
+      setTeams(Object.fromEntries((cons ?? []).map(c => [c.id, c])))
+      setTeamOv(await fetchTeamOverrides(raceWeekendId))
       let dq = supabase.from('drivers').select('*, constructors(short_name, color)').eq('season_id', season.id)
       dq = extra.size ? dq.or(`is_active.eq.true,id.in.(${[...extra].join(',')})`) : dq.eq('is_active', true)
       const { data: d } = await dq.order('last_name')
@@ -358,20 +368,24 @@ function ResultsPanel({ raceWeekendId }) {
     if (raceWeekendId) load()
   }, [raceWeekendId])
 
-  async function toggleAbsent(driverId) {
+  async function toggleAbsent(driverId, session) {
+    const sprintWE = !!weekend?.is_sprint_weekend
+    let r = manualRace.has(driverId), s = manualSprint.has(driverId)
+    if (!sprintWE) { r = !r; s = r } else if (session === 'race') r = !r; else s = !s
     try {
-      if (absentManual.has(driverId)) {
-        const { error } = await supabase.from('driver_team_overrides').delete()
-          .eq('race_weekend_id', raceWeekendId).eq('driver_id', driverId)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('driver_team_overrides')
-          .upsert({ race_weekend_id: raceWeekendId, driver_id: driverId, constructor_id: null },
-                  { onConflict: 'race_weekend_id,driver_id' })
-        if (error) throw error
+      const { error: delErr } = await supabase.from('driver_absences').delete()
+        .eq('race_weekend_id', raceWeekendId).eq('driver_id', driverId)
+      if (delErr) throw delErr
+      const types = r && s ? ['both'] : r ? ['race'] : s ? ['sprint'] : []
+      if (types.length) {
+        const { error: insErr } = await supabase.from('driver_absences')
+          .insert(types.map(t => ({ race_weekend_id: raceWeekendId, driver_id: driverId, session_type: t })))
+        if (insErr) throw insErr
       }
-      setAbsentManual(prev => { const n = new Set(prev); n.has(driverId) ? n.delete(driverId) : n.add(driverId); return n })
-      await calculateAndSavePoints(raceWeekendId, null, null, weekend) // Teams neu bewerten
+      setManualRace(prev => { const n = new Set(prev); r ? n.add(driverId) : n.delete(driverId); return n })
+      setManualSprint(prev => { const n = new Set(prev); s ? n.add(driverId) : n.delete(driverId); return n })
+      setTeamOv(await fetchTeamOverrides(raceWeekendId))
+      await calculateAndSavePoints(raceWeekendId, null, null, weekend) // Punkte neu bewerten
     } catch (err) {
       alert('Fehler: ' + (err.message ?? JSON.stringify(err)))
     }
@@ -448,6 +462,66 @@ function ResultsPanel({ raceWeekendId }) {
     setImporting(false)
   }
 
+  // Fahrer nach dem Team gruppieren, für das sie an diesem Wochenende fahren
+  const isSprintWE = !!weekend?.is_sprint_weekend
+  const groupMap = new Map()
+  for (const d of drivers) {
+    const f = getOutFlags(d, teamOv)
+    const cid = getEffectiveConstructorId(d, teamOv)
+    const fullyOut = isSprintWE ? (f.out_race && f.out_sprint) : f.out_race
+    const key = fullyOut ? 'out' : cid
+    const team = teams[cid]
+    if (!groupMap.has(key)) groupMap.set(key, {
+      key, label: fullyOut ? '⛔ Fährt nicht' : (team?.name ?? 'Ohne Team'),
+      color: fullyOut ? '#888' : (team?.color ?? '#888'), drivers: [],
+    })
+    groupMap.get(key).drivers.push({ ...d, ...f, cid, teamColor: team?.color ?? d.constructors?.color })
+  }
+  const groups = [...groupMap.values()].sort((x, y) => x.key === 'out' ? 1 : y.key === 'out' ? -1 : x.label.localeCompare(y.label))
+  groups.forEach(g => g.drivers.sort((x, y) => x.last_name.localeCompare(y.last_name)))
+
+  function renderRows(session) {
+    const resMap = session === 'race' ? results : sprintResults
+    const setMap = session === 'race' ? setResults : setSprintResults
+    return groups.map(g => (
+      <div key={g.key}>
+        <div className="text-muted" style={{ fontSize: '0.72rem', margin: '0.7rem 0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <span style={{ color: g.color }}>■</span> {g.label}
+        </div>
+        {g.drivers.map(d => {
+          const out = session === 'race' ? d.out_race : d.out_sprint
+          const manual = session === 'race' ? manualRace.has(d.id) : manualSprint.has(d.id)
+          return (
+            <div key={d.id} className="admin-result-row" style={out ? { opacity: 0.5 } : undefined}>
+              <span className="admin-result-driver">
+                <span style={{ color: d.teamColor }}>■</span> {d.abbreviation}
+                {!d.is_active && <span className="text-muted" style={{ fontSize: '0.7rem' }}> · Ersatz</span>}
+                {d.cid != null && d.cid !== d.constructor_id && (
+                  <span className="text-muted" style={{ fontSize: '0.7rem' }}> · von {d.constructors?.short_name ?? '–'}</span>
+                )}
+              </span>
+              <input
+                type="number" min="1" max="22" className="input admin-pos-input"
+                value={resMap[d.id] ?? ''}
+                onChange={e => setMap(prev => ({ ...prev, [d.id]: e.target.value }))}
+                placeholder="–" disabled={out}
+              />
+              {subOut.has(d.id) ? (
+                <span className="text-muted" style={{ fontSize: '0.7rem' }}>ersetzt</span>
+              ) : (
+                <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                  onClick={() => toggleAbsent(d.id, session)}
+                  title={session === 'race' ? 'Fährt im Rennen nicht' : 'Fährt im Sprint nicht'}>
+                  {out && manual ? 'Fährt wieder' : 'Fährt nicht'}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    ))
+  }
+
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
@@ -482,60 +556,13 @@ function ResultsPanel({ raceWeekendId }) {
       <div className="admin-results-grid">
         <div className="admin-results-col">
           <div className="admin-sub-header">🏁 Rennen – Endposition</div>
-          {drivers.map(d => {
-            const out = absentManual.has(d.id) || absentSub.has(d.id)
-            return (
-              <div key={d.id} className="admin-result-row" style={out ? { opacity: 0.5 } : undefined}>
-                <span className="admin-result-driver">
-                  <span style={{ color: d.constructors?.color }}>■</span> {d.abbreviation}
-                  {!d.is_active && <span className="text-muted" style={{ fontSize: '0.7rem' }}> · Ersatz</span>}
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  max="22"
-                  className="input admin-pos-input"
-                  value={results[d.id] ?? ''}
-                  onChange={e => setResults(prev => ({ ...prev, [d.id]: e.target.value }))}
-                  placeholder="–"
-                  disabled={out}
-                />
-                {absentSub.has(d.id) ? (
-                  <span className="text-muted" style={{ fontSize: '0.7rem' }}>ersetzt</span>
-                ) : (
-                  <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }}
-                    onClick={() => toggleAbsent(d.id)} title="Fahrer gehört an diesem Wochenende zu keinem Team">
-                    {absentManual.has(d.id) ? 'Fährt wieder' : 'Fährt nicht'}
-                  </button>
-                )}
-              </div>
-            )
-          })}
+          {renderRows('race')}
         </div>
 
         {weekend?.is_sprint_weekend && (
           <div className="admin-results-col">
             <div className="admin-sub-header">⚡ Sprint – Endposition</div>
-            {drivers.map(d => {
-              const out = absentManual.has(d.id) || absentSub.has(d.id)
-              return (
-                <div key={d.id} className="admin-result-row" style={out ? { opacity: 0.5 } : undefined}>
-                  <span className="admin-result-driver">
-                    <span style={{ color: d.constructors?.color }}>■</span> {d.abbreviation}
-                  </span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="22"
-                    className="input admin-pos-input"
-                    value={sprintResults[d.id] ?? ''}
-                    onChange={e => setSprintResults(prev => ({ ...prev, [d.id]: e.target.value }))}
-                    placeholder="–"
-                    disabled={out}
-                  />
-                </div>
-              )
-            })}
+            {renderRows('sprint')}
           </div>
         )}
       </div>
@@ -690,7 +717,7 @@ function SubstitutionPanel({ raceWeekendId }) {
 
       const { data: moves } = await supabase
         .from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
-      setTeamMoves((moves ?? []).map(m => ({ ...m, constructor_id: m.constructor_id ?? 'none' })))
+      setTeamMoves((moves ?? []).filter(m => m.constructor_id != null))
 
       const { count } = await supabase.from('picks').select('id', { count: 'exact', head: true }).eq('race_weekend_id', raceWeekendId)
       setPickCount(count ?? 0)
@@ -748,7 +775,7 @@ function SubstitutionPanel({ raceWeekendId }) {
           validMoves.map(m => ({
             race_weekend_id: raceWeekendId,
             driver_id: Number(m.driver_id),
-            constructor_id: m.constructor_id === 'none' ? null : Number(m.constructor_id),
+            constructor_id: Number(m.constructor_id),
           }))
         )
         if (moveError) throw moveError
@@ -859,7 +886,6 @@ function SubstitutionPanel({ raceWeekendId }) {
                 <label className="admin-sub-label">Fährt für Team</label>
                 <select className="input" value={move.constructor_id} onChange={e => updateMove(i, 'constructor_id', e.target.value)}>
                   <option value="">– Team wählen –</option>
-                  <option value="none">⛔ fährt nicht (kein Team)</option>
                   {constructors.map(c => <option key={c.id} value={c.id}>{c.short_name} – {c.name}</option>)}
                 </select>
               </div>
@@ -956,8 +982,8 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
         const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, dbTeamMoves ?? [])
         for (const td of teamDrivers) {
           const pos = Number(raceResults[td.id])
-          racePoints += pos > 0 ? pos : 22
-          if (weekend?.is_sprint_weekend) {
+          if (!td.out_race) racePoints += pos > 0 ? pos : 22
+          if (weekend?.is_sprint_weekend && !td.out_sprint) {
             const spos = Number(sprintResults[td.id])
             sprintPoints += ((spos > 0 ? spos : 22) / 2)
           }

@@ -19,8 +19,8 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
       const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, overrides)
       for (const td of teamDrivers) {
         const pos = raceResultMap[td.id]
-        racePoints += pos ?? 22
-        if (isSprint) {
+        if (!td.out_race) racePoints += pos ?? 22
+        if (isSprint && !td.out_sprint) {
           const spos = sprintResultMap[td.id]
           sprintPoints += spos ? (spos / 2) : 11
         }

@@ -54,8 +54,8 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
       const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
       for (const td of teamDrivers) {
         const pos = raceResultMap[td.id]
-        racePoints += pos ?? 0
-        if (isSprint) {
+        if (!td.out_race) racePoints += pos ?? 0
+        if (isSprint && !td.out_sprint) {
           const spos = sprintResultMap[td.id]
           sprintPoints += spos ? (spos / 2) : 0
         }
@@ -383,10 +383,10 @@ export default function RacePage() {
                     {teamPicks.map(pick => {
                       const teamDrivers = allDrivers.filter(d => d.constructor_id === pick.constructor_id)
                       const color = pick.constructors?.color ?? '#888'
-                      const teamTotal = teamDrivers.reduce((sum, td) => sum + (activeRaceMap[td.id] ?? 0), 0)
+                      const teamTotal = teamDrivers.reduce((sum, td) => sum + (td.out_race ? 0 : (activeRaceMap[td.id] ?? 0)), 0)
                       const teamSprintTotal = teamDrivers.reduce((sum, td) => {
                         const spos = activeSprintMap[td.id]
-                        return sum + (spos ? (spos / 2) : 0)
+                        return sum + (spos && !td.out_sprint ? (spos / 2) : 0)
                       }, 0)
                       return (
                         <div key={pick.id} className="race-pick-row race-pick-row--team">

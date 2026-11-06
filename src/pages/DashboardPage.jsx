@@ -34,8 +34,8 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
       const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
       for (const td of teamDrivers) {
         const pos = raceResultMap[td.id]
-        racePoints += pos ?? 0
-        if (isSprint) {
+        if (!td.out_race) racePoints += pos ?? 0
+        if (isSprint && !td.out_sprint) {
           const spos = sprintResultMap[td.id]
           sprintPoints += spos ? (spos / 2) : 0
         }
@@ -237,8 +237,8 @@ function DashboardLastRace({ w, standings = [] }) {
                 const LOGO_MAP = { mer: 'log_mer', wil: 'logo_will' }
                 const logoKey = LOGO_MAP[fileKey] ?? `logo_${fileKey}`
                 const teamDrivers     = allDrivers.filter(d => d.constructor_id === pick?.constructor_id)
-                const teamTotal       = teamDrivers.reduce((sum, td) => sum + (raceResultMap[td.id] ?? 0), 0)
-                const teamSprintTotal = teamDrivers.reduce((sum, td) => { const s = sprintResultMap[td.id]; return sum + (s ? s/2 : 0) }, 0)
+                const teamTotal       = teamDrivers.reduce((sum, td) => sum + (td.out_race ? 0 : (raceResultMap[td.id] ?? 0)), 0)
+                const teamSprintTotal = teamDrivers.reduce((sum, td) => { const s = sprintResultMap[td.id]; return sum + (s && !td.out_sprint ? s/2 : 0) }, 0)
                 return (
                   <div
                     key={`t${n}`}
