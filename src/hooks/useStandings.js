@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getTeamDrivers, fetchTeamOverridesByWeekend } from '../lib/teams'
 
 // Berechnet Punkte eines Spielers für ein Wochenende
 // Identische Logik wie CalendarPage.jsx → calcPlayerPoints
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers) {
+function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers, overrides = []) {
   let racePoints = 0, sprintPoints = 0
 
   for (const pick of playerPicks) {
@@ -15,7 +16,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
         sprintPoints += spos ? (spos / 2) : 11  // kein Sprint-Ergebnis = 22/2 = 11
       }
     } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
+      const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, overrides)
       for (const td of teamDrivers) {
         const pos = raceResultMap[td.id]
         racePoints += pos ?? 22
@@ -60,6 +61,7 @@ export function useStandings() {
           .eq('season_id', season.id)
         allDrivers = drivers ?? []
       }
+      const overridesByWeekend = await fetchTeamOverridesByWeekend()
 
       // Nur vergangene Wochenenden berücksichtigen
       const now = new Date()
@@ -98,7 +100,7 @@ export function useStandings() {
           const sprintMap = resultsByWeekend[w.id]?.sprint ?? {}
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
 
-          const { total: pts } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers)
+          const { total: pts } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
           return { weekendId: w.id, pts }
         }).filter(Boolean)
 

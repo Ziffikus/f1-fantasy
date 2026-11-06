@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import { useLiveRace, mapLivePositionsToDriverIds, mapLiveTyresToDriverIds, TYRE_COLORS, TYRE_SHORT } from '../hooks/useLiveRace'
 import { useSessionResults } from '../hooks/useSessionResults'
@@ -176,7 +177,7 @@ export default function RacePage() {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       if (season) {
         const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name, number, abbreviation, constructor_id').eq('season_id', season.id)
-        setAllDrivers(drivers ?? [])
+        setAllDrivers(applyTeamOverrides(drivers ?? [], await fetchTeamOverrides(id)))
       }
     }
     setLoading(false)

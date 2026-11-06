@@ -5,6 +5,7 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useStandings } from '../hooks/useStandings'
 import Countdown from '../components/race/Countdown'
 import { supabase } from '../lib/supabase'
+import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap, Gamepad2 } from 'lucide-react'
 import './DashboardPage.css'
 
@@ -75,7 +76,7 @@ function DashboardLastRace({ w, standings = [] }) {
         const { data: drivers } = await supabase.from('drivers')
           .select('id, first_name, last_name, number, abbreviation, constructor_id')
           .eq('season_id', season.id)
-        setAllDrivers(drivers ?? [])
+        setAllDrivers(applyTeamOverrides(drivers ?? [], await fetchTeamOverrides(w.id)))
       }
       setPicks(p ?? [])
       setResults(res ?? [])

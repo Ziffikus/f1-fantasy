@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
 
 const OPENF1_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 const POLL_INTERVAL = 60000
@@ -13,6 +14,7 @@ export function useLiveStandings(weekends, standings) {
   const [storedPointsForLiveRound, setStoredPointsForLiveRound] = useState({})
   const intervalRef = useRef(null)
   const picksCacheRef = useRef(null)
+  const overridesCacheRef = useRef([])
 
   useEffect(() => {
     if (!weekends?.length) return
@@ -55,6 +57,7 @@ export function useLiveStandings(weekends, standings) {
           .select('profile_id, pick_type, driver_id, constructor_id, drivers(number, constructor_id), constructors(id)')
           .eq('race_weekend_id', weekend.id)
         picksCacheRef.current = picks ?? []
+        overridesCacheRef.current = await fetchTeamOverrides(weekend.id)
 
         const { data: stored } = await supabase
           .from('player_race_points')
@@ -67,8 +70,9 @@ export function useLiveStandings(weekends, standings) {
       const picks = picksCacheRef.current
 
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
-      const { data: allDrivers } = await supabase
+      const { data: rawDrivers } = await supabase
         .from('drivers').select('id, number, constructor_id').eq('season_id', season.id)
+      const allDrivers = applyTeamOverrides(rawDrivers ?? [], overridesCacheRef.current)
 
       const sessionRes = await fetch(`${OPENF1_BASE}?endpoint=/sessions&session_type=${sType === 'sprint' ? 'Sprint' : 'Race'}&year=${new Date().getFullYear()}&limit=1`)
       const sessions = await sessionRes.json()

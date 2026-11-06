@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useSessionResults } from '../hooks/useSessionResults'
 import { supabase } from '../lib/supabase'
+import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import TrackMap from '../components/ui/TrackMap'
 import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'lucide-react'
@@ -222,7 +223,7 @@ export function PastRaceExpanded({ w }) {
         const { data: drivers } = await supabase.from('drivers')
           .select('id, first_name, last_name, number, abbreviation, constructor_id')
           .eq('season_id', season.id)
-        setAllDrivers(drivers ?? [])
+        setAllDrivers(applyTeamOverrides(drivers ?? [], await fetchTeamOverrides(w.id)))
       }
       setDataLoading(false)
     }

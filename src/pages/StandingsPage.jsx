@@ -5,12 +5,13 @@ import { useAuthStore } from '../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
+import { getTeamDrivers, fetchTeamOverridesByWeekend } from '../lib/teams'
 import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2 } from 'lucide-react'
 import './StandingsPage.css'
 
 // Berechnet Punkte eines Spielers für ein Wochenende
 // Identische Logik wie CalendarPage
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers) {
+function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers, overrides = []) {
   let racePoints = 0, sprintPoints = 0
   for (const pick of playerPicks) {
     if (pick.pick_type === 'driver') {
@@ -21,7 +22,7 @@ function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint,
         sprintPoints += spos ? (spos / 2) : 11
       }
     } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
+      const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, overrides)
       for (const td of teamDrivers) {
         const pos = raceResultMap[td.id]
         racePoints += pos ?? 22
@@ -63,6 +64,7 @@ function useRaceResults() {
           .eq('season_id', season.id)
         allDrivers = drivers ?? []
       }
+      const overridesByWeekend = await fetchTeamOverridesByWeekend()
 
       // Ergebnisse pro Wochenende indexieren
       const resultsByWeekend = {}
@@ -92,7 +94,7 @@ function useRaceResults() {
           const raceMap   = resultsByWeekend[w.id].race
           const sprintMap = resultsByWeekend[w.id].sprint
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
-          const { racePoints, sprintPoints, total } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers)
+          const { racePoints, sprintPoints, total } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
           rows.push({
             profile_id: profile.id,
             race_weekends: { round: w.round, name: w.name, flag_emoji: w.flag_emoji, city: w.city },
