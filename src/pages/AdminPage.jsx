@@ -462,6 +462,8 @@ function ResultsPanel({ raceWeekendId }) {
       }
       setResults(rMap)
       setSprintResults(sMap)
+      await calculateAndSavePoints(raceWeekendId, null, null, weekend)
+      setImportLog(prev => [...prev, '🔄 Punkte neu berechnet'])
     } catch (e) {
       setImportLog([`❌ Fehler: ${e.message}`])
     }
@@ -735,7 +737,7 @@ function SubstitutionPanel({ raceWeekendId }) {
   }, [raceWeekendId])
 
   function addSub() {
-    setSubs(prev => [...prev, { original_driver_id: '', substitute_driver_id: '', session_type: 'both', draftable: true, _new: true }])
+    setSubs(prev => [...prev, { original_driver_id: '', substitute_driver_id: '', session_type: 'both', draftable: pickCount === 0, _new: true }])
   }
 
   function updateSub(i, field, val) {
@@ -809,7 +811,7 @@ function SubstitutionPanel({ raceWeekendId }) {
       <div className="admin-panel-header">
         <h3>Ersatzfahrer</h3>
         <span className="text-muted" style={{ fontSize: '0.78rem' }}>
-          Neue Ersatzfahrer sind im Draft wählbar (Stammfahrer nicht) und fahren für das Team des Stammfahrers
+          Pro Eintrag: im Draft wählbar (vor dem Draft) oder Ergebnis auf den gepickten Stammfahrer übertragen (nach dem Draft)
         </span>
       </div>
 
@@ -866,13 +868,22 @@ function SubstitutionPanel({ raceWeekendId }) {
               </select>
             </div>
             <div className="admin-sub-field">
+              <label className="admin-sub-label">Modus</label>
+              <select className="input" value={sub.draftable === false ? 'result' : 'draft'}
+                onChange={e => updateSub(i, 'draftable', e.target.value === 'draft')}
+                title="Im Draft wählbar: Ersatz ersetzt den Stammfahrer im Draft. Ergebnis übertragen: Picks auf den Stammfahrer bekommen das Ergebnis des Ersatzes.">
+                <option value="draft">Im Draft wählbar</option>
+                <option value="result">Ergebnis übertragen</option>
+              </select>
+            </div>
+            <div className="admin-sub-field">
               <label className="admin-sub-label">Gilt für</label>
               {sub.draftable === false ? (
                 <select className="input" value={sub.session_type} onChange={e => updateSub(i, 'session_type', e.target.value)}>
                   {Object.entries(SESSION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               ) : (
-                <span className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem 0' }}>Ganzes Wochenende · im Draft wählbar</span>
+                <span className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem 0' }}>Ganzes Wochenende</span>
               )}
             </div>
             <button className="btn btn-secondary admin-sub-remove" onClick={() => removeSub(i)}>
