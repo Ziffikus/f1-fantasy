@@ -325,6 +325,9 @@ function ResultsPanel({ raceWeekendId }) {
   const [weekend, setWeekend] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [absentManual, setAbsentManual] = useState(new Set()) // fährt nicht (manuell gesetzt)
+  const [absentSub, setAbsentSub] = useState(new Set())       // ersetzter Stammfahrer (über Ersatzfahrer-Reiter)
+  const [extraIds, setExtraIds] = useState(new Set())         // Ersatz-/Wechsel-Fahrer dieses Wochenendes
 
   useEffect(() => {
     async function load() {
@@ -332,7 +335,15 @@ function ResultsPanel({ raceWeekendId }) {
       setWeekend(rw)
 
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
-      const { data: d } = await supabase.from('drivers').select('*, constructors(short_name, color)').eq('season_id', season.id).eq('is_active', true).order('last_name')
+      const { data: subRows } = await supabase.from('driver_substitutions').select('original_driver_id, substitute_driver_id, draftable').eq('race_weekend_id', raceWeekendId)
+      const { data: ovRows } = await supabase.from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
+      const extra = new Set([...(subRows ?? []).map(r => r.substitute_driver_id), ...(ovRows ?? []).map(r => r.driver_id)])
+      setExtraIds(extra)
+      setAbsentManual(new Set((ovRows ?? []).filter(r => r.constructor_id == null).map(r => r.driver_id)))
+      setAbsentSub(new Set((subRows ?? []).filter(r => r.draftable).map(r => r.original_driver_id)))
+      let dq = supabase.from('drivers').select('*, constructors(short_name, color)').eq('season_id', season.id)
+      dq = extra.size ? dq.or(`is_active.eq.true,id.in.(${[...extra].join(',')})`) : dq.eq('is_active', true)
+      const { data: d } = await dq.order('last_name')
       setDrivers(d ?? [])
 
       const { data: existing } = await supabase.from('race_results').select('*').eq('race_weekend_id', raceWeekendId)
@@ -346,6 +357,25 @@ function ResultsPanel({ raceWeekendId }) {
     }
     if (raceWeekendId) load()
   }, [raceWeekendId])
+
+  async function toggleAbsent(driverId) {
+    try {
+      if (absentManual.has(driverId)) {
+        const { error } = await supabase.from('driver_team_overrides').delete()
+          .eq('race_weekend_id', raceWeekendId).eq('driver_id', driverId)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('driver_team_overrides')
+          .upsert({ race_weekend_id: raceWeekendId, driver_id: driverId, constructor_id: null },
+                  { onConflict: 'race_weekend_id,driver_id' })
+        if (error) throw error
+      }
+      setAbsentManual(prev => { const n = new Set(prev); n.has(driverId) ? n.delete(driverId) : n.add(driverId); return n })
+      await calculateAndSavePoints(raceWeekendId, null, null, weekend) // Teams neu bewerten
+    } catch (err) {
+      alert('Fehler: ' + (err.message ?? JSON.stringify(err)))
+    }
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -452,43 +482,60 @@ function ResultsPanel({ raceWeekendId }) {
       <div className="admin-results-grid">
         <div className="admin-results-col">
           <div className="admin-sub-header">🏁 Rennen – Endposition</div>
-          {drivers.map(d => (
-            <div key={d.id} className="admin-result-row">
-              <span className="admin-result-driver">
-                <span style={{ color: d.constructors?.color }}>■</span> {d.abbreviation}
-              </span>
-              <input
-                type="number"
-                min="1"
-                max="22"
-                className="input admin-pos-input"
-                value={results[d.id] ?? ''}
-                onChange={e => setResults(prev => ({ ...prev, [d.id]: e.target.value }))}
-                placeholder="–"
-              />
-            </div>
-          ))}
-        </div>
-
-        {weekend?.is_sprint_weekend && (
-          <div className="admin-results-col">
-            <div className="admin-sub-header">⚡ Sprint – Endposition</div>
-            {drivers.map(d => (
-              <div key={d.id} className="admin-result-row">
+          {drivers.map(d => {
+            const out = absentManual.has(d.id) || absentSub.has(d.id)
+            return (
+              <div key={d.id} className="admin-result-row" style={out ? { opacity: 0.5 } : undefined}>
                 <span className="admin-result-driver">
                   <span style={{ color: d.constructors?.color }}>■</span> {d.abbreviation}
+                  {!d.is_active && <span className="text-muted" style={{ fontSize: '0.7rem' }}> · Ersatz</span>}
                 </span>
                 <input
                   type="number"
                   min="1"
                   max="22"
                   className="input admin-pos-input"
-                  value={sprintResults[d.id] ?? ''}
-                  onChange={e => setSprintResults(prev => ({ ...prev, [d.id]: e.target.value }))}
+                  value={results[d.id] ?? ''}
+                  onChange={e => setResults(prev => ({ ...prev, [d.id]: e.target.value }))}
                   placeholder="–"
+                  disabled={out}
                 />
+                {absentSub.has(d.id) ? (
+                  <span className="text-muted" style={{ fontSize: '0.7rem' }}>ersetzt</span>
+                ) : (
+                  <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                    onClick={() => toggleAbsent(d.id)} title="Fahrer gehört an diesem Wochenende zu keinem Team">
+                    {absentManual.has(d.id) ? 'Fährt wieder' : 'Fährt nicht'}
+                  </button>
+                )}
               </div>
-            ))}
+            )
+          })}
+        </div>
+
+        {weekend?.is_sprint_weekend && (
+          <div className="admin-results-col">
+            <div className="admin-sub-header">⚡ Sprint – Endposition</div>
+            {drivers.map(d => {
+              const out = absentManual.has(d.id) || absentSub.has(d.id)
+              return (
+                <div key={d.id} className="admin-result-row" style={out ? { opacity: 0.5 } : undefined}>
+                  <span className="admin-result-driver">
+                    <span style={{ color: d.constructors?.color }}>■</span> {d.abbreviation}
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="22"
+                    className="input admin-pos-input"
+                    value={sprintResults[d.id] ?? ''}
+                    onChange={e => setSprintResults(prev => ({ ...prev, [d.id]: e.target.value }))}
+                    placeholder="–"
+                    disabled={out}
+                  />
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -643,7 +690,7 @@ function SubstitutionPanel({ raceWeekendId }) {
 
       const { data: moves } = await supabase
         .from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
-      setTeamMoves(moves ?? [])
+      setTeamMoves((moves ?? []).map(m => ({ ...m, constructor_id: m.constructor_id ?? 'none' })))
 
       const { count } = await supabase.from('picks').select('id', { count: 'exact', head: true }).eq('race_weekend_id', raceWeekendId)
       setPickCount(count ?? 0)
@@ -701,7 +748,7 @@ function SubstitutionPanel({ raceWeekendId }) {
           validMoves.map(m => ({
             race_weekend_id: raceWeekendId,
             driver_id: Number(m.driver_id),
-            constructor_id: Number(m.constructor_id),
+            constructor_id: m.constructor_id === 'none' ? null : Number(m.constructor_id),
           }))
         )
         if (moveError) throw moveError
@@ -812,6 +859,7 @@ function SubstitutionPanel({ raceWeekendId }) {
                 <label className="admin-sub-label">Fährt für Team</label>
                 <select className="input" value={move.constructor_id} onChange={e => updateMove(i, 'constructor_id', e.target.value)}>
                   <option value="">– Team wählen –</option>
+                  <option value="none">⛔ fährt nicht (kein Team)</option>
                   {constructors.map(c => <option key={c.id} value={c.id}>{c.short_name} – {c.name}</option>)}
                 </select>
               </div>
