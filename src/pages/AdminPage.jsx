@@ -629,7 +629,7 @@ function SubstitutionPanel({ raceWeekendId }) {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       const { data: d } = await supabase
         .from('drivers').select('*, constructors(short_name, color)')
-        .eq('season_id', season.id).eq('is_active', true).order('last_name')
+        .eq('season_id', season.id).order('last_name') // auch inaktive Fahrer (Ersatzfahrer)
       setDrivers(d ?? [])
 
       const { data: existing } = await supabase
