@@ -3,6 +3,8 @@
 // overrides (eine Liste, für EIN Wochenende):
 //   Team-Wechsel : { driver_id, constructor_id: <id> }
 //   Fährt nicht  : { driver_id, constructor_id: null, session_type: 'race' | 'sprint' | 'both' }
+//   Ergebnis-Ersatz (altes Modell): { kind: 'sub', driver_id: <Stammfahrer>, substitute_driver_id, session_type }
+//     → Ergebnis des Ersatzes zählt für Picks auf den Stammfahrer
 // Quellen: driver_team_overrides + driver_absences + Ersatzfahrer mit draftable=true
 //   (Ersatz fährt für das Team des Ersetzten, Ersetzter fährt nicht)
 // Ohne Eintrag gilt das Standardteam (drivers.constructor_id).
@@ -15,7 +17,7 @@ const sameDriver = (o, d) => Number(o.driver_id) === Number(d.id)
 export function getOutFlags(driver, overrides = []) {
   let out_race = false, out_sprint = false
   for (const o of overrides) {
-    if (o.constructor_id != null || !sameDriver(o, driver)) continue
+    if (o.kind === 'sub' || o.constructor_id != null || !sameDriver(o, driver)) continue
     const s = o.session_type ?? 'both'
     if (s === 'both' || s === 'race')   out_race = true
     if (s === 'both' || s === 'sprint') out_sprint = true
@@ -25,7 +27,7 @@ export function getOutFlags(driver, overrides = []) {
 
 /** Team-ID, für das der Fahrer in diesem Wochenende fährt (Team-Wechsel oder Standardteam) */
 export function getEffectiveConstructorId(driver, overrides = []) {
-  const o = overrides.find(x => x.constructor_id != null && sameDriver(x, driver))
+  const o = overrides.find(x => x.kind !== 'sub' && x.constructor_id != null && sameDriver(x, driver))
   return o ? Number(o.constructor_id) : driver.constructor_id
 }
 
@@ -37,29 +39,65 @@ export function getTeamDrivers(allDrivers, constructorId, overrides = []) {
     .filter(d => !(d.out_race && d.out_sprint))
 }
 
-/** Fahrerliste mit wochenendspezifischem constructor_id + Flags (null = fährt gar nicht) */
+/** Fahrerliste mit wochenendspezifischem constructor_id + Flags (null = fährt gar nicht) + Ergebnis-Ersatz */
 export function applyTeamOverrides(drivers, overrides = []) {
   if (!overrides?.length) return drivers ?? []
   return (drivers ?? []).map(d => {
     const f = getOutFlags(d, overrides)
-    return { ...d, ...f, constructor_id: f.out_race && f.out_sprint ? null : getEffectiveConstructorId(d, overrides) }
+    const out = { ...d, ...f, constructor_id: f.out_race && f.out_sprint ? null : getEffectiveConstructorId(d, overrides) }
+    for (const o of overrides) {
+      if (o.kind !== 'sub' || !sameDriver(o, d)) continue
+      const s = o.session_type ?? 'both'
+      if (s === 'both' || s === 'race')   out.sub_from_race   = o.substitute_driver_id
+      if (s === 'both' || s === 'sprint') out.sub_from_sprint = o.substitute_driver_id
+    }
+    return out
   })
+}
+
+/** Altes Ersatzmodell: Ergebnis des Ersatzes zählt für den Stammfahrer (Quelle = Overrides-Liste) */
+export function applySubstituteResults(resultMap, overrides = [], session = 'race') {
+  const subs = overrides.filter(o => o.kind === 'sub' && ['both', session].includes(o.session_type ?? 'both'))
+  if (!subs.length) return resultMap
+  const out = { ...resultMap }
+  for (const s of subs) if (resultMap[s.substitute_driver_id] !== undefined) out[s.driver_id] = resultMap[s.substitute_driver_id]
+  return out
+}
+
+/** Dasselbe, wenn nur die Fahrerliste mit sub_from_race / sub_from_sprint vorliegt */
+export function applyDriverSubs(resultMap, drivers, session = 'race') {
+  const key = session === 'sprint' ? 'sub_from_sprint' : 'sub_from_race'
+  let out = resultMap
+  for (const d of drivers ?? []) {
+    const src = d[key]
+    if (src != null && resultMap[src] !== undefined) { if (out === resultMap) out = { ...resultMap }; out[d.id] = resultMap[src] }
+  }
+  return out
 }
 
 // Ersatzfahrer (draftable) → Ersatz fährt für das Team des Ersetzten, Ersetzter fährt nicht
 async function substitutionOverrides(weekendId) {
   let q = supabase.from('driver_substitutions')
-    .select('race_weekend_id, original_driver_id, substitute_driver_id').eq('draftable', true)
+    .select('race_weekend_id, original_driver_id, substitute_driver_id, session_type, draftable')
   if (weekendId != null) q = q.eq('race_weekend_id', weekendId)
   const { data: subs, error } = await q
   if (error || !subs?.length) return []
   const origIds = [...new Set(subs.map(s => s.original_driver_id))]
   const { data: origs } = await supabase.from('drivers').select('id, constructor_id').in('id', origIds)
   const team = Object.fromEntries((origs ?? []).map(d => [d.id, d.constructor_id]))
-  return subs.flatMap(s => [
-    { race_weekend_id: s.race_weekend_id, driver_id: s.substitute_driver_id, constructor_id: team[s.original_driver_id] ?? null, session_type: 'both' },
-    { race_weekend_id: s.race_weekend_id, driver_id: s.original_driver_id,   constructor_id: null, session_type: 'both' },
-  ])
+  return subs.flatMap(s => {
+    const wk = s.race_weekend_id
+    if (s.draftable) return [
+      // neues Modell: Ersatz fährt für das Team des Ersetzten, Ersetzter fährt nicht
+      { race_weekend_id: wk, driver_id: s.substitute_driver_id, constructor_id: team[s.original_driver_id] ?? null },
+      { race_weekend_id: wk, driver_id: s.original_driver_id, constructor_id: null, session_type: 'both' },
+    ]
+    return [
+      // altes Modell: Ersetzter fährt in dieser Session nicht, Picks auf ihn bekommen das Ergebnis des Ersatzes
+      { race_weekend_id: wk, driver_id: s.original_driver_id, constructor_id: null, session_type: s.session_type ?? 'both' },
+      { race_weekend_id: wk, kind: 'sub', driver_id: s.original_driver_id, substitute_driver_id: s.substitute_driver_id, constructor_id: null, session_type: s.session_type ?? 'both' },
+    ]
+  })
 }
 
 async function loadRows(weekendId) {

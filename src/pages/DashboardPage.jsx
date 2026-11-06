@@ -5,7 +5,7 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useStandings } from '../hooks/useStandings'
 import Countdown from '../components/race/Countdown'
 import { supabase } from '../lib/supabase'
-import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap, Gamepad2 } from 'lucide-react'
 import './DashboardPage.css'
 
@@ -93,6 +93,8 @@ function DashboardLastRace({ w, standings = [] }) {
     if (r.session_type === 'race')   raceResultMap[r.driver_id]   = r.position
     if (r.session_type === 'sprint') sprintResultMap[r.driver_id] = r.position
   }
+  Object.assign(raceResultMap, applyDriverSubs(raceResultMap, allDrivers, 'race'))
+  Object.assign(sprintResultMap, applyDriverSubs(sprintResultMap, allDrivers, 'sprint'))
   const hasResults = results.length > 0
 
   const orderedProfiles = draftOrder.length > 0

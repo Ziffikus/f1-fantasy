@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import { useLiveRace, mapLivePositionsToDriverIds, mapLiveTyresToDriverIds, TYRE_COLORS, TYRE_SHORT } from '../hooks/useLiveRace'
 import { useSessionResults } from '../hooks/useSessionResults'
@@ -199,8 +199,10 @@ export default function RacePage() {
     if (r.session_type === 'race') raceResultMap[r.driver_id] = r.position
     if (r.session_type === 'sprint') sprintResultMap[r.driver_id] = r.position
   }
+  Object.assign(raceResultMap, applyDriverSubs(raceResultMap, allDrivers, 'race'))
+  Object.assign(sprintResultMap, applyDriverSubs(sprintResultMap, allDrivers, 'sprint'))
 
-  const liveByDriverId = mapLivePositionsToDriverIds(livePositions, allDrivers)
+  const liveByDriverId = applyDriverSubs(mapLivePositionsToDriverIds(livePositions, allDrivers), allDrivers, sessionType === 'sprint' ? 'sprint' : 'race')
   const tyrByDriverId = mapLiveTyresToDriverIds(liveTyres, allDrivers)
   const activeRaceMap = isLive && sessionType === 'race'
     ? { ...raceResultMap, ...liveByDriverId }

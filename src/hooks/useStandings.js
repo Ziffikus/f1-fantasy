@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { getTeamDrivers, fetchTeamOverridesByWeekend } from '../lib/teams'
+import { getTeamDrivers, applySubstituteResults, fetchTeamOverridesByWeekend } from '../lib/teams'
 
 // Berechnet Punkte eines Spielers für ein Wochenende
 // Identische Logik wie CalendarPage.jsx → calcPlayerPoints
@@ -96,8 +96,8 @@ export function useStandings() {
           const hasResults = !!resultsByWeekend[w.id]
           if (!hasResults) return null
 
-          const raceMap   = resultsByWeekend[w.id]?.race   ?? {}
-          const sprintMap = resultsByWeekend[w.id]?.sprint ?? {}
+          const raceMap   = applySubstituteResults(resultsByWeekend[w.id]?.race   ?? {}, overridesByWeekend[w.id] ?? [], 'race')
+          const sprintMap = applySubstituteResults(resultsByWeekend[w.id]?.sprint ?? {}, overridesByWeekend[w.id] ?? [], 'sprint')
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
 
           const { total: pts } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useSessionResults } from '../hooks/useSessionResults'
 import { supabase } from '../lib/supabase'
-import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import TrackMap from '../components/ui/TrackMap'
 import { MapPin, Clock, Trophy, Zap, Flag, ChevronDown, ChevronRight } from 'lucide-react'
@@ -236,6 +236,8 @@ export function PastRaceExpanded({ w }) {
     if (r.session_type === 'race')   raceResultMap[r.driver_id] = r.position
     if (r.session_type === 'sprint') sprintResultMap[r.driver_id] = r.position
   }
+  Object.assign(raceResultMap, applyDriverSubs(raceResultMap, allDrivers, 'race'))
+  Object.assign(sprintResultMap, applyDriverSubs(sprintResultMap, allDrivers, 'sprint'))
   const hasResults = results.length > 0
 
   const orderedProfiles = draftOrder.length > 0

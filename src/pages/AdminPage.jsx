@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
-import { getTeamDrivers, getOutFlags, getEffectiveConstructorId, fetchTeamOverrides } from '../lib/teams'
+import { getTeamDrivers, getOutFlags, getEffectiveConstructorId, applySubstituteResults, fetchTeamOverrides } from '../lib/teams'
 import { callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment } from '../lib/draftCommentary'
 import './AdminPage.css'
 
@@ -327,7 +327,7 @@ function ResultsPanel({ raceWeekendId }) {
   const [saved, setSaved] = useState(false)
   const [manualRace, setManualRace] = useState(new Set())     // fährt im Rennen nicht (manuell)
   const [manualSprint, setManualSprint] = useState(new Set())  // fährt im Sprint nicht (manuell)
-  const [subOut, setSubOut] = useState(new Set())              // ersetzter Stammfahrer (Ersatzfahrer-Reiter)
+  const [subOut, setSubOut] = useState({ race: new Set(), sprint: new Set() }) // ersetzter Stammfahrer je Session
   const [teams, setTeams] = useState({})                       // constructor_id → Team
   const [teamOv, setTeamOv] = useState([])                     // Team-Wechsel + Abwesenheiten des Wochenendes
 
@@ -337,11 +337,17 @@ function ResultsPanel({ raceWeekendId }) {
       setWeekend(rw)
 
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
-      const { data: subRows } = await supabase.from('driver_substitutions').select('original_driver_id, substitute_driver_id, draftable').eq('race_weekend_id', raceWeekendId)
+      const { data: subRows } = await supabase.from('driver_substitutions').select('original_driver_id, substitute_driver_id, draftable, session_type').eq('race_weekend_id', raceWeekendId)
       const { data: ovRows } = await supabase.from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
       const { data: absRows } = await supabase.from('driver_absences').select('driver_id, session_type').eq('race_weekend_id', raceWeekendId)
       const extra = new Set([...(subRows ?? []).map(r => r.substitute_driver_id), ...(ovRows ?? []).map(r => r.driver_id)])
-      setSubOut(new Set((subRows ?? []).filter(r => r.draftable).map(r => r.original_driver_id)))
+      const so = { race: new Set(), sprint: new Set() }
+      for (const r of (subRows ?? [])) {
+        const st = r.draftable ? 'both' : (r.session_type ?? 'both')
+        if (st !== 'sprint') so.race.add(r.original_driver_id)
+        if (st !== 'race')   so.sprint.add(r.original_driver_id)
+      }
+      setSubOut(so)
       const mr = new Set(), ms = new Set()
       for (const x of (absRows ?? [])) {
         if (x.session_type !== 'sprint') mr.add(x.driver_id)
@@ -506,7 +512,7 @@ function ResultsPanel({ raceWeekendId }) {
                 onChange={e => setMap(prev => ({ ...prev, [d.id]: e.target.value }))}
                 placeholder="–" disabled={out}
               />
-              {subOut.has(d.id) ? (
+              {subOut[session].has(d.id) ? (
                 <span className="text-muted" style={{ fontSize: '0.7rem' }}>ersetzt</span>
               ) : (
                 <button type="button" className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }}
@@ -696,6 +702,7 @@ function SubstitutionPanel({ raceWeekendId }) {
   const [constructors, setConstructors] = useState([])
   const [teamMoves, setTeamMoves] = useState([]) // [{ driver_id, constructor_id }]
   const [pickCount, setPickCount] = useState(0)
+  const [pickedDrivers, setPickedDrivers] = useState(new Set()) // als Fahrer gepickte Fahrer dieses Wochenendes
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -721,6 +728,8 @@ function SubstitutionPanel({ raceWeekendId }) {
 
       const { count } = await supabase.from('picks').select('id', { count: 'exact', head: true }).eq('race_weekend_id', raceWeekendId)
       setPickCount(count ?? 0)
+      const { data: dp } = await supabase.from('picks').select('driver_id').eq('race_weekend_id', raceWeekendId).eq('pick_type', 'driver')
+      setPickedDrivers(new Set((dp ?? []).map(p => p.driver_id)))
     }
     if (raceWeekendId) load()
   }, [raceWeekendId])
@@ -809,6 +818,28 @@ function SubstitutionPanel({ raceWeekendId }) {
           ⚠️ Der Draft für dieses Wochenende hat bereits begonnen ({pickCount} Picks). Änderungen können abgegebene Picks entwerten.
         </p>
       )}
+
+      {(() => {
+        const warnings = []
+        const rows = subs.filter(x => x.original_driver_id && x.substitute_driver_id)
+        const name = id => drivers.find(d => d.id === Number(id))?.abbreviation ?? id
+        for (const x of rows) {
+          const sid = Number(x.substitute_driver_id)
+          if (rows.some(y => y !== x && Number(y.original_driver_id) === sid))
+            warnings.push(`Kette: ${name(sid)} ersetzt ${name(x.original_driver_id)} und wird selbst ersetzt – das Ergebnis wird nicht sauber weitergegeben.`)
+          if (x.draftable === false) {
+            if (drivers.find(d => d.id === sid)?.is_active)
+              warnings.push(`${name(sid)} ist ein aktiver, pickbarer Fahrer – sein Ergebnis würde doppelt zählen (für seine Picker und für die von ${name(x.original_driver_id)}).`)
+            if (pickedDrivers.has(sid))
+              warnings.push(`${name(sid)} wurde in diesem Wochenende als Fahrer gepickt – sein Ergebnis würde doppelt zählen.`)
+          }
+        }
+        return warnings.length > 0 && (
+          <div style={{ fontSize: '0.82rem', marginBottom: '0.75rem', color: 'var(--warning, #e0a800)' }}>
+            {warnings.map((w, i) => <p key={i} style={{ margin: '0 0 0.25rem' }}>⚠️ {w}</p>)}
+          </div>
+        )
+      })()}
 
       {subs.length === 0 && (
         <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
@@ -953,16 +984,10 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
   const hasRaceResults = Object.keys(raceResults).length > 0
   if (!hasRaceResults) return
 
-  // Ersatzfahrer anwenden: Stammfahrer bekommt Ergebnis des Ersatzfahrers
-  // Nur ALTE Ersatzfahrer (draftable=false): Ergebnis des Ersatzes zählt für den Stammfahrer.
-  // Neue (draftable=true) haben ein eigenes Ergebnis und fahren für das Team des Ersetzten.
-  for (const sub of (dbSubs ?? []).filter(s => !s.draftable)) {
-    const { original_driver_id: orig, substitute_driver_id: repl, session_type: stype } = sub
-    if ((stype === 'race' || stype === 'both') && raceResults[repl] !== undefined)
-      raceResults[orig] = raceResults[repl]
-    if ((stype === 'sprint' || stype === 'both') && sprintResults[repl] !== undefined)
-      sprintResults[orig] = sprintResults[repl]
-  }
+  // Altes Ersatzmodell (draftable=false): Ergebnis des Ersatzes zählt für den Stammfahrer.
+  // Neue Ersatzfahrer (draftable=true) haben ein eigenes Ergebnis und fahren für das Team des Ersetzten.
+  Object.assign(raceResults,   applySubstituteResults(raceResults,   dbTeamMoves ?? [], 'race'))
+  Object.assign(sprintResults, applySubstituteResults(sprintResults, dbTeamMoves ?? [], 'sprint'))
 
   const pointsToUpsert = []
 

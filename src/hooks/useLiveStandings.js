@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { applyTeamOverrides, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 
 const OPENF1_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openf1-proxy`
 const POLL_INTERVAL = 60000
@@ -94,6 +94,8 @@ export function useLiveStandings(weekends, standings) {
       for (const d of (allDrivers ?? [])) {
         if (latestByNum[d.number]) posByDriverId[d.id] = latestByNum[d.number].position
       }
+
+      Object.assign(posByDriverId, applyDriverSubs(posByDriverId, allDrivers, sType === 'sprint' ? 'sprint' : 'race'))
 
       const playerPoints = {}
       const profileIds = [...new Set(picks.map(p => p.profile_id))]

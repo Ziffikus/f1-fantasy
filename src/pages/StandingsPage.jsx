@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
-import { getTeamDrivers, fetchTeamOverridesByWeekend } from '../lib/teams'
+import { getTeamDrivers, applySubstituteResults, fetchTeamOverridesByWeekend } from '../lib/teams'
 import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2 } from 'lucide-react'
 import './StandingsPage.css'
 
@@ -91,8 +91,8 @@ function useRaceResults() {
       for (const profile of (profiles ?? [])) {
         for (const w of completedWeekends) {
           if (!resultsByWeekend[w.id]) continue
-          const raceMap   = resultsByWeekend[w.id].race
-          const sprintMap = resultsByWeekend[w.id].sprint
+          const raceMap   = applySubstituteResults(resultsByWeekend[w.id].race,   overridesByWeekend[w.id] ?? [], 'race')
+          const sprintMap = applySubstituteResults(resultsByWeekend[w.id].sprint, overridesByWeekend[w.id] ?? [], 'sprint')
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
           const { racePoints, sprintPoints, total } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
           rows.push({
