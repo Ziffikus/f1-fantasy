@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
+import { getTeamDrivers } from '../lib/teams'
 import { callGemini, chooseCategory, generateIntro, generateOutro, generatePickComment } from '../lib/draftCommentary'
 import './AdminPage.css'
 
@@ -618,6 +619,8 @@ function AvailabilityPanel({ raceWeekendId }) {
 function SubstitutionPanel({ raceWeekendId }) {
   const [drivers, setDrivers] = useState([])
   const [subs, setSubs] = useState([]) // [{ original_driver_id, substitute_driver_id, session_type }]
+  const [constructors, setConstructors] = useState([])
+  const [teamMoves, setTeamMoves] = useState([]) // [{ driver_id, constructor_id }]
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -632,6 +635,14 @@ function SubstitutionPanel({ raceWeekendId }) {
       const { data: existing } = await supabase
         .from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId)
       setSubs(existing ?? [])
+
+      const { data: cons } = await supabase
+        .from('constructors').select('id, name, short_name').eq('season_id', season.id).order('name')
+      setConstructors(cons ?? [])
+
+      const { data: moves } = await supabase
+        .from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId)
+      setTeamMoves(moves ?? [])
     }
     if (raceWeekendId) load()
   }, [raceWeekendId])
@@ -646,6 +657,18 @@ function SubstitutionPanel({ raceWeekendId }) {
 
   function removeSub(i) {
     setSubs(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function addMove() {
+    setTeamMoves(prev => [...prev, { driver_id: '', constructor_id: '' }])
+  }
+
+  function updateMove(i, field, val) {
+    setTeamMoves(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: val } : m))
+  }
+
+  function removeMove(i) {
+    setTeamMoves(prev => prev.filter((_, idx) => idx !== i))
   }
 
   async function handleSave() {
@@ -664,6 +687,25 @@ function SubstitutionPanel({ raceWeekendId }) {
         )
         if (error) throw error
       }
+
+      // Team-Wechsel speichern
+      await supabase.from('driver_team_overrides').delete().eq('race_weekend_id', raceWeekendId)
+      const validMoves = teamMoves.filter(m => m.driver_id && m.constructor_id)
+      if (validMoves.length) {
+        const { error: moveError } = await supabase.from('driver_team_overrides').insert(
+          validMoves.map(m => ({
+            race_weekend_id: raceWeekendId,
+            driver_id: Number(m.driver_id),
+            constructor_id: Number(m.constructor_id),
+          }))
+        )
+        if (moveError) throw moveError
+      }
+
+      // Punkte neu berechnen (macht nichts, solange noch keine Ergebnisse vorliegen)
+      const { data: weekend } = await supabase.from('race_weekends').select('*').eq('id', raceWeekendId).single()
+      await calculateAndSavePoints(raceWeekendId, null, null, weekend)
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -720,6 +762,58 @@ function SubstitutionPanel({ raceWeekendId }) {
         ))}
       </div>
 
+      <div className="admin-panel-header" style={{ marginTop: '1.5rem' }}>
+        <h3>Team-Wechsel</h3>
+        <span className="text-muted" style={{ fontSize: '0.78rem' }}>
+          Fahrer fährt nur an diesem Wochenende für ein anderes Team (Rennen + Sprint)
+        </span>
+      </div>
+
+      {teamMoves.length === 0 && (
+        <p className="text-muted" style={{ fontSize: '0.82rem', marginBottom: '0.75rem' }}>
+          Keine Team-Wechsel für dieses Wochenende.
+        </p>
+      )}
+
+      <div className="admin-subs-list">
+        {teamMoves.map((move, i) => {
+          const drv = drivers.find(d => d.id === Number(move.driver_id))
+          return (
+            <div key={i} className="admin-sub-row">
+              <div className="admin-sub-field">
+                <label className="admin-sub-label">Fahrer</label>
+                <select className="input" value={move.driver_id} onChange={e => updateMove(i, 'driver_id', e.target.value)}>
+                  <option value="">– Fahrer wählen –</option>
+                  {drivers.map(d => <option key={d.id} value={d.id}>{d.abbreviation} – {d.last_name}</option>)}
+                </select>
+                {drv && (
+                  <span className="text-muted" style={{ fontSize: '0.72rem' }}>
+                    Stammteam: {drv.constructors?.short_name}
+                  </span>
+                )}
+              </div>
+              <div className="admin-sub-arrow">→</div>
+              <div className="admin-sub-field">
+                <label className="admin-sub-label">Fährt für Team</label>
+                <select className="input" value={move.constructor_id} onChange={e => updateMove(i, 'constructor_id', e.target.value)}>
+                  <option value="">– Team wählen –</option>
+                  {constructors.map(c => <option key={c.id} value={c.id}>{c.short_name} – {c.name}</option>)}
+                </select>
+              </div>
+              <button className="btn btn-secondary admin-sub-remove" onClick={() => removeMove(i)}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+        <button className="btn btn-secondary" onClick={addMove}>
+          <Plus size={14} /> Team-Wechsel hinzufügen
+        </button>
+      </div>
+
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
         <button className="btn btn-secondary" onClick={addSub}>
           <Plus size={14} /> Ersatz hinzufügen
@@ -741,12 +835,14 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
     { data: profiles },
     { data: dbResults },
     { data: dbSubs },
+    { data: dbTeamMoves },
   ] = await Promise.all([
     supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId),
     supabase.from('seasons').select('id').eq('is_active', true).single(),
     supabase.from('profiles').select('id'),
     supabase.from('race_results').select('driver_id, session_type, position').eq('race_weekend_id', raceWeekendId),
     supabase.from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId),
+    supabase.from('driver_team_overrides').select('driver_id, constructor_id').eq('race_weekend_id', raceWeekendId),
   ])
 
   if (!season) throw new Error('Keine aktive Saison gefunden')
@@ -792,7 +888,7 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
           sprintPoints += ((spos > 0 ? spos : 22) / 2)
         }
       } else if (pick.pick_type === 'constructor') {
-        const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
+        const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, dbTeamMoves ?? [])
         for (const td of teamDrivers) {
           const pos = Number(raceResults[td.id])
           racePoints += pos > 0 ? pos : 22
