@@ -11,6 +11,9 @@
 //   • Ein Team darf pro Session nie mehr als 2 gewertete Fahrer haben,
 //     sonst wird ein TeamLimitError geworfen (calcPlayerPoints) bzw. als
 //     `error` zurückgegeben (calcPlayerPointsSafe, für Anzeige-Seiten).
+//     "Gewertet" = der Fahrer hat in dieser Session ein Ergebnis und fährt
+//     laut Overrides mit. Fahrer ohne Ergebnis (z. B. ein Ersatzfahrer vor
+//     seinem ersten Einsatz) zählen für das Limit nicht mit.
 //
 // allDrivers:
 //   • Mit `overrides` (rohe Fahrerliste) → Team-Zuordnung und out-Flags
@@ -54,7 +57,7 @@ export function calcPlayerPoints(
         ? getTeamDrivers(allDrivers, pick.constructor_id, overrides)
         : (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
 
-      assertTeamLimit(pick, teamDrivers, isSprint)
+      assertTeamLimit(pick, teamDrivers, isSprint, raceResultMap, sprintResultMap)
 
       for (const td of teamDrivers) {
         if (!td.out_race) racePoints += raceResultMap?.[td.id] ?? 0
@@ -66,9 +69,9 @@ export function calcPlayerPoints(
   return { racePoints, sprintPoints, total: racePoints + sprintPoints }
 }
 
-function assertTeamLimit(pick, teamDrivers, isSprint) {
-  const sessions = [['Rennen', d => !d.out_race]]
-  if (isSprint) sessions.push(['Sprint', d => !d.out_sprint])
+function assertTeamLimit(pick, teamDrivers, isSprint, raceResultMap, sprintResultMap) {
+  const sessions = [['Rennen', d => !d.out_race && raceResultMap?.[d.id] != null]]
+  if (isSprint) sessions.push(['Sprint', d => !d.out_sprint && sprintResultMap?.[d.id] != null])
 
   for (const [label, counts] of sessions) {
     const counted = teamDrivers.filter(counts)
