@@ -1,0 +1,423 @@
+/* ============================================================
+   PlayerPicksCard – Spieler-Karte mit Picks & Punkten
+   (aus DashboardPage.css ausgelagert; alle Regeln unter .ppc
+   gescoped, damit Seiten-CSS sie nicht überschreibt)
+   ============================================================ */
+
+.ppc.db-lastrace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+
+.ppc .db-lastrace-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: border-color var(--transition);
+}
+
+.ppc .db-lastrace-card--me {
+  background: var(--accent-dim);
+  border-color: var(--border-accent);
+}
+
+.ppc .db-lastrace-card--leading {
+  border-color: rgba(255, 215, 0, 0.35);
+}
+
+.ppc .db-lastrace-player-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ppc .db-lastrace-rank {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  background: var(--bg-card);
+  color: #c8c8d8;
+  border: 2px solid rgba(200,200,216,0.3);
+}
+
+.ppc .db-lastrace-rank--1 {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #000;
+  border-color: #FFD700;
+}
+
+.ppc .db-lastrace-rank--2 {
+  background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+  color: #000;
+  border-color: #C0C0C0;
+}
+
+.ppc .db-lastrace-rank--3 {
+  background: linear-gradient(135deg, #CD7F32, #A0522D);
+  color: #fff;
+  border-color: #CD7F32;
+}
+
+.ppc .db-lastrace-player-header .draft-player-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+}
+
+.ppc .db-lastrace-player-header .draft-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ppc .db-lastrace-player-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 0.2rem;
+}
+
+.ppc .race-player-total-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.ppc .race-player-total {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
+}
+
+.ppc .race-player-total-unit {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #c8c8d8;
+  letter-spacing: 0.05em;
+}
+
+.ppc .race-player-pts-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ppc .race-pts-item {
+  display: flex;
+  align-items: center;
+  gap: 0.18rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #c8c8d8;
+  line-height: 1;
+}
+
+.ppc .race-pts-item svg { opacity: 1; color: #c8c8d8; }
+
+.ppc .race-pts-item--sprint {
+  color: #f5c518;
+}
+
+.ppc .race-pts-item--sprint svg { opacity: 1; }
+
+.ppc .draft-zone-picks { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem; }
+
+.ppc .draft-picks-drivers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.3rem;
+}
+
+.ppc .draft-pick-driver-slot {
+  position: relative;
+  aspect-ratio: 3 / 4.5;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  transition: all var(--transition);
+}
+
+.ppc .draft-pick-driver-slot.draft-pick-slot--filled {
+  border-color: var(--slot-color, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--slot-color, var(--accent)) 40%, transparent);
+  background: color-mix(in srgb, var(--slot-color, var(--accent)) 8%, var(--bg-elevated));
+}
+
+.ppc .draft-pick-portrait-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.ppc .draft-pick-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  transform: scale(1.30);
+  transform-origin: top center;
+}
+
+.ppc .draft-pick-portrait-fallback {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.ppc .draft-pick-driver-label {
+  flex-shrink: 0;
+  background: rgba(220, 220, 230, 0.13);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: #fff;
+  padding: 0.2rem 0.1rem 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ppc .db-pick-pts-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.1rem;
+  background: rgba(0,0,0,0.45);
+}
+
+.ppc .db-pick-pts-overlay .race-pos,
+.ppc .db-pick-pts-overlay .race-pos-unknown {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.05rem 0.15rem;
+}
+
+.ppc .db-slot-pts {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #c8c8d8;
+}
+
+.ppc .db-slot-pts svg { flex-shrink: 0; opacity: 1; color: #c8c8d8; }
+
+.ppc .db-slot-pts--sprint { color: #f5c518; }
+
+.ppc .db-slot-pts--sprint svg { color: #f5c518; }
+
+.ppc .draft-picks-teams {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.3rem;
+}
+
+.ppc .draft-pick-team-slot {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  transition: all var(--transition);
+}
+
+.ppc .draft-pick-team-slot.draft-pick-slot--filled {
+  border-color: var(--slot-color, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--slot-color, var(--accent)) 40%, transparent);
+  background: color-mix(in srgb, var(--slot-color, var(--accent)) 8%, var(--bg-elevated));
+}
+
+.ppc .draft-pick-car-wrap {
+  position: relative;
+  aspect-ratio: 3 / 1;
+  flex-shrink: 0;
+}
+
+.ppc .draft-pick-car {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  padding: 0.25rem 0.5rem;
+}
+
+.ppc .draft-pick-team-overlay {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ppc .draft-pick-team-logo {
+  width: 1.3rem;
+  height: 1.3rem;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+
+.ppc .draft-pick-team-logo-fallback {
+  display: none;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ppc .draft-pick-team-label {
+  flex-shrink: 0;
+  background: rgba(220, 220, 230, 0.13);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 0.2rem 0.15rem 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ppc .db-team-pts-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.1rem;
+  background: rgba(0,0,0,0.45);
+}
+
+.ppc .db-team-pts {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #c8c8d8;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  line-height: 1;
+}
+
+.ppc .db-team-pts svg { opacity: 1; flex-shrink: 0; color: #c8c8d8; }
+
+.ppc .db-team-pts--sprint { color: #f5c518; }
+
+.ppc .db-team-pts--sprint svg { color: #f5c518; }
+
+.ppc .draft-pick-slot--empty { border-style: dashed; }
+
+.ppc .draft-pick-slot-num {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .ppc.db-lastrace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .ppc .db-lastrace-card {
+    padding: 0.5rem 0.3rem;
+  }
+
+.ppc .db-lastrace-card .draft-zone-picks {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .ppc.db-lastrace-grid {
+    grid-template-columns: 1fr;
+    
+  }
+
+.ppc .draft-picks-drivers {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+}
+
+/* Basis-Avatar (aus DraftPage.css) und "(du)"-Hinweis, damit die Karte überall gleich aussieht */
+.ppc .draft-player-avatar {
+  width: 1.8rem; height: 1.8rem;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden; flex-shrink: 0;
+}
+.ppc .draft-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ppc .dashboard-you { color: var(--accent); font-size: 0.75rem; }

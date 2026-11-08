@@ -3,6 +3,7 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useDraft, useDraftOrder } from '../hooks/useDraft'
 import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
+import { calcPlayerPoints, TeamLimitError } from '../lib/points'
 import { GripVertical, Save, Trash2, Plus, ShieldCheck, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { importResultsFromErgast } from '../lib/importResults'
 import { getTeamDrivers, getOutFlags, getEffectiveConstructorId, applySubstituteResults, fetchTeamOverrides } from '../lib/teams'
@@ -970,7 +971,7 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
   ] = await Promise.all([
     supabase.from('picks').select('*').eq('race_weekend_id', raceWeekendId),
     supabase.from('seasons').select('id').eq('is_active', true).single(),
-    supabase.from('profiles').select('id'),
+    supabase.from('profiles').select('id, display_name'),
     supabase.from('race_results').select('driver_id, session_type, position').eq('race_weekend_id', raceWeekendId),
     supabase.from('driver_substitutions').select('*').eq('race_weekend_id', raceWeekendId),
     fetchTeamOverrides(raceWeekendId),
@@ -1004,27 +1005,16 @@ async function calculateAndSavePoints(raceWeekendId, _raceResults, _sprintResult
 
   for (const profile of (profiles ?? [])) {
     const playerPicks = (picks ?? []).filter(p => p.profile_id === profile.id)
-    let racePoints = 0, sprintPoints = 0
-
-    for (const pick of playerPicks) {
-      if (pick.pick_type === 'driver') {
-        const pos = Number(raceResults[pick.driver_id])
-        racePoints += pos > 0 ? pos : 22
-        if (weekend?.is_sprint_weekend) {
-          const spos = Number(sprintResults[pick.driver_id])
-          sprintPoints += ((spos > 0 ? spos : 22) / 2)
-        }
-      } else if (pick.pick_type === 'constructor') {
-        const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, dbTeamMoves ?? [])
-        for (const td of teamDrivers) {
-          const pos = Number(raceResults[td.id])
-          if (!td.out_race) racePoints += pos > 0 ? pos : 22
-          if (weekend?.is_sprint_weekend && !td.out_sprint) {
-            const spos = Number(sprintResults[td.id])
-            sprintPoints += ((spos > 0 ? spos : 22) / 2)
-          }
-        }
+    let racePoints, sprintPoints
+    try {
+      ;({ racePoints, sprintPoints } = calcPlayerPoints(
+        playerPicks, raceResults, sprintResults, weekend?.is_sprint_weekend, allDrivers, dbTeamMoves ?? [],
+      ))
+    } catch (err) {
+      if (err instanceof TeamLimitError) {
+        throw new Error(`${profile.display_name ?? profile.id}: ${err.message} Die Punkte wurden NICHT gespeichert.`)
       }
+      throw err
     }
 
     pointsToUpsert.push({

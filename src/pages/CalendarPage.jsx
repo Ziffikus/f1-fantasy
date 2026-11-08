@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useSessionResults } from '../hooks/useSessionResults'
 import { supabase } from '../lib/supabase'
+import { calcPlayerPointsSafe } from '../lib/points'
+import PointsError from '../components/ui/PointsError'
+import PlayerPicksCard, { PlayerPicksGrid } from '../components/race/PlayerPicksCard'
 import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import TrackMap from '../components/ui/TrackMap'
@@ -100,31 +103,6 @@ function PositionBadge({ pos }) {
       P{p}
     </span>
   )
-}
-
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers) {
-  let racePoints = 0, sprintPoints = 0
-  for (const pick of playerPicks) {
-    if (pick.pick_type === 'driver') {
-      const pos = raceResultMap[pick.driver_id]
-      racePoints += pos ?? 0
-      if (isSprint) {
-        const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? (spos / 2) : 0
-      }
-    } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
-      for (const td of teamDrivers) {
-        const pos = raceResultMap[td.id]
-        if (!td.out_race) racePoints += pos ?? 0
-        if (isSprint && !td.out_sprint) {
-          const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? (spos / 2) : 0
-        }
-      }
-    }
-  }
-  return { racePoints, sprintPoints, total: racePoints + sprintPoints }
 }
 
 // ── Session-Ergebnisse Panel (identisch zu RacePage) ──────────
@@ -246,7 +224,7 @@ export function PastRaceExpanded({ w }) {
 
   const playerPoints = orderedProfiles.map(player => {
     const playerPicks = picks.filter(p => p.profile_id === player.id)
-    const pts = calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
+    const pts = calcPlayerPointsSafe(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })
   if (hasResults) playerPoints.sort((a, b) => a.total - b.total)
@@ -290,126 +268,26 @@ export function PastRaceExpanded({ w }) {
         dataLoading
           ? <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}><div className="spinner" /></div>
           : (
-            <div className="race-picks-grid">
-              {playerPoints.map(({ player, playerPicks, racePoints, sprintPoints, total }, rank) => {
-                const driverPicks = playerPicks.filter(p => p.pick_type === 'driver')
-                const teamPicks   = playerPicks.filter(p => p.pick_type === 'constructor')
-                return (
-                  <div
-                    key={player.id}
-                    className={`race-player-card ${player.id === profile?.id ? 'race-player-card--me' : ''} ${rank === 0 && hasResults ? 'race-player-card--leading' : ''}`}
-                  >
-                    <div className="race-player-header">
-                      {hasResults && (
-                        <span className={`race-rank-badge ${rank === 0 ? 'race-rank-1' : rank === 1 ? 'race-rank-2' : rank === 2 ? 'race-rank-3' : ''}`}>
-                          {rank + 1}
-                        </span>
-                      )}
-                      <div className="race-player-avatar">
-                        {player.avatar_url
-                          ? <img src={player.avatar_url} alt={player.display_name} />
-                          : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
-                      </div>
-                      <span className="race-player-name">{player.display_name}</span>
-                      {hasResults && total > 0 && (
-                        <div className="race-player-total-wrap">
-                          <span className="race-player-total">
-                            {total % 1 === 0 ? total : total.toFixed(1)}
-                            <span className="text-muted" style={{ fontSize: '0.68rem', marginLeft: '0.2rem' }}>Pkt</span>
-                          </span>
-                          {w.is_sprint_weekend && sprintPoints > 0 && (
-                            <div className="race-player-pts-breakdown">
-                              <span>🏁 {racePoints % 1 === 0 ? racePoints : racePoints.toFixed(1)}</span>
-                              <span className="race-player-pts-sep">·</span>
-                              <span>⚡ {sprintPoints % 1 === 0 ? sprintPoints : sprintPoints.toFixed(1)}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {playerPicks.length === 0
-                      ? <p className="text-muted" style={{ fontSize: '0.8rem', padding: '0.5rem 0' }}>Keine Picks.</p>
-                      : (
-                        <div className="race-picks-list">
-                          {driverPicks.map(pick => {
-                            const pos  = raceResultMap[pick.driver_id]
-                            const spos = sprintResultMap[pick.driver_id]
-                            return (
-                              <div key={pick.id} className="race-pick-row">
-                                <div className="race-pick-label">F{pick.pick_number}</div>
-                                <div className="race-pick-color" style={{ background: pick.drivers?.constructors?.color ?? '#888' }} />
-                                <div className="race-pick-info">
-                                  <span className="race-pick-name">{pick.drivers?.first_name} {pick.drivers?.last_name}</span>
-                                  <span className="race-pick-team" style={{ color: pick.drivers?.constructors?.color }}>
-                                    {pick.drivers?.constructors?.short_name} · #{pick.drivers?.number}
-                                  </span>
-                                </div>
-                                <div className="race-pick-results">
-                                  {hasResults && <PositionBadge pos={pos} />}
-                                  {hasResults && w.is_sprint_weekend && spos && (
-                                    <span className="race-sprint-pts">
-                                      <Zap size={10} />{(spos / 2) % 1 === 0 ? (spos / 2) : (spos / 2).toFixed(1)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                          {teamPicks.map(pick => {
-                            const teamDrivers     = allDrivers.filter(d => d.constructor_id === pick.constructor_id)
-                            const color           = pick.constructors?.color ?? '#888'
-                            const teamTotal       = teamDrivers.reduce((sum, td) => sum + (td.out_race ? 0 : (raceResultMap[td.id] ?? 0)), 0)
-                            const teamSprintTotal = teamDrivers.reduce((sum, td) => {
-                              const spos = sprintResultMap[td.id]
-                              return sum + (spos && !td.out_sprint ? (spos / 2) : 0)
-                            }, 0)
-                            return (
-                              <div key={pick.id} className="race-pick-row race-pick-row--team">
-                                <div className="race-pick-label">T{pick.pick_number}</div>
-                                <div className="race-pick-color" style={{ background: color }} />
-                                <div className="race-pick-info">
-                                  <span className="race-pick-name">{pick.constructors?.name}</span>
-                                  {hasResults && teamDrivers.length > 0 ? (
-                                    <span className="race-pick-team-drivers">
-                                      {teamDrivers.map(td => {
-                                        const pos  = raceResultMap[td.id]
-                                        const spos = sprintResultMap[td.id]
-                                        return (
-                                          <span key={td.id} className="race-pick-team-driver-pos">
-                                            <span className="race-pick-abbr" style={{ color }}>{td.abbreviation}</span>
-                                            <PositionBadge pos={pos} />
-                                            {w.is_sprint_weekend && spos && (
-                                              <span className="race-sprint-pts"><Zap size={10} />{(spos / 2)}</span>
-                                            )}
-                                          </span>
-                                        )
-                                      })}
-                                    </span>
-                                  ) : (
-                                    <span className="race-pick-team" style={{ color }}>Team</span>
-                                  )}
-                                </div>
-                                {hasResults && teamTotal > 0 && (
-                                  <div className="race-pick-results">
-                                    <PositionBadge pos={teamTotal} />
-                                    {w.is_sprint_weekend && teamSprintTotal > 0 && (
-                                      <span className="race-sprint-pts">
-                                        <Zap size={10} />{teamSprintTotal % 1 === 0 ? teamSprintTotal : teamSprintTotal.toFixed(1)}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                  </div>
-                )
-              })}
-            </div>
+            <PlayerPicksGrid>
+              <PointsError errors={playerPoints.map(p => p.error && `${p.player.display_name}: ${p.error}`)} />
+              {playerPoints.map(({ player, playerPicks, racePoints, sprintPoints, total }, rank) => (
+                <PlayerPicksCard
+                  key={player.id}
+                  player={player}
+                  playerPicks={playerPicks}
+                  rank={rank}
+                  hasResults={hasResults}
+                  isMe={player.id === profile?.id}
+                  isSprintWeekend={w.is_sprint_weekend}
+                  racePoints={racePoints}
+                  sprintPoints={sprintPoints}
+                  total={total}
+                  raceResultMap={raceResultMap}
+                  sprintResultMap={sprintResultMap}
+                  allDrivers={allDrivers}
+                />
+              ))}
+            </PlayerPicksGrid>
           )
       )}
 

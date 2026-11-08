@@ -5,40 +5,16 @@ import { useAuthStore } from '../stores/authStore'
 import { useNavigate } from 'react-router-dom'
 import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
+import { calcPlayerPointsSafe } from '../lib/points'
+import PointsError from '../components/ui/PointsError'
 import { getTeamDrivers, applySubstituteResults, fetchTeamOverridesByWeekend } from '../lib/teams'
 import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2 } from 'lucide-react'
 import './StandingsPage.css'
 
-// Berechnet Punkte eines Spielers für ein Wochenende
-// Identische Logik wie CalendarPage
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers, overrides = []) {
-  let racePoints = 0, sprintPoints = 0
-  for (const pick of playerPicks) {
-    if (pick.pick_type === 'driver') {
-      const pos = raceResultMap[pick.driver_id]
-      racePoints += pos ?? 22
-      if (isSprint) {
-        const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? (spos / 2) : 11
-      }
-    } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, overrides)
-      for (const td of teamDrivers) {
-        const pos = raceResultMap[td.id]
-        if (!td.out_race) racePoints += pos ?? 22
-        if (isSprint && !td.out_sprint) {
-          const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? (spos / 2) : 11
-        }
-      }
-    }
-  }
-  return { racePoints, sprintPoints, total: racePoints + sprintPoints }
-}
-
 function useRaceResults() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
+  const [errors, setErrors] = useState([])
 
   useEffect(() => {
     async function load() {
@@ -88,13 +64,15 @@ function useRaceResults() {
       // Punkte pro Spieler pro Wochenende berechnen
       // Format: [{ profile_id, race_weekends: { round, name, flag_emoji, city }, total_points, racePoints, sprintPoints }]
       const rows = []
+      const calcErrors = new Set()
       for (const profile of (profiles ?? [])) {
         for (const w of completedWeekends) {
           if (!resultsByWeekend[w.id]) continue
           const raceMap   = applySubstituteResults(resultsByWeekend[w.id].race,   overridesByWeekend[w.id] ?? [], 'race')
           const sprintMap = applySubstituteResults(resultsByWeekend[w.id].sprint, overridesByWeekend[w.id] ?? [], 'sprint')
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
-          const { racePoints, sprintPoints, total } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
+          const { racePoints, sprintPoints, total, error } = calcPlayerPointsSafe(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
+          if (error) calcErrors.add(`${profile.display_name} (Runde ${w.round}): ${error}`)
           rows.push({
             profile_id: profile.id,
             race_weekends: { round: w.round, name: w.name, flag_emoji: w.flag_emoji, city: w.city },
@@ -114,12 +92,13 @@ function useRaceResults() {
       })
 
       setResults(rows)
+      setErrors([...calcErrors])
       setLoading(false)
     }
     load()
   }, [])
 
-  return { results, loading }
+  return { results, loading, errors }
 }
 
 // Lädt für jeden Spieler die Anzahl der gewonnenen Arcade-Race-Strecken
@@ -521,9 +500,9 @@ function PositionChart({ completedWeekends, matrix, standings, myId }) {
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function StandingsPage() {
-  const { standings, loading } = useStandings()
+  const { standings, loading, errors: standingsErrors } = useStandings()
   const { weekends } = useRaceWeekends()
-  const { results, loading: resultsLoading } = useRaceResults()
+  const { results, loading: resultsLoading, errors: resultsErrors } = useRaceResults()
   const arcadeWins = useArcadeWins()
   const { profile } = useAuthStore()
   const navigate = useNavigate()
@@ -574,6 +553,7 @@ export default function StandingsPage() {
   return (
     <div className="standings-page page-enter">
       <h1>Wertung</h1>
+      <PointsError errors={[...standingsErrors, ...resultsErrors]} />
 
 
       {/* Live-Banner */}
