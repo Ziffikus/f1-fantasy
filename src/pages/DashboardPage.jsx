@@ -5,6 +5,9 @@ import { useRaceWeekends } from '../hooks/useRaceWeekends'
 import { useStandings } from '../hooks/useStandings'
 import Countdown from '../components/race/Countdown'
 import { supabase } from '../lib/supabase'
+import { calcPlayerPointsSafe } from '../lib/points'
+import PointsError from '../components/ui/PointsError'
+import PlayerPicksCard, { PlayerPicksGrid } from '../components/race/PlayerPicksCard'
 import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap, Gamepad2 } from 'lucide-react'
 import './DashboardPage.css'
@@ -18,31 +21,6 @@ function PositionBadge({ pos }) {
       P{p}
     </span>
   )
-}
-
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers) {
-  let racePoints = 0, sprintPoints = 0
-  for (const pick of playerPicks) {
-    if (pick.pick_type === 'driver') {
-      const pos = raceResultMap[pick.driver_id]
-      racePoints += pos ?? 0
-      if (isSprint) {
-        const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? (spos / 2) : 0
-      }
-    } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = (allDrivers ?? []).filter(d => d.constructor_id === pick.constructor_id)
-      for (const td of teamDrivers) {
-        const pos = raceResultMap[td.id]
-        if (!td.out_race) racePoints += pos ?? 0
-        if (isSprint && !td.out_sprint) {
-          const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? (spos / 2) : 0
-        }
-      }
-    }
-  }
-  return { racePoints, sprintPoints, total: racePoints + sprintPoints }
 }
 
 // ── Dashboard-Karte für letztes Rennen ────────────────────────
@@ -103,7 +81,7 @@ function DashboardLastRace({ w, standings = [] }) {
 
   const playerPoints = orderedProfiles.map(player => {
     const playerPicks = picks.filter(p => p.profile_id === player.id)
-    const pts = calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
+    const pts = calcPlayerPointsSafe(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })
   if (hasResults) playerPoints.sort((a, b) => {
@@ -120,189 +98,33 @@ function DashboardLastRace({ w, standings = [] }) {
   )
 
   return (
-    <div className="db-lastrace-grid">
-      {playerPoints.map(({ player, playerPicks, racePoints, sprintPoints, total }, rank) => {
-        const driverPicks = playerPicks.filter(p => p.pick_type === 'driver')
-        const teamPicks   = playerPicks.filter(p => p.pick_type === 'constructor')
-        const isMe = player.id === profile?.id
-
-        return (
-          <div
-            key={player.id}
-            className={`db-lastrace-card ${isMe ? 'db-lastrace-card--me' : ''} ${rank === 0 && hasResults ? 'db-lastrace-card--leading' : ''}`}
-          >
-            {/* Player Header */}
-            <div className="db-lastrace-player-header">
-              {hasResults && (
-                <span className={`db-lastrace-rank ${rank === 0 ? 'db-lastrace-rank--1' : rank === 1 ? 'db-lastrace-rank--2' : rank === 2 ? 'db-lastrace-rank--3' : ''}`}>
-                  {rank + 1}
-                </span>
-              )}
-              <div className="draft-player-avatar">
-                {player.avatar_url
-                  ? <img src={player.avatar_url} alt={player.display_name} />
-                  : <span>{player.display_name?.[0]?.toUpperCase()}</span>}
-              </div>
-              <span className="db-lastrace-player-name">
-                {player.display_name}
-                {isMe && <span className="dashboard-you"> (du)</span>}
-              </span>
-              {hasResults && total > 0 && (
-                <div className="race-player-total-wrap">
-                  <span className="race-player-total">
-                    {total % 1 === 0 ? total : total.toFixed(1)}
-                    <span className="race-player-total-unit">Pkt</span>
-                  </span>
-                  <div className="race-player-pts-breakdown">
-                    <span className="race-pts-item">
-                      <Flag size={10} />
-                      {racePoints % 1 === 0 ? racePoints : racePoints.toFixed(1)}
-                    </span>
-                    {w.is_sprint_weekend && (
-                      <span className="race-pts-item race-pts-item--sprint">
-                        <Zap size={10} />
-                        {sprintPoints % 1 === 0 ? sprintPoints : sprintPoints.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Picks – exakt wie Draft */}
-            <div className="draft-zone-picks">
-            <div className="draft-picks-drivers">
-              {[1,2,3,4].map(n => {
-                const pick = driverPicks.find(p => p.pick_number === n)
-                const abbr = pick?.drivers?.abbreviation?.toLowerCase()
-                const firstName = pick?.drivers?.first_name
-                const lastName  = pick?.drivers?.last_name
-                const displayName = firstName && lastName ? `${firstName[0]}. ${lastName}` : abbr?.toUpperCase()
-                const teamColor = pick?.drivers?.constructors?.color
-                const pos  = pick ? raceResultMap[pick.driver_id] : null
-                const spos = pick ? sprintResultMap[pick.driver_id] : null
-                return (
-                  <div
-                    key={`d${n}`}
-                    className={`draft-pick-driver-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
-                    style={pick ? { '--slot-color': teamColor } : {}}
-                  >
-                    {pick ? (
-                      <>
-                        <div className="draft-pick-portrait-wrap">
-                          <img
-                            className="draft-pick-portrait"
-                            src={`${import.meta.env.BASE_URL}drivers/${abbr}.avif`}
-                            alt={abbr}
-                            onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
-                          />
-                          <div className="draft-pick-portrait-fallback">{displayName}</div>
-                        </div>
-                        <div className="draft-pick-driver-label">
-                          {lastName ?? displayName}
-                        </div>
-                        {hasResults && (
-                          <div className="db-pick-pts-overlay">
-                            <span className="db-slot-pts">
-                              <Flag size={8} />
-                              {pos ?? '–'}
-                            </span>
-                            {w.is_sprint_weekend && (
-                              <span className="db-slot-pts db-slot-pts--sprint">
-                                <Zap size={8} />
-                                {spos ? ((spos/2)%1===0 ? spos/2 : (spos/2).toFixed(1)) : '–'}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <span className="draft-pick-slot-num">F{n}</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-        {/* Zeile 2: Team-Rechtecke */}
-            <div className="draft-picks-teams">
-              {[1,2].map(n => {
-                const pick = teamPicks.find(p => p.pick_number === n)
-                const teamColor = pick?.constructors?.color
-                const teamShort = pick?.constructors?.short_name
-                const FILE_MAP = {
-                  'McLaren':'mcl','Mercedes':'mer','Red Bull':'rbr','Ferrari':'fer',
-                  'Williams':'wil','Racing Bulls':'rb','Aston Martin':'ast',
-                  'Haas':'haa','Audi':'aud','Alpine':'alp','Cadillac':'cad',
-                }
-                const fileKey = FILE_MAP[teamShort] ?? teamShort?.toLowerCase()
-                const LOGO_MAP = { mer: 'log_mer', wil: 'logo_will' }
-                const logoKey = LOGO_MAP[fileKey] ?? `logo_${fileKey}`
-                const teamDrivers     = allDrivers.filter(d => d.constructor_id === pick?.constructor_id)
-                const teamTotal       = teamDrivers.reduce((sum, td) => sum + (td.out_race ? 0 : (raceResultMap[td.id] ?? 0)), 0)
-                const teamSprintTotal = teamDrivers.reduce((sum, td) => { const s = sprintResultMap[td.id]; return sum + (s && !td.out_sprint ? s/2 : 0) }, 0)
-                return (
-                  <div
-                    key={`t${n}`}
-                    className={`draft-pick-team-slot ${pick ? 'draft-pick-slot--filled' : 'draft-pick-slot--empty'}`}
-                    style={pick ? { '--slot-color': teamColor } : {}}
-                  >
-                    {pick ? (
-                      <>
-                        <div className="draft-pick-car-wrap">
-                        <img
-                          className="draft-pick-car"
-                          src={`${import.meta.env.BASE_URL}autos/${fileKey}.avif`}
-                          alt={teamShort}
-                          onError={e => { e.currentTarget.style.display = 'none' }}
-                        />
-                        <div className="draft-pick-team-overlay">
-                          <img
-                            className="draft-pick-team-logo"
-                            src={`${import.meta.env.BASE_URL}logos/${logoKey}.avif`}
-                            alt={teamShort}
-                            onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'block' }}
-                          />
-                          <span className="draft-pick-team-logo-fallback" style={{ color: teamColor }}>{teamShort?.toUpperCase()}</span>
-                        </div>
-                        </div>
-                        <div className="draft-pick-team-label">
-                          {teamShort}
-                        </div>
-                        {hasResults && (teamTotal > 0 || teamSprintTotal > 0) && (
-                          <div className="db-team-pts-row">
-                            <span className="db-team-pts">
-                              <Flag size={8} />
-                              {teamTotal}
-                            </span>
-                            {w.is_sprint_weekend && (
-                              <span className="db-team-pts db-team-pts--sprint">
-                                <Zap size={8} />
-                                {teamSprintTotal%1===0 ? teamSprintTotal : teamSprintTotal.toFixed(1)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <span className="draft-pick-slot-num">T{n}</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            </div> {/* end draft-zone-picks */}
-          </div>
-        )
-      })}
-    </div>
+    <PlayerPicksGrid>
+      <PointsError errors={playerPoints.map(p => p.error && `${p.player.display_name}: ${p.error}`)} />
+      {playerPoints.map(({ player, playerPicks, racePoints, sprintPoints, total }, rank) => (
+        <PlayerPicksCard
+          key={player.id}
+          player={player}
+          playerPicks={playerPicks}
+          rank={rank}
+          hasResults={hasResults}
+          isMe={player.id === profile?.id}
+          isSprintWeekend={w.is_sprint_weekend}
+          racePoints={racePoints}
+          sprintPoints={sprintPoints}
+          total={total}
+          raceResultMap={raceResultMap}
+          sprintResultMap={sprintResultMap}
+          allDrivers={allDrivers}
+        />
+      ))}
+    </PlayerPicksGrid>
   )
 }
 
 export default function DashboardPage() {
   const { profile } = useAuthStore()
   const { activeWeekend, weekends, loading: racesLoading } = useRaceWeekends()
-  const { standings, loading: standingsLoading } = useStandings()
+  const { standings, loading: standingsLoading, errors: standingsErrors } = useStandings()
 
   const completedRaces = weekends.filter(w => new Date(w.race_start) < new Date()).length
   const totalRaces = weekends.length
@@ -423,6 +245,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="dashboard-standings">
+                <PointsError errors={standingsErrors} />
                 {standings.map((player, i) => (
                   <div key={player.profile_id}
                     className={`dashboard-standing-row ${player.profile_id === profile?.id ? 'dashboard-standing-row--me' : ''}`}>

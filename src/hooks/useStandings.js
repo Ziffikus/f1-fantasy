@@ -1,39 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { calcPlayerPointsSafe } from '../lib/points'
 import { getTeamDrivers, applySubstituteResults, fetchTeamOverridesByWeekend } from '../lib/teams'
-
-// Berechnet Punkte eines Spielers für ein Wochenende
-// Identische Logik wie CalendarPage.jsx → calcPlayerPoints
-function calcPlayerPoints(playerPicks, raceResultMap, sprintResultMap, isSprint, allDrivers, overrides = []) {
-  let racePoints = 0, sprintPoints = 0
-
-  for (const pick of playerPicks) {
-    if (pick.pick_type === 'driver') {
-      const pos = raceResultMap[pick.driver_id]
-      racePoints += pos ?? 22
-      if (isSprint) {
-        const spos = sprintResultMap[pick.driver_id]
-        sprintPoints += spos ? (spos / 2) : 11  // kein Sprint-Ergebnis = 22/2 = 11
-      }
-    } else if (pick.pick_type === 'constructor') {
-      const teamDrivers = getTeamDrivers(allDrivers, pick.constructor_id, overrides)
-      for (const td of teamDrivers) {
-        const pos = raceResultMap[td.id]
-        if (!td.out_race) racePoints += pos ?? 22
-        if (isSprint && !td.out_sprint) {
-          const spos = sprintResultMap[td.id]
-          sprintPoints += spos ? (spos / 2) : 11
-        }
-      }
-    }
-  }
-
-  return { racePoints, sprintPoints, total: racePoints + sprintPoints }
-}
 
 export function useStandings() {
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [errors, setErrors] = useState([])
 
   useEffect(() => {
     async function load() {
@@ -86,6 +59,8 @@ export function useStandings() {
         picksByPlayerWeekend[key].push(pick)
       }
 
+      const calcErrors = new Set()
+
       // Gesamtpunkte pro Spieler berechnen
       const playerTotals = (profiles ?? []).map(profile => {
         let total = 0
@@ -100,7 +75,9 @@ export function useStandings() {
           const sprintMap = applySubstituteResults(resultsByWeekend[w.id]?.sprint ?? {}, overridesByWeekend[w.id] ?? [], 'sprint')
           const picks     = picksByPlayerWeekend[`${profile.id}__${w.id}`] ?? []
 
-          const { total: pts } = calcPlayerPoints(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
+          const calc = calcPlayerPointsSafe(picks, raceMap, sprintMap, w.is_sprint_weekend, allDrivers, overridesByWeekend[w.id] ?? [])
+          if (calc.error) calcErrors.add(`${profile.display_name} (Runde ${w.round}): ${calc.error}`)
+          const pts = calc.total
           return { weekendId: w.id, pts }
         }).filter(Boolean)
 
@@ -148,11 +125,12 @@ export function useStandings() {
         })
 
       setStandings(result)
+      setErrors([...calcErrors])
       setLoading(false)
     }
 
     load()
   }, [])
 
-  return { standings, loading }
+  return { standings, loading, errors }
 }
