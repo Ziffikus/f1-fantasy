@@ -37,7 +37,8 @@ function ProtectedRoute({ children }) {
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1rem' }}>
-      <F1Tire size={48} />
+      <F1Tire size={56} />
+      {showReload && (
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Dauert länger als erwartet…</p>
           <button className="btn btn-secondary" style={{ fontSize: '0.82rem' }} onClick={() => window.location.reload()}>

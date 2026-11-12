@@ -212,11 +212,29 @@ a:hover { color: var(--accent-hover); }
 }
 .spinner svg { width: 100%; height: 100%; }
 
-.f1-tire-rotor {
+/* F1-Reifen: Rotor beschleunigt & bremst pro Umdrehung, Lichtbogen läuft außen, Glow pulsiert */
+.f1-tire {
+  overflow: visible;
+  animation: f1-tire-glow 1.8s ease-in-out infinite;
+}
+.f1-tire-rotor,
+.f1-tire-sweep {
   transform-origin: 36px 36px;
-  animation: f1-tire-spin 0.9s linear infinite;
+}
+.f1-tire-rotor {
+  animation: f1-tire-spin 1.1s cubic-bezier(0.55, 0.1, 0.3, 1) infinite;
+}
+.f1-tire-sweep {
+  animation: f1-tire-spin 1.5s linear infinite reverse;
 }
 @keyframes f1-tire-spin { to { transform: rotate(360deg); } }
+@keyframes f1-tire-glow {
+  0%, 100% { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 35%, transparent)); }
+  50%      { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 85%, transparent)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f1-tire, .f1-tire-rotor, .f1-tire-sweep { animation-duration: 3s; }
+}
 
 /* ── Page transitions ───────────────────────────────────────── */
 .page-enter {
