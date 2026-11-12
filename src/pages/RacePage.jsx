@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { calcPlayerPointsSafe } from '../lib/points'
 import PointsError from '../components/ui/PointsError'
 import PlayerPicksCard, { PlayerPicksGrid } from '../components/race/PlayerPicksCard'
-import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides, fetchConstructorsById, applyPickTeams } from '../lib/teams'
 import { useAuthStore } from '../stores/authStore'
 import { useLiveRace, mapLivePositionsToDriverIds, mapLiveTyresToDriverIds, TYRE_COLORS, TYRE_SHORT } from '../hooks/useLiveRace'
 import { useSessionResults } from '../hooks/useSessionResults'
@@ -114,6 +114,8 @@ export default function RacePage() {
   const [profiles, setProfiles] = useState([])
   const [draftOrder, setDraftOrder] = useState([])
   const [allDrivers, setAllDrivers] = useState([])
+  const [teamOverrides, setTeamOverrides] = useState([])
+  const [constructorsById, setConstructorsById] = useState({})
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('picks')
 
@@ -155,7 +157,10 @@ export default function RacePage() {
       const { data: season } = await supabase.from('seasons').select('id').eq('is_active', true).single()
       if (season) {
         const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name, number, abbreviation, constructor_id').eq('season_id', season.id)
-        setAllDrivers(applyTeamOverrides(drivers ?? [], await fetchTeamOverrides(id)))
+        const ov = await fetchTeamOverrides(id)
+        setAllDrivers(applyTeamOverrides(drivers ?? [], ov))
+        setTeamOverrides(ov)
+        setConstructorsById(await fetchConstructorsById())
       }
     }
     setLoading(false)
@@ -196,7 +201,7 @@ export default function RacePage() {
     : profiles
 
   const playerPoints = orderedProfiles.map(player => {
-    const playerPicks = picks.filter(p => p.profile_id === player.id)
+    const playerPicks = applyPickTeams(picks, teamOverrides, constructorsById).filter(p => p.profile_id === player.id)
     const pts = calcPlayerPointsSafe(playerPicks, activeRaceMap, activeSprintMap, weekend.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })

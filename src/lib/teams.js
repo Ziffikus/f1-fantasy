@@ -126,3 +126,43 @@ export async function fetchTeamOverridesByWeekend() {
   for (const o of await loadRows(null)) (map[o.race_weekend_id] ??= []).push(o)
   return map
 }
+
+// ============================================================
+// Teamfarben je Wochenende
+// Die Farbe um einen Fahrer (Draft, Dashboard, Kalender, Rennseite) kommt vom Team,
+// für das er AM WOCHENENDE fährt – nicht vom Standardteam in drivers.constructor_id.
+// ============================================================
+let _constructorsPromise = null
+
+/** Alle Teams als { [id]: team } (einmal geladen und gecacht) */
+export function fetchConstructorsById() {
+  _constructorsPromise ??= supabase.from('constructors').select('*').then(({ data, error }) => {
+    if (error) { console.warn('Teams nicht ladbar:', error.message); _constructorsPromise = null; return {} }
+    return Object.fromEntries((data ?? []).map(c => [c.id, c]))
+  })
+  return _constructorsPromise
+}
+
+/** Fahrer-Objekt mit wochenendspezifischem Team (constructor_id + constructors{ name, short_name, color, … }) */
+export function withEffectiveTeam(driver, overrides = [], constructorsById = {}) {
+  if (!driver) return driver
+  const cid = getEffectiveConstructorId(driver, overrides)
+  const team = cid != null ? constructorsById[cid] : null
+  if (!team || Number(cid) === Number(driver.constructor_id) && driver.constructors) return driver
+  return { ...driver, constructor_id: team.id, constructors: { ...(driver.constructors ?? {}), ...team } }
+}
+
+/** Fahrer-Picks: pick.drivers bekommt das Team (und damit die Farbe) des Wochenendes */
+export function applyPickTeams(picks, overrides = [], constructorsById = {}) {
+  if (!overrides?.length) return picks ?? []
+  return (picks ?? []).map(p =>
+    p.pick_type === 'driver' && p.drivers
+      ? { ...p, drivers: withEffectiveTeam(p.drivers, overrides, constructorsById) }
+      : p)
+}
+
+/** Fahrerliste (z. B. Draft-Pool) mit wochenendspezifischem Team */
+export function applyDriverTeams(drivers, overrides = [], constructorsById = {}) {
+  if (!overrides?.length) return drivers ?? []
+  return (drivers ?? []).map(d => withEffectiveTeam(d, overrides, constructorsById))
+}

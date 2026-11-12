@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { calcPlayerPointsSafe } from '../lib/points'
 import PointsError from '../components/ui/PointsError'
 import PlayerPicksCard, { PlayerPicksGrid } from '../components/race/PlayerPicksCard'
-import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides } from '../lib/teams'
+import { applyTeamOverrides, applyDriverSubs, fetchTeamOverrides, fetchConstructorsById, applyPickTeams } from '../lib/teams'
 import { Trophy, Calendar, Shuffle, ChevronRight, Flag, Zap, Gamepad2 } from 'lucide-react'
 import './DashboardPage.css'
 
@@ -31,6 +31,8 @@ function DashboardLastRace({ w, standings = [] }) {
   const [draftOrder, setDraftOrder] = useState([])
   const [profiles, setProfiles] = useState([])
   const [allDrivers, setAllDrivers] = useState([])
+  const [teamOverrides, setTeamOverrides] = useState([])
+  const [constructorsById, setConstructorsById] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -54,7 +56,10 @@ function DashboardLastRace({ w, standings = [] }) {
         const { data: drivers } = await supabase.from('drivers')
           .select('id, first_name, last_name, number, abbreviation, constructor_id')
           .eq('season_id', season.id)
-        setAllDrivers(applyTeamOverrides(drivers ?? [], await fetchTeamOverrides(w.id)))
+        const ov = await fetchTeamOverrides(w.id)
+        setAllDrivers(applyTeamOverrides(drivers ?? [], ov))
+        setTeamOverrides(ov)
+        setConstructorsById(await fetchConstructorsById())
       }
       setPicks(p ?? [])
       setResults(res ?? [])
@@ -80,7 +85,7 @@ function DashboardLastRace({ w, standings = [] }) {
     : profiles
 
   const playerPoints = orderedProfiles.map(player => {
-    const playerPicks = picks.filter(p => p.profile_id === player.id)
+    const playerPicks = applyPickTeams(picks, teamOverrides, constructorsById).filter(p => p.profile_id === player.id)
     const pts = calcPlayerPointsSafe(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })

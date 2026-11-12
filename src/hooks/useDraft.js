@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
+import { fetchTeamOverrides, fetchConstructorsById, applyPickTeams, applyDriverTeams } from '../lib/teams'
 
 /**
  * Sendet einen Push nur wenn draft_push_paused != true.
@@ -30,8 +31,13 @@ async function sendPushIfEnabled(body) {
 export function useDraft(raceWeekendId) {
   const { profile } = useAuthStore()
   const [draftOrder, setDraftOrder] = useState([])
-  const [picks, setPicks] = useState([])
-  const [drivers, setDrivers] = useState([])
+  const [rawPicks, setPicks] = useState([])
+  const [rawDrivers, setDrivers] = useState([])
+  const [teamOverrides, setTeamOverrides] = useState([])
+  const [constructorsById, setConstructorsById] = useState({})
+  // Farbe/Team der Fahrer = Team am Wochenende (Team-Wechsel / Ersatzfahrer berücksichtigt)
+  const picks = useMemo(() => applyPickTeams(rawPicks, teamOverrides, constructorsById), [rawPicks, teamOverrides, constructorsById])
+  const drivers = useMemo(() => applyDriverTeams(rawDrivers, teamOverrides, constructorsById), [rawDrivers, teamOverrides, constructorsById])
   const [constructors, setConstructors] = useState([])
   const [loading, setLoading] = useState(true)
   // Verhindert Doppel-Push: speichert fuer wie viele Picks bereits ein Push gesendet wurde.
@@ -195,6 +201,9 @@ export function useDraft(raceWeekendId) {
     }
     setDrivers(pool)
     setConstructors(c ?? [])
+    const [ov, byId] = await Promise.all([fetchTeamOverrides(raceWeekendId), fetchConstructorsById()])
+    setTeamOverrides(ov)
+    setConstructorsById(byId)
   }
 
   const numPlayers = draftOrder.length
