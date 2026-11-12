@@ -85,7 +85,7 @@ function DashboardLastRace({ w, standings = [] }) {
     : profiles
 
   const playerPoints = orderedProfiles.map(player => {
-    const playerPicks = applyPickTeams(picks, teamOverrides, constructorsById).filter(p => p.profile_id === player.id)
+    const playerPicks = applyPickTeams(picks, teamOverrides, constructorsById, allDrivers).filter(p => p.profile_id === player.id)
     const pts = calcPlayerPointsSafe(playerPicks, raceResultMap, sprintResultMap, w.is_sprint_weekend, allDrivers)
     return { player, playerPicks, ...pts }
   })

@@ -36,7 +36,7 @@ export function useDraft(raceWeekendId) {
   const [teamOverrides, setTeamOverrides] = useState([])
   const [constructorsById, setConstructorsById] = useState({})
   // Farbe/Team der Fahrer = Team am Wochenende (Team-Wechsel / Ersatzfahrer berücksichtigt)
-  const picks = useMemo(() => applyPickTeams(rawPicks, teamOverrides, constructorsById), [rawPicks, teamOverrides, constructorsById])
+  const picks = useMemo(() => applyPickTeams(rawPicks, teamOverrides, constructorsById, rawDrivers), [rawPicks, teamOverrides, constructorsById, rawDrivers])
   const drivers = useMemo(() => applyDriverTeams(rawDrivers, teamOverrides, constructorsById), [rawDrivers, teamOverrides, constructorsById])
   const [constructors, setConstructors] = useState([])
   const [loading, setLoading] = useState(true)

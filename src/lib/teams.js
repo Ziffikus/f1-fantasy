@@ -143,26 +143,41 @@ export function fetchConstructorsById() {
   return _constructorsPromise
 }
 
+/**
+ * Team-ID für die FARBE eines Fahrers am Wochenende:
+ *  1. Ergebnis-Ersatz („Ergebnis übertragen"): der Fahrer zählt wie sein Ersatz → Team des Ersatzes
+ *  2. sonst Team-Wechsel / Standardteam
+ */
+export function getColorConstructorId(driver, overrides = [], allDrivers = []) {
+  const sub = overrides.find(o => o.kind === 'sub' && sameDriver(o, driver))
+  if (sub) {
+    const subDriver = (allDrivers ?? []).find(d => Number(d.id) === Number(sub.substitute_driver_id))
+    const cid = getEffectiveConstructorId({ id: sub.substitute_driver_id, constructor_id: subDriver?.constructor_id ?? null }, overrides)
+    if (cid != null) return Number(cid)
+  }
+  return getEffectiveConstructorId(driver, overrides)
+}
+
 /** Fahrer-Objekt mit wochenendspezifischem Team (constructor_id + constructors{ name, short_name, color, … }) */
-export function withEffectiveTeam(driver, overrides = [], constructorsById = {}) {
+export function withEffectiveTeam(driver, overrides = [], constructorsById = {}, allDrivers = []) {
   if (!driver) return driver
-  const cid = getEffectiveConstructorId(driver, overrides)
+  const cid = getColorConstructorId(driver, overrides, allDrivers)
   const team = cid != null ? constructorsById[cid] : null
-  if (!team || Number(cid) === Number(driver.constructor_id) && driver.constructors) return driver
+  if (!team || (Number(cid) === Number(driver.constructor_id) && driver.constructors)) return driver
   return { ...driver, constructor_id: team.id, constructors: { ...(driver.constructors ?? {}), ...team } }
 }
 
 /** Fahrer-Picks: pick.drivers bekommt das Team (und damit die Farbe) des Wochenendes */
-export function applyPickTeams(picks, overrides = [], constructorsById = {}) {
+export function applyPickTeams(picks, overrides = [], constructorsById = {}, allDrivers = []) {
   if (!overrides?.length) return picks ?? []
   return (picks ?? []).map(p =>
     p.pick_type === 'driver' && p.drivers
-      ? { ...p, drivers: withEffectiveTeam(p.drivers, overrides, constructorsById) }
+      ? { ...p, drivers: withEffectiveTeam(p.drivers, overrides, constructorsById, allDrivers) }
       : p)
 }
 
 /** Fahrerliste (z. B. Draft-Pool) mit wochenendspezifischem Team */
-export function applyDriverTeams(drivers, overrides = [], constructorsById = {}) {
+export function applyDriverTeams(drivers, overrides = [], constructorsById = {}, allDrivers = drivers) {
   if (!overrides?.length) return drivers ?? []
-  return (drivers ?? []).map(d => withEffectiveTeam(d, overrides, constructorsById))
+  return (drivers ?? []).map(d => withEffectiveTeam(d, overrides, constructorsById, allDrivers))
 }
