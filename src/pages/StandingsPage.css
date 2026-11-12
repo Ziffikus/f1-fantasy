@@ -589,3 +589,75 @@
   .chart-wrap { padding: 0.75rem 0.25rem 0.5rem; }
   .chart-subtitle { display: none; }
 }
+
+/* ── Aufklappbare Renn-Details (Klick auf ein Rennfeld) ───────── */
+.standings-race-cell--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.standings-race-cell--clickable:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.standings-race-cell--clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.standings-race-cell--open {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated)) !important;
+}
+
+.standings-race-detail {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  animation: fadeUp 0.25s ease both;
+}
+.standings-race-detail-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+.standings-race-detail-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.standings-race-detail-round {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.standings-race-detail-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.standings-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.standings-detail-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.standings-detail-btn--on {
+  border-color: var(--accent);
+  color: var(--accent);
+}

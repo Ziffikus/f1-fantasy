@@ -7,8 +7,9 @@ import { useLiveStandings } from '../hooks/useLiveStandings'
 import { supabase } from '../lib/supabase'
 import { calcPlayerPointsSafe } from '../lib/points'
 import PointsError from '../components/ui/PointsError'
+import RaceWeekendPicks from '../components/race/RaceWeekendPicks'
 import { getTeamDrivers, applySubstituteResults, fetchTeamOverridesByWeekend } from '../lib/teams'
-import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2 } from 'lucide-react'
+import { Trophy, Medal, Flag, ChevronDown, ChevronUp, Radio, Gamepad2, Users, ExternalLink, X } from 'lucide-react'
 import './StandingsPage.css'
 
 function useRaceResults() {
@@ -520,6 +521,8 @@ export default function StandingsPage() {
       .then(({ data }) => setGamingChamp(data?.profile_id ?? null))
   }, [])
   const [expanded, setExpanded] = useState(null)
+  const [openRace, setOpenRace] = useState(null)   // { profileId, weekendId } → aufgeklapptes Rennen eines Spielers
+  const [showAllPlayers, setShowAllPlayers] = useState(false)
 
   const { isLive, sessionType, lastUpdate, liveWeekend, getLiveTotal, getLiveRoundPoints } =
     useLiveStandings(weekends, standings)
@@ -640,7 +643,7 @@ export default function StandingsPage() {
             <div key={player.profile_id} className="standings-grid-group">
               <div
                 className={`standings-grid-row standings-row ${player.profile_id === profile?.id ? 'standings-row--me' : ''} ${expanded === player.profile_id ? 'standings-row--expanded' : ''}`}
-                onClick={() => setExpanded(expanded === player.profile_id ? null : player.profile_id)}
+                onClick={() => { setExpanded(expanded === player.profile_id ? null : player.profile_id); setOpenRace(null); setShowAllPlayers(false) }}
               >
                 <div className="standings-col-rank">
                   <span className={`pos-badge ${i < 3 ? `pos-${i+1}` : ''}`}
@@ -697,8 +700,21 @@ export default function StandingsPage() {
                       const rp = matrix[player.profile_id]?.[w.round]
                       const isLiveRound = isLive && liveWeekend?.id === w.id
                       const livePts = isLiveRound ? getLiveRoundPoints(player.profile_id) : null
+                      const isOpen = openRace?.profileId === player.profile_id && openRace?.weekendId === w.id
+                      const toggleRace = () => {
+                        setOpenRace(isOpen ? null : { profileId: player.profile_id, weekendId: w.id })
+                        setShowAllPlayers(false)
+                      }
                       return (
-                        <div key={w.id} className={`standings-race-cell ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}>
+                        <div
+                          key={w.id}
+                          role="button"
+                          tabIndex={0}
+                          title="Picks & Punkte dieses Rennens anzeigen"
+                          onClick={toggleRace}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRace() } }}
+                          className={`standings-race-cell standings-race-cell--clickable ${isOpen ? 'standings-race-cell--open' : ''} ${rp?.weekend_rank === 1 ? 'standings-race-win' : ''} ${isLiveRound ? 'standings-race-cell--live' : ''}`}
+                        >
                           <FlagIcon emoji={w.flag_emoji} size={20} className="standings-race-flag" />
                           <span className="standings-race-city">{w.city}</span>
                           <span className="standings-race-pts">
@@ -717,6 +733,42 @@ export default function StandingsPage() {
                       </p>
                     )}
                   </div>
+
+                  {/* Picks & Punkte des angeklickten Rennens */}
+                  {openRace?.profileId === player.profile_id && (() => {
+                    const ow = completedWeekends.find(x => x.id === openRace.weekendId)
+                    if (!ow) return null
+                    return (
+                      <div className="standings-race-detail">
+                        <div className="standings-race-detail-head">
+                          <FlagIcon emoji={ow.flag_emoji} size={16} className="standings-race-flag" />
+                          <span className="standings-race-detail-title">{ow.name}</span>
+                          <span className="standings-race-detail-round">R{ow.round}</span>
+                          <div className="standings-race-detail-actions">
+                            <button
+                              type="button"
+                              className={`standings-detail-btn ${showAllPlayers ? 'standings-detail-btn--on' : ''}`}
+                              onClick={() => setShowAllPlayers(v => !v)}
+                            >
+                              <Users size={13} /> {showAllPlayers ? 'Nur ' + player.display_name : 'Alle Spieler'}
+                            </button>
+                            <button type="button" className="standings-detail-btn" onClick={() => navigate(`/rennen/${ow.id}`)}>
+                              <ExternalLink size={13} /> Rennseite
+                            </button>
+                            <button type="button" className="standings-detail-btn" aria-label="Schließen" onClick={() => setOpenRace(null)}>
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                        <RaceWeekendPicks
+                          key={ow.id}
+                          w={ow}
+                          standings={standings}
+                          playerId={showAllPlayers ? null : player.profile_id}
+                        />
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
