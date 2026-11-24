@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useStandings } from '../hooks/useStandings'
 import './HistoryPage.css'
 
 // Vergangene Saisons – manuell gepflegt
@@ -60,36 +61,30 @@ function SeasonCard({ year, results, live = false }) {
 }
 
 export default function HistoryPage() {
-  const [liveSeason, setLiveSeason] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Gleiche Quelle wie Wertung & Dashboard (useStandings → lib/points.js),
+  // damit Punkte, Ersatzfahrer und Team-Wechsel überall identisch gewertet werden.
+  const { standings, loading: standingsLoading } = useStandings()
+  const [seasonYear, setSeasonYear] = useState(null)
+  const [seasonLoading, setSeasonLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const { data: season } = await supabase
-        .from('seasons').select('id, year').eq('is_active', true).single()
-      if (!season) { setLoading(false); return }
-
-      const { data: standings } = await supabase
-        .from('overall_standings')
-        .select('profile_id, display_name, avatar_url, total_points, wins, second_places, third_places, races_played')
-        .order('total_points', { ascending: true })
-
-      if (standings?.length) {
-        setLiveSeason({
-          year: season.year,
-          results: standings.map((s, i) => ({
-            rank: i + 1,
-            name: s.display_name,
-            avatar_url: s.avatar_url,
-            points: Number(s.total_points),
-            wins: s.wins,
-          }))
-        })
-      }
-      setLoading(false)
-    }
-    load()
+    supabase.from('seasons').select('year').eq('is_active', true).single()
+      .then(({ data }) => { setSeasonYear(data?.year ?? null); setSeasonLoading(false) })
   }, [])
+
+  const loading = standingsLoading || seasonLoading
+  const liveSeason = seasonYear && standings.length
+    ? {
+        year: seasonYear,
+        results: standings.map((s, i) => ({
+          rank: i + 1,
+          name: s.display_name,
+          avatar_url: s.avatar_url,
+          points: Number(s.total_points),
+          wins: s.wins,
+        })),
+      }
+    : null
 
   return (
     <div className="history-root">
